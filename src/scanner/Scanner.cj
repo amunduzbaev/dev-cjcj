@@ -1,10 +1,10 @@
-package CangjieCompiler
+package cjcj.scanner
 
 import std.collection.*
 import std.convert.*
 import std.ast.Position
 
-class Scanner {
+public class Scanner {
     private let source: Array<Rune>
 
     private let tokens: ArrayList<Token> = ArrayList<Token>()
@@ -18,7 +18,7 @@ class Scanner {
     private static let keywords = HashMap<String, TokenKind>()
 
 
-    init(source: Array<Rune>) {
+    public init(source: Array<Rune>) {
         this.source = source
 
         keywords["is"] = TokenKind.IS
@@ -88,7 +88,7 @@ class Scanner {
         keywords["()"] = TokenKind.UNIT_LITERAL
     }
 
-    func scanTokens() {
+    public func scanTokens() {
         while (!isAtEnd()) {
             start = current
             scanToken()

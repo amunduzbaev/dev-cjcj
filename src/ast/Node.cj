@@ -1,10 +1,9 @@
 package cjcj.ast
 
-import std.collection.ArrayList
+import cjcj.scanner.TokenKind
+import cjcj.scanner.Token
 
-/** Temporary imports while waiting for the scanner */
-import std.ast.TokenKind
-import std.ast.Token
+import std.collection.ArrayList
 
 enum StringKind {
     NORMAL | JSTRING | MULTILINE | MULTILINE_RAW

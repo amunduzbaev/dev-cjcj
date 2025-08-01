@@ -1,10 +1,8 @@
 package cjcj.ast
 
 import cjcj.printUtils.PrintUtils
-
-// Temporary imports to not have compilation errors.
-import std.ast.Token
-import std.ast.TokenKind
+import cjcj.scanner.Token
+import cjcj.scanner.TokenKind
 
 public abstract class Expr <: Node {
     init() {

@@ -3,7 +3,7 @@
     "configurations": [
         {
             "name": "Cangjie (CJNative): launch",
-            "program": "/home/aliel/CangjieCompiler/target/debug/bin/main",
+            "program": "/home/eric/Desktop/cangjie/proj/cjcj/target/debug/bin/main",
             "request": "launch",
             "type": "cangjieDebug",
             "externalConsole": false,

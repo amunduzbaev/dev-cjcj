@@ -1,0 +1,582 @@
+package cjcj
+
+import std.deriving.*
+
+/* ===== Emitted by MacroCall @Derive in TokenKind.cj:5:1 ===== */
+/* 5.1 */enum TokenKind {
+/* 5.2 */    DOT
+/* 5.3 */    |
+/* 5.4 */    COMMA
+/* 5.5 */    |
+/* 5.6 */    LPAREN
+/* 5.7 */    |
+/* 5.8 */    RPAREN
+/* 5.9 */    |
+/* 5.10 */    LSQUARE
+/* 5.11 */    |
+/* 5.12 */    RSQUARE
+/* 5.13 */    |
+/* 5.14 */    LCURL
+/* 5.15 */    |
+/* 5.16 */    RCURL
+/* 5.17 */    |
+/* 5.18 */    EXP
+/* 5.19 */    |
+/* 5.20 */    MUL
+/* 5.21 */    |
+/* 5.22 */    MOD
+/* 5.23 */    |
+/* 5.24 */    DIV
+/* 5.25 */    |
+/* 5.26 */    ADD
+/* 5.27 */    |
+/* 5.28 */    SUB
+/* 5.29 */    |
+/* 5.30 */    INCR
+/* 5.31 */    |
+/* 5.32 */    DECR
+/* 5.33 */    |
+/* 5.34 */    AND
+/* 5.35 */    |
+/* 5.36 */    OR
+/* 5.37 */    |
+/* 5.38 */    NOT
+/* 5.39 */    |
+/* 5.40 */    BITAND
+/* 5.41 */    |
+/* 5.42 */    BITOR
+/* 5.43 */    |
+/* 5.44 */    BITXOR
+/* 5.45 */    |
+/* 5.46 */    BITNOT
+/* 5.47 */    |
+/* 5.48 */    LSHIFT
+/* 5.49 */    |
+/* 5.50 */    RSHIFT
+/* 5.51 */    |
+/* 5.52 */    COLON
+/* 5.53 */    |
+/* 5.54 */    SEMI
+/* 5.55 */    |
+/* 5.56 */    ASSIGN
+/* 5.57 */    |
+/* 5.58 */    ADD_ASSIGN
+/* 5.59 */    |
+/* 5.60 */    SUB_ASSIGN
+/* 5.61 */    |
+/* 5.62 */    MUL_ASSIGN
+/* 5.63 */    |
+/* 5.64 */    DIV_ASSIGN
+/* 5.65 */    |
+/* 5.66 */    MOD_ASSIGN
+/* 5.67 */    |
+/* 5.68 */    BACKARROW
+/* 5.69 */    |
+/* 5.70 */    
+/* 5.71 */    
+/* 5.72 */    HASH
+/* 5.73 */    |
+/* 5.74 */    QUEST
+/* 5.75 */    |
+/* 5.76 */    LT
+/* 5.77 */    |
+/* 5.78 */    GT
+/* 5.79 */    |
+/* 5.80 */    LE
+/* 5.81 */    |
+/* 5.82 */    GE
+/* 5.83 */    |
+/* 5.84 */    IS
+/* 5.85 */    |
+/* 5.86 */    AS
+/* 5.87 */    |
+/* 5.88 */    NOTEQ
+/* 5.89 */    |
+/* 5.90 */    EQUAL
+/* 5.91 */    |
+/* 5.92 */    WILDCARD
+/* 5.93 */    |
+/* 5.94 */    INT8
+/* 5.95 */    |
+/* 5.96 */    INT16
+/* 5.97 */    |
+/* 5.98 */    INT32
+/* 5.99 */    |
+/* 5.100 */    INT64
+/* 5.101 */    |
+/* 5.102 */    INTNATIVE
+/* 5.103 */    |
+/* 5.104 */    UINT8
+/* 5.105 */    |
+/* 5.106 */    UINT16
+/* 5.107 */    |
+/* 5.108 */    UINT32
+/* 5.109 */    |
+/* 5.110 */    UINT64
+/* 5.111 */    |
+/* 5.112 */    UINTNATIVE
+/* 5.113 */    |
+/* 5.114 */    FLOAT16
+/* 5.115 */    |
+/* 5.116 */    FLOAT32
+/* 5.117 */    |
+/* 5.118 */    FLOAT64
+/* 5.119 */    |
+/* 5.120 */    RUNE
+/* 5.121 */    |
+/* 5.122 */    BOOLEAN
+/* 5.123 */    |
+/* 5.124 */    NOTHING
+/* 5.125 */    |
+/* 5.126 */    UNIT
+/* 5.127 */    |
+/* 5.128 */    STRUCT
+/* 5.129 */    |
+/* 5.130 */    ENUM
+/* 5.131 */    |
+/* 5.132 */    VARRAY
+/* 5.133 */    |
+/* 5.134 */    THISTYPE
+/* 5.135 */    |
+/* 5.136 */    CLASS
+/* 5.137 */    |
+/* 5.138 */    FUNC
+/* 5.139 */    |
+/* 5.140 */    LET
+/* 5.141 */    |
+/* 5.142 */    VAR
+/* 5.143 */    |
+/* 5.144 */    CONST
+/* 5.145 */    |
+/* 5.146 */    TYPE
+/* 5.147 */    |
+/* 5.148 */    INIT
+/* 5.149 */    |
+/* 5.150 */    THIS
+/* 5.151 */    |
+/* 5.152 */    SUPER
+/* 5.153 */    |
+/* 5.154 */    IF
+/* 5.155 */    |
+/* 5.156 */    ELSE
+/* 5.157 */    |
+/* 5.158 */    DO
+/* 5.159 */    |
+/* 5.160 */    WHILE
+/* 5.161 */    |
+/* 5.162 */    RETURN
+/* 5.163 */    |
+/* 5.164 */    CONTINUE
+/* 5.165 */    |
+/* 5.166 */    BREAK
+/* 5.167 */    |
+/* 5.168 */    
+/* 5.169 */    
+/* 5.170 */    PROP
+/* 5.171 */    |
+/* 5.172 */    STATIC
+/* 5.173 */    |
+/* 5.174 */    PUBLIC
+/* 5.175 */    |
+/* 5.176 */    PRIVATE
+/* 5.177 */    |
+/* 5.178 */    INTERNAL
+/* 5.179 */    |
+/* 5.180 */    PROTECTED
+/* 5.181 */    |
+/* 5.182 */    OVERRIDE
+/* 5.183 */    |
+/* 5.184 */    ABSTRACT
+/* 5.185 */    |
+/* 5.186 */    SEALED
+/* 5.187 */    |
+/* 5.188 */    OPEN
+/* 5.189 */    |
+/* 5.190 */    INOUT
+/* 5.191 */    |
+/* 5.192 */    MUT
+/* 5.193 */    |
+/* 5.194 */    OPERATOR
+/* 5.195 */    |
+/* 5.196 */    UPPERBOUND
+/* 5.197 */    |
+/* 5.198 */    MAIN
+/* 5.199 */    |
+/* 5.200 */    IDENTIFIER
+/* 5.201 */    |
+/* 5.202 */    INTEGER_LITERAL
+/* 5.203 */    |
+/* 5.204 */    RUNE_BYTE_LITERAL
+/* 5.205 */    |
+/* 5.206 */    FLOAT_LITERAL
+/* 5.207 */    |
+/* 5.208 */    COMMENT
+/* 5.209 */    |
+/* 5.210 */    NL
+/* 5.211 */    |
+/* 5.212 */    END
+/* 5.213 */    |
+/* 5.214 */    
+/* 5.215 */    
+/* 5.216 */    RUNE_LITERAL
+/* 5.217 */    |
+/* 5.218 */    STRING_LITERAL
+/* 5.219 */    |
+/* 5.220 */    
+/* 5.221 */    
+/* 5.222 */    
+/* 5.223 */    
+/* 5.224 */    
+/* 5.225 */    
+/* 5.226 */    BOOL_LITERAL
+/* 5.227 */    |
+/* 5.228 */    UNIT_LITERAL
+/* 5.229 */    
+/* 5.230 */    
+/* 5.231 */    
+/* 5.232 */}
+/* 5.233 */extend TokenKind <: ToString {
+/* 5.234 */    public func toString(): String {
+/* 5.235 */        let sb = StringBuilder()
+/* 5.236 */        sb.append("TokenKind")
+/* 5.237 */        match(this) {
+/* 5.238 */            case DOT => sb.append(".DOT")
+/* 5.239 */            ()
+/* 5.240 */            case COMMA => sb.append(".COMMA")
+/* 5.241 */            ()
+/* 5.242 */            case LPAREN => sb.append(".LPAREN")
+/* 5.243 */            ()
+/* 5.244 */            case RPAREN => sb.append(".RPAREN")
+/* 5.245 */            ()
+/* 5.246 */            case LSQUARE => sb.append(".LSQUARE")
+/* 5.247 */            ()
+/* 5.248 */            case RSQUARE => sb.append(".RSQUARE")
+/* 5.249 */            ()
+/* 5.250 */            case LCURL => sb.append(".LCURL")
+/* 5.251 */            ()
+/* 5.252 */            case RCURL => sb.append(".RCURL")
+/* 5.253 */            ()
+/* 5.254 */            case EXP => sb.append(".EXP")
+/* 5.255 */            ()
+/* 5.256 */            case MUL => sb.append(".MUL")
+/* 5.257 */            ()
+/* 5.258 */            case MOD => sb.append(".MOD")
+/* 5.259 */            ()
+/* 5.260 */            case DIV => sb.append(".DIV")
+/* 5.261 */            ()
+/* 5.262 */            case ADD => sb.append(".ADD")
+/* 5.263 */            ()
+/* 5.264 */            case SUB => sb.append(".SUB")
+/* 5.265 */            ()
+/* 5.266 */            case INCR => sb.append(".INCR")
+/* 5.267 */            ()
+/* 5.268 */            case DECR => sb.append(".DECR")
+/* 5.269 */            ()
+/* 5.270 */            case AND => sb.append(".AND")
+/* 5.271 */            ()
+/* 5.272 */            case OR => sb.append(".OR")
+/* 5.273 */            ()
+/* 5.274 */            case NOT => sb.append(".NOT")
+/* 5.275 */            ()
+/* 5.276 */            case BITAND => sb.append(".BITAND")
+/* 5.277 */            ()
+/* 5.278 */            case BITOR => sb.append(".BITOR")
+/* 5.279 */            ()
+/* 5.280 */            case BITXOR => sb.append(".BITXOR")
+/* 5.281 */            ()
+/* 5.282 */            case BITNOT => sb.append(".BITNOT")
+/* 5.283 */            ()
+/* 5.284 */            case LSHIFT => sb.append(".LSHIFT")
+/* 5.285 */            ()
+/* 5.286 */            case RSHIFT => sb.append(".RSHIFT")
+/* 5.287 */            ()
+/* 5.288 */            case COLON => sb.append(".COLON")
+/* 5.289 */            ()
+/* 5.290 */            case SEMI => sb.append(".SEMI")
+/* 5.291 */            ()
+/* 5.292 */            case ASSIGN => sb.append(".ASSIGN")
+/* 5.293 */            ()
+/* 5.294 */            case ADD_ASSIGN => sb.append(".ADD_ASSIGN")
+/* 5.295 */            ()
+/* 5.296 */            case SUB_ASSIGN => sb.append(".SUB_ASSIGN")
+/* 5.297 */            ()
+/* 5.298 */            case MUL_ASSIGN => sb.append(".MUL_ASSIGN")
+/* 5.299 */            ()
+/* 5.300 */            case DIV_ASSIGN => sb.append(".DIV_ASSIGN")
+/* 5.301 */            ()
+/* 5.302 */            case MOD_ASSIGN => sb.append(".MOD_ASSIGN")
+/* 5.303 */            ()
+/* 5.304 */            case BACKARROW => sb.append(".BACKARROW")
+/* 5.305 */            ()
+/* 5.306 */            case HASH => sb.append(".HASH")
+/* 5.307 */            ()
+/* 5.308 */            case QUEST => sb.append(".QUEST")
+/* 5.309 */            ()
+/* 5.310 */            case LT => sb.append(".LT")
+/* 5.311 */            ()
+/* 5.312 */            case GT => sb.append(".GT")
+/* 5.313 */            ()
+/* 5.314 */            case LE => sb.append(".LE")
+/* 5.315 */            ()
+/* 5.316 */            case GE => sb.append(".GE")
+/* 5.317 */            ()
+/* 5.318 */            case IS => sb.append(".IS")
+/* 5.319 */            ()
+/* 5.320 */            case AS => sb.append(".AS")
+/* 5.321 */            ()
+/* 5.322 */            case NOTEQ => sb.append(".NOTEQ")
+/* 5.323 */            ()
+/* 5.324 */            case EQUAL => sb.append(".EQUAL")
+/* 5.325 */            ()
+/* 5.326 */            case WILDCARD => sb.append(".WILDCARD")
+/* 5.327 */            ()
+/* 5.328 */            case INT8 => sb.append(".INT8")
+/* 5.329 */            ()
+/* 5.330 */            case INT16 => sb.append(".INT16")
+/* 5.331 */            ()
+/* 5.332 */            case INT32 => sb.append(".INT32")
+/* 5.333 */            ()
+/* 5.334 */            case INT64 => sb.append(".INT64")
+/* 5.335 */            ()
+/* 5.336 */            case INTNATIVE => sb.append(".INTNATIVE")
+/* 5.337 */            ()
+/* 5.338 */            case UINT8 => sb.append(".UINT8")
+/* 5.339 */            ()
+/* 5.340 */            case UINT16 => sb.append(".UINT16")
+/* 5.341 */            ()
+/* 5.342 */            case UINT32 => sb.append(".UINT32")
+/* 5.343 */            ()
+/* 5.344 */            case UINT64 => sb.append(".UINT64")
+/* 5.345 */            ()
+/* 5.346 */            case UINTNATIVE => sb.append(".UINTNATIVE")
+/* 5.347 */            ()
+/* 5.348 */            case FLOAT16 => sb.append(".FLOAT16")
+/* 5.349 */            ()
+/* 5.350 */            case FLOAT32 => sb.append(".FLOAT32")
+/* 5.351 */            ()
+/* 5.352 */            case FLOAT64 => sb.append(".FLOAT64")
+/* 5.353 */            ()
+/* 5.354 */            case RUNE => sb.append(".RUNE")
+/* 5.355 */            ()
+/* 5.356 */            case BOOLEAN => sb.append(".BOOLEAN")
+/* 5.357 */            ()
+/* 5.358 */            case NOTHING => sb.append(".NOTHING")
+/* 5.359 */            ()
+/* 5.360 */            case UNIT => sb.append(".UNIT")
+/* 5.361 */            ()
+/* 5.362 */            case STRUCT => sb.append(".STRUCT")
+/* 5.363 */            ()
+/* 5.364 */            case ENUM => sb.append(".ENUM")
+/* 5.365 */            ()
+/* 5.366 */            case VARRAY => sb.append(".VARRAY")
+/* 5.367 */            ()
+/* 5.368 */            case THISTYPE => sb.append(".THISTYPE")
+/* 5.369 */            ()
+/* 5.370 */            case CLASS => sb.append(".CLASS")
+/* 5.371 */            ()
+/* 5.372 */            case FUNC => sb.append(".FUNC")
+/* 5.373 */            ()
+/* 5.374 */            case LET => sb.append(".LET")
+/* 5.375 */            ()
+/* 5.376 */            case VAR => sb.append(".VAR")
+/* 5.377 */            ()
+/* 5.378 */            case CONST => sb.append(".CONST")
+/* 5.379 */            ()
+/* 5.380 */            case TYPE => sb.append(".TYPE")
+/* 5.381 */            ()
+/* 5.382 */            case INIT => sb.append(".INIT")
+/* 5.383 */            ()
+/* 5.384 */            case THIS => sb.append(".THIS")
+/* 5.385 */            ()
+/* 5.386 */            case SUPER => sb.append(".SUPER")
+/* 5.387 */            ()
+/* 5.388 */            case IF => sb.append(".IF")
+/* 5.389 */            ()
+/* 5.390 */            case ELSE => sb.append(".ELSE")
+/* 5.391 */            ()
+/* 5.392 */            case DO => sb.append(".DO")
+/* 5.393 */            ()
+/* 5.394 */            case WHILE => sb.append(".WHILE")
+/* 5.395 */            ()
+/* 5.396 */            case RETURN => sb.append(".RETURN")
+/* 5.397 */            ()
+/* 5.398 */            case CONTINUE => sb.append(".CONTINUE")
+/* 5.399 */            ()
+/* 5.400 */            case BREAK => sb.append(".BREAK")
+/* 5.401 */            ()
+/* 5.402 */            case PROP => sb.append(".PROP")
+/* 5.403 */            ()
+/* 5.404 */            case STATIC => sb.append(".STATIC")
+/* 5.405 */            ()
+/* 5.406 */            case PUBLIC => sb.append(".PUBLIC")
+/* 5.407 */            ()
+/* 5.408 */            case PRIVATE => sb.append(".PRIVATE")
+/* 5.409 */            ()
+/* 5.410 */            case INTERNAL => sb.append(".INTERNAL")
+/* 5.411 */            ()
+/* 5.412 */            case PROTECTED => sb.append(".PROTECTED")
+/* 5.413 */            ()
+/* 5.414 */            case OVERRIDE => sb.append(".OVERRIDE")
+/* 5.415 */            ()
+/* 5.416 */            case ABSTRACT => sb.append(".ABSTRACT")
+/* 5.417 */            ()
+/* 5.418 */            case SEALED => sb.append(".SEALED")
+/* 5.419 */            ()
+/* 5.420 */            case OPEN => sb.append(".OPEN")
+/* 5.421 */            ()
+/* 5.422 */            case INOUT => sb.append(".INOUT")
+/* 5.423 */            ()
+/* 5.424 */            case MUT => sb.append(".MUT")
+/* 5.425 */            ()
+/* 5.426 */            case OPERATOR => sb.append(".OPERATOR")
+/* 5.427 */            ()
+/* 5.428 */            case UPPERBOUND => sb.append(".UPPERBOUND")
+/* 5.429 */            ()
+/* 5.430 */            case MAIN => sb.append(".MAIN")
+/* 5.431 */            ()
+/* 5.432 */            case IDENTIFIER => sb.append(".IDENTIFIER")
+/* 5.433 */            ()
+/* 5.434 */            case INTEGER_LITERAL => sb.append(".INTEGER_LITERAL")
+/* 5.435 */            ()
+/* 5.436 */            case RUNE_BYTE_LITERAL => sb.append(".RUNE_BYTE_LITERAL")
+/* 5.437 */            ()
+/* 5.438 */            case FLOAT_LITERAL => sb.append(".FLOAT_LITERAL")
+/* 5.439 */            ()
+/* 5.440 */            case COMMENT => sb.append(".COMMENT")
+/* 5.441 */            ()
+/* 5.442 */            case NL => sb.append(".NL")
+/* 5.443 */            ()
+/* 5.444 */            case END => sb.append(".END")
+/* 5.445 */            ()
+/* 5.446 */            case RUNE_LITERAL => sb.append(".RUNE_LITERAL")
+/* 5.447 */            ()
+/* 5.448 */            case STRING_LITERAL => sb.append(".STRING_LITERAL")
+/* 5.449 */            ()
+/* 5.450 */            case BOOL_LITERAL => sb.append(".BOOL_LITERAL")
+/* 5.451 */            ()
+/* 5.452 */            case UNIT_LITERAL => sb.append(".UNIT_LITERAL")
+/* 5.453 */            ()
+/* 5.454 */        }
+/* 5.455 */        return sb.toString()
+/* 5.456 */    }
+/* 5.457 */}
+/* 5.458 */extend TokenKind <: Equatable < TokenKind > {
+/* 5.459 */    public operator func ==(other: TokenKind): Bool {
+/* 5.460 */        return match((this, other)) {
+/* 5.461 */            case(DOT, DOT) => true
+/* 5.462 */            case(COMMA, COMMA) => true
+/* 5.463 */            case(LPAREN, LPAREN) => true
+/* 5.464 */            case(RPAREN, RPAREN) => true
+/* 5.465 */            case(LSQUARE, LSQUARE) => true
+/* 5.466 */            case(RSQUARE, RSQUARE) => true
+/* 5.467 */            case(LCURL, LCURL) => true
+/* 5.468 */            case(RCURL, RCURL) => true
+/* 5.469 */            case(EXP, EXP) => true
+/* 5.470 */            case(MUL, MUL) => true
+/* 5.471 */            case(MOD, MOD) => true
+/* 5.472 */            case(DIV, DIV) => true
+/* 5.473 */            case(ADD, ADD) => true
+/* 5.474 */            case(SUB, SUB) => true
+/* 5.475 */            case(INCR, INCR) => true
+/* 5.476 */            case(DECR, DECR) => true
+/* 5.477 */            case(AND, AND) => true
+/* 5.478 */            case(OR, OR) => true
+/* 5.479 */            case(NOT, NOT) => true
+/* 5.480 */            case(BITAND, BITAND) => true
+/* 5.481 */            case(BITOR, BITOR) => true
+/* 5.482 */            case(BITXOR, BITXOR) => true
+/* 5.483 */            case(BITNOT, BITNOT) => true
+/* 5.484 */            case(LSHIFT, LSHIFT) => true
+/* 5.485 */            case(RSHIFT, RSHIFT) => true
+/* 5.486 */            case(COLON, COLON) => true
+/* 5.487 */            case(SEMI, SEMI) => true
+/* 5.488 */            case(ASSIGN, ASSIGN) => true
+/* 5.489 */            case(ADD_ASSIGN, ADD_ASSIGN) => true
+/* 5.490 */            case(SUB_ASSIGN, SUB_ASSIGN) => true
+/* 5.491 */            case(MUL_ASSIGN, MUL_ASSIGN) => true
+/* 5.492 */            case(DIV_ASSIGN, DIV_ASSIGN) => true
+/* 5.493 */            case(MOD_ASSIGN, MOD_ASSIGN) => true
+/* 5.494 */            case(BACKARROW, BACKARROW) => true
+/* 5.495 */            case(HASH, HASH) => true
+/* 5.496 */            case(QUEST, QUEST) => true
+/* 5.497 */            case(LT, LT) => true
+/* 5.498 */            case(GT, GT) => true
+/* 5.499 */            case(LE, LE) => true
+/* 5.500 */            case(GE, GE) => true
+/* 5.501 */            case(IS, IS) => true
+/* 5.502 */            case(AS, AS) => true
+/* 5.503 */            case(NOTEQ, NOTEQ) => true
+/* 5.504 */            case(EQUAL, EQUAL) => true
+/* 5.505 */            case(WILDCARD, WILDCARD) => true
+/* 5.506 */            case(INT8, INT8) => true
+/* 5.507 */            case(INT16, INT16) => true
+/* 5.508 */            case(INT32, INT32) => true
+/* 5.509 */            case(INT64, INT64) => true
+/* 5.510 */            case(INTNATIVE, INTNATIVE) => true
+/* 5.511 */            case(UINT8, UINT8) => true
+/* 5.512 */            case(UINT16, UINT16) => true
+/* 5.513 */            case(UINT32, UINT32) => true
+/* 5.514 */            case(UINT64, UINT64) => true
+/* 5.515 */            case(UINTNATIVE, UINTNATIVE) => true
+/* 5.516 */            case(FLOAT16, FLOAT16) => true
+/* 5.517 */            case(FLOAT32, FLOAT32) => true
+/* 5.518 */            case(FLOAT64, FLOAT64) => true
+/* 5.519 */            case(RUNE, RUNE) => true
+/* 5.520 */            case(BOOLEAN, BOOLEAN) => true
+/* 5.521 */            case(NOTHING, NOTHING) => true
+/* 5.522 */            case(UNIT, UNIT) => true
+/* 5.523 */            case(STRUCT, STRUCT) => true
+/* 5.524 */            case(ENUM, ENUM) => true
+/* 5.525 */            case(VARRAY, VARRAY) => true
+/* 5.526 */            case(THISTYPE, THISTYPE) => true
+/* 5.527 */            case(CLASS, CLASS) => true
+/* 5.528 */            case(FUNC, FUNC) => true
+/* 5.529 */            case(LET, LET) => true
+/* 5.530 */            case(VAR, VAR) => true
+/* 5.531 */            case(CONST, CONST) => true
+/* 5.532 */            case(TYPE, TYPE) => true
+/* 5.533 */            case(INIT, INIT) => true
+/* 5.534 */            case(THIS, THIS) => true
+/* 5.535 */            case(SUPER, SUPER) => true
+/* 5.536 */            case(IF, IF) => true
+/* 5.537 */            case(ELSE, ELSE) => true
+/* 5.538 */            case(DO, DO) => true
+/* 5.539 */            case(WHILE, WHILE) => true
+/* 5.540 */            case(RETURN, RETURN) => true
+/* 5.541 */            case(CONTINUE, CONTINUE) => true
+/* 5.542 */            case(BREAK, BREAK) => true
+/* 5.543 */            case(PROP, PROP) => true
+/* 5.544 */            case(STATIC, STATIC) => true
+/* 5.545 */            case(PUBLIC, PUBLIC) => true
+/* 5.546 */            case(PRIVATE, PRIVATE) => true
+/* 5.547 */            case(INTERNAL, INTERNAL) => true
+/* 5.548 */            case(PROTECTED, PROTECTED) => true
+/* 5.549 */            case(OVERRIDE, OVERRIDE) => true
+/* 5.550 */            case(ABSTRACT, ABSTRACT) => true
+/* 5.551 */            case(SEALED, SEALED) => true
+/* 5.552 */            case(OPEN, OPEN) => true
+/* 5.553 */            case(INOUT, INOUT) => true
+/* 5.554 */            case(MUT, MUT) => true
+/* 5.555 */            case(OPERATOR, OPERATOR) => true
+/* 5.556 */            case(UPPERBOUND, UPPERBOUND) => true
+/* 5.557 */            case(MAIN, MAIN) => true
+/* 5.558 */            case(IDENTIFIER, IDENTIFIER) => true
+/* 5.559 */            case(INTEGER_LITERAL, INTEGER_LITERAL) => true
+/* 5.560 */            case(RUNE_BYTE_LITERAL, RUNE_BYTE_LITERAL) => true
+/* 5.561 */            case(FLOAT_LITERAL, FLOAT_LITERAL) => true
+/* 5.562 */            case(COMMENT, COMMENT) => true
+/* 5.563 */            case(NL, NL) => true
+/* 5.564 */            case(END, END) => true
+/* 5.565 */            case(RUNE_LITERAL, RUNE_LITERAL) => true
+/* 5.566 */            case(STRING_LITERAL, STRING_LITERAL) => true
+/* 5.567 */            case(BOOL_LITERAL, BOOL_LITERAL) => true
+/* 5.568 */            case(UNIT_LITERAL, UNIT_LITERAL) => true
+/* 5.569 */            case _ => false
+/* 5.570 */        }
+/* 5.571 */    }
+/* 5.572 */    public operator func !=(other: TokenKind): Bool {
+/* 5.573 */        !(this == other)
+/* 5.574 */    }
+/* 5.575 */}
+/* 5.576 */
+/* ===== End of the Emit ===== */

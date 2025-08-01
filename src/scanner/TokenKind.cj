@@ -1,10 +1,10 @@
-package CangjieCompiler
+package cjcj.scanner
 
 import std.deriving.*
 
 @Derive[ToString, Equatable]
 
-enum TokenKind {
+public enum TokenKind {
         DOT
     | /*  "."           */
         COMMA

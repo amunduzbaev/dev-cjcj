@@ -1,8 +1,8 @@
 package cjcj
 
 import cjcj.ast.Node
-import cjcj.parser.Parser
-import cjcj.parser.Reporter
+import cjcj.parser.*
+import cjcj.scanner.*
 
 import std.env.*
 import std.io.*
@@ -38,16 +38,16 @@ public class Cj {
     }
 
     private static func run(source: String) {
-        // getStdOut().writeln(source)
-        // let scanner = Scanner(source)
-        // let tokens = scanner.scanTokens()
+        getStdOut().writeln(source)
+        let scanner = Scanner(source.toRuneArray())
+        let tokens = scanner.scanTokens()
 
-        let tokens: Array<Token> = [
-            Token(TokenKind.INTEGER_LITERAL, "10"),
-            Token(TokenKind.ADD),
-            Token(TokenKind.INTEGER_LITERAL, "5"),
-            Token(TokenKind.END)
-        ]
+        // let tokens: Array<Token> = [
+        //     Token(TokenKind.INTEGER_LITERAL, "10"),
+        //     Token(TokenKind.ADD),
+        //     Token(TokenKind.INTEGER_LITERAL, "5"),
+        //     Token(TokenKind.END)
+        // ]
 
         let parser: Parser = Parser(tokens.toArray(), Reporter(getStdErr()))
         let nodes: ?Array<Node> = parser.parse()
@@ -91,5 +91,5 @@ main (args: Array<String>) {
     // } else {
     //     Cj.runPrompt()
     // }
-    Cj.runFile("cjpm.lock")
+    Cj.runFile("testcode.txt")
 }

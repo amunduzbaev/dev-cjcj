@@ -1,10 +1,9 @@
 package cjcj.parser
 
-import std.env.ConsoleWriter
+import cjcj.scanner.Token
+import cjcj.scanner.TokenKind
 
-// Temporary imports to not have compilation errors.
-import std.ast.Token
-import std.ast.TokenKind
+import std.env.ConsoleWriter
 
 public class Reporter {
     private let console: ConsoleWriter

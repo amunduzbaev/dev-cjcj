@@ -1,13 +1,12 @@
 package cjcj.parser
 
 import cjcj.ast.*
+import cjcj.scanner.Token
+import cjcj.scanner.TokenKind
 
 import std.collection.ArrayList
 import std.convert.*
 
-// Temporary imports to not have compilation errors.
-import std.ast.Token
-import std.ast.TokenKind
 
 /* Current Grammar
 program        → declaration* EOF ;
@@ -114,7 +113,7 @@ public class Parser {
     private func expressionStatement(): ?Node {
         let expr: Expr = expression()
         if (!isAtEnd() && !matches(TokenKind.SEMI, TokenKind.NL)) {
-            consume(TokenKind.ILLEGAL, "Expect ';' after expression.")
+            consume(TokenKind.SEMI, "Expect ';' after expression.")
         }
         return expr
     }
@@ -210,7 +209,6 @@ public class Parser {
             if (peek().kind == TokenKind.CLASS ||
                 peek().kind == TokenKind.FUNC ||
                 peek().kind == TokenKind.VAR ||
-                peek().kind == TokenKind.FOR ||
                 peek().kind == TokenKind.IF ||
                 peek().kind == TokenKind.WHILE ||
                 peek().kind == TokenKind.RETURN
