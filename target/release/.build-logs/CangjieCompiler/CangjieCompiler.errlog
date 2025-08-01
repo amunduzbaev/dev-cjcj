@@ -1,0 +1,9 @@
+[33mwarning[0m: property 'current' is deprecated. CurrentProcess has been marked as deprecated, use related global functions in the std.env instead.
+   [36m==>[0m /home/aliel/CangjieCompiler/src/Scanner.cj:266:21:
+    [36m| [0m
+[36m266[0m [36m| [0m            Process.current.exit(65)[0m
+    [36m| [0m                    [33m^^^^^^^ deprecated[0m
+    [36m| [0m
+    [36m#[0m [0mnote[0m: this warning can be suppressed by setting the compiler option `-Woff deprecated`
+
+1 warning generated, 1 warning printed.
