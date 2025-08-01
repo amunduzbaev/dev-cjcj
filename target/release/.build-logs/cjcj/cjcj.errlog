@@ -1,9 +1,0 @@
-[33mwarning[0m: unused variable:'args'
-  [36m==>[0m /home/eric/Desktop/cangjie/proj/cjcj/src/main.cj:83:7:
-   [36m| [0m
-[36m83[0m [36m| [0mmain (args: Array<String>) {[0m
-   [36m| [0m      [33m^^^^ unused variable[0m
-   [36m| [0m
-   [36m#[0m [0mnote[0m: this warning can be suppressed by setting the compiler option `-Woff unused`
-
-1 warning generated, 1 warning printed.
