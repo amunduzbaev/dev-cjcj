@@ -1,0 +1,38 @@
+{
+  "packageInformation": {
+    "cjcj.printUtils": {
+      "rootPackageName": "cjcj",
+      "fileNameHash": "70264779939124148",
+      "timeStamp": 1754059330,
+      "isBuilt": true,
+      "exeName": "",
+      "hasSubPkgs": false
+    },
+    "cjcj": {
+      "rootPackageName": "cjcj",
+      "fileNameHash": "470807602490220459",
+      "timeStamp": 1754059121,
+      "isBuilt": true,
+      "exeName": "main",
+      "hasSubPkgs": true
+    },
+    "cjcj.parser": {
+      "rootPackageName": "cjcj",
+      "fileNameHash": "-8926104505794789578",
+      "timeStamp": 1754057700,
+      "isBuilt": true,
+      "exeName": "",
+      "hasSubPkgs": false
+    },
+    "cjcj.ast": {
+      "rootPackageName": "cjcj",
+      "fileNameHash": "4147417345629748441",
+      "timeStamp": 1754059607,
+      "isBuilt": true,
+      "exeName": "",
+      "hasSubPkgs": false
+    }
+  },
+  "jsonHash": "-3861246204897661652",
+  "rootPackageName": "cjcj"
+}

@@ -1,0 +1,106 @@
+{
+  "resolves": [
+    {
+      "rootPackageName": "cjcj",
+      "modulePath": ".",
+      "packagePath": "/home/eric/Desktop/cangjie/proj/cjcj/src/printUtils",
+      "fullName": "cjcj.printUtils",
+      "isMacroPackage": false,
+      "output-type": "static",
+      "compile-option": "",
+      "native-compile-option": "",
+      "customized-option": {},
+      "link-option": "",
+      "native-link-option": "",
+      "requires": [],
+      "std-requires": [],
+      "c_libs": {},
+      "hasTestFiles": false,
+      "hasProdFiles": true,
+      "hasTestsInProdFiles": false,
+      "accessLevel": "public"
+    },
+    {
+      "rootPackageName": "cjcj",
+      "modulePath": ".",
+      "packagePath": "/home/eric/Desktop/cangjie/proj/cjcj/src/ast",
+      "fullName": "cjcj.ast",
+      "isMacroPackage": false,
+      "output-type": "static",
+      "compile-option": "",
+      "native-compile-option": "",
+      "customized-option": {},
+      "link-option": "",
+      "native-link-option": "",
+      "requires": [
+        "cjcj.printUtils"
+      ],
+      "std-requires": [
+        "std.ast",
+        "std.collection"
+      ],
+      "c_libs": {},
+      "hasTestFiles": false,
+      "hasProdFiles": true,
+      "hasTestsInProdFiles": false,
+      "accessLevel": "public"
+    },
+    {
+      "rootPackageName": "cjcj",
+      "modulePath": ".",
+      "packagePath": "/home/eric/Desktop/cangjie/proj/cjcj/src/parser",
+      "fullName": "cjcj.parser",
+      "isMacroPackage": false,
+      "output-type": "static",
+      "compile-option": "",
+      "native-compile-option": "",
+      "customized-option": {},
+      "link-option": "",
+      "native-link-option": "",
+      "requires": [
+        "cjcj.ast"
+      ],
+      "std-requires": [
+        "std.ast",
+        "std.collection",
+        "std.convert",
+        "std.env"
+      ],
+      "c_libs": {},
+      "hasTestFiles": false,
+      "hasProdFiles": true,
+      "hasTestsInProdFiles": false,
+      "accessLevel": "public"
+    },
+    {
+      "rootPackageName": "cjcj",
+      "modulePath": ".",
+      "packagePath": "/home/eric/Desktop/cangjie/proj/cjcj/src",
+      "fullName": "cjcj",
+      "isMacroPackage": false,
+      "output-type": "executable",
+      "compile-option": "",
+      "native-compile-option": "",
+      "customized-option": {},
+      "link-option": "",
+      "native-link-option": "",
+      "requires": [
+        "cjcj.ast",
+        "cjcj.parser"
+      ],
+      "std-requires": [
+        "std.ast",
+        "std.env",
+        "std.fs",
+        "std.io"
+      ],
+      "c_libs": {},
+      "hasTestFiles": false,
+      "hasProdFiles": true,
+      "hasTestsInProdFiles": false,
+      "accessLevel": "public"
+    }
+  ],
+  "binDeps": {},
+  "crossBinDeps": {}
+}
