@@ -31,6 +31,10 @@ public abstract class Decl <: Node {
         get() { keyword_ }
         set(v) { keyword_ = v }
     }
+
+    public override open func prettyPrint(): String {
+        "${keyword.value} ${identifier.value} "
+    }
 }
 
 public class VarDecl <: Decl {
@@ -51,6 +55,6 @@ public class VarDecl <: Decl {
     }
 
     public override func prettyPrint(): String {
-        return ""
+        "${super.prettyPrint()}${if (initializer.isSome()) {" = "} else {""}}${if (let Some(ini) <- initializer) {ini.prettyPrint()} else {""}}"
     }
 }

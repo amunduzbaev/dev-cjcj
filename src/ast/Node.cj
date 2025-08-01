@@ -1,5 +1,6 @@
 package cjcj.ast
 
+import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.scanner.TokenKind
 import cjcj.scanner.Token
 
@@ -14,20 +15,20 @@ abstract sealed class Node {
     public func prettyPrint(): String
 }
 
-public class Program <: Node {
-    private var decls_: ArrayList<Decl>
+// public class Program <: Node {
+//     private var decls_: ArrayList<Decl>
 
-    init (decls: ArrayList<Decl>) {
-        super()
-        decls_ = decls
-    }
+//     public init (decls: ArrayList<Decl>) {
+//         super()
+//         decls_ = decls
+//     }
 
-    public mut prop decls: ArrayList<Decl> {
-        get() { decls_ }
-        set(v) { decls_ = v }
-    }
+//     public mut prop decls: ArrayList<Decl> {
+//         get() { decls_ }
+//         set(v) { decls_ = v }
+//     }
 
-    public override func prettyPrint(): String {
-        ""
-    }
-}
+//     public override func prettyPrint(): String {
+//         ""
+//     }
+// }

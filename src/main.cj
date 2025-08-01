@@ -3,6 +3,7 @@ package cjcj
 import cjcj.ast.Node
 import cjcj.parser.*
 import cjcj.scanner.*
+import cjcj.prettyPrinter.PrettyPrinter
 
 import std.env.*
 import std.io.*
@@ -54,10 +55,10 @@ public class Cj {
 
         if (let Some(nodes) <- nodes) {
             for (node in nodes) {
-                println(node.prettyPrint(indent: 0))
+                node.prettyPrint()
             }
         }
-
+        println(PrettyPrinter.toString())
         // if (hadError) { return }
     }
 

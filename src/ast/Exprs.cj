@@ -23,8 +23,7 @@ public class Binary <: Expr {
     }
 
     public override func prettyPrint(): String {
-        return """
-"""
+        "${left.prettyPrint()} ${oper.value} ${right.prettyPrint()}"
     }
 }
 
@@ -36,8 +35,7 @@ public class Grouping <: Expr {
         this.expression = expression
     }
     public override func prettyPrint(): String {
-        return """
-"""
+        "${expression.prettyPrint()}"
     }
 }
 
@@ -50,8 +48,7 @@ public class Literal <: Expr {
     }
 
     public override func prettyPrint(): String {
-        return """
-"""
+        "${if (let Some(s) <- value) {s.toString()} else {""}}"
     }
 }
 
@@ -66,8 +63,7 @@ public class Unary <: Expr {
     }
 
     public override func prettyPrint(): String {
-        return """
-"""
+        "${oper.toString()}${right.prettyPrint()}"
     }
 }
 

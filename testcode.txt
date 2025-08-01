@@ -1,9 +1,1 @@
 var a = 3 + 5 * (2 + 3 / (1 + 5))
-// main(){
-//     var res = plus(1,2)
-//     var x: Int8 = 3
-//    var y: Float64 = 7.2
-//    println("1 + 2 = ${res}")
-//    res = plusPlus(1,2,3)
-//    println("1 + 2 + 3 = ${res}枚举")
-//}
