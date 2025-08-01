@@ -336,6 +336,7 @@ public class Scanner {
 
     private func addToken(typ: TokenKind, value: Array<Rune>) {
         tokens.add(Token(typ, String(value), Position(0, line, column)))
+        // print(Token(typ, String(value), Position(0, line, column)))
     }
 
 }

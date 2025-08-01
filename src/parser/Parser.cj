@@ -21,8 +21,6 @@ statement      → exprStmt
 
 exprStmt       → expression ( ";" | "\n" ) ;
 
-printStmt      → "print" expression ( ";" | "\n" ) ;
-
 expression     → assignment ;
 
 assignment     → IDENTIFIER "=" assignment
@@ -70,8 +68,27 @@ public class Parser {
         }
     }
 
-    private func expression(): Expr {
-        equality()
+    private func expression(): Node {
+        assignment()
+    }
+
+    // Right associative
+    private func assignment(): Node {
+        let expr: Node = equality()
+
+        if (matches(TokenKind.ASSIGN)) {
+            let equals: Token = previous()
+            let value: Expr = (assignment() as Expr).getOrThrow()
+
+            if (expr is VarPattern) {
+                let name: Token = (expr as VarPattern).getOrThrow().identifier
+                return Assign(name, value)
+            }
+
+            error(equals, "Invalid assignment target.")
+        }
+
+        expr
     }
 
     private func declaration(): ?Node {
@@ -104,82 +121,85 @@ public class Parser {
         let name: Token = consume(TokenKind.IDENTIFIER, "Expect variable name.")
         var initializer: ?Expr = None
         if (matches(TokenKind.ASSIGN)) {
-            initializer = Some(expression())
+            initializer = expression() as Expr
         }
-    
+        if (!isAtEnd() && !matches(TokenKind.SEMI, TokenKind.NL)) {
+            consume(TokenKind.SEMI, "Expect ';' or new line after variable declaration.")
+        }
         VarDecl(keyword, name, initializer)
     }
 
     private func expressionStatement(): ?Node {
-        let expr: Expr = expression()
+        let expr: Node = expression()
         if (!isAtEnd() && !matches(TokenKind.SEMI, TokenKind.NL)) {
-            consume(TokenKind.SEMI, "Expect ';' after expression.")
+            consume(TokenKind.SEMI, "Expect ';' or new line after expression.")
         }
         return expr
     }
 
-    private func equality(): Expr {
-        var expr: Expr = comparison()
+    private func equality(): Node {
+        var expr: Node = comparison()
 
         while (matches(TokenKind.NOTEQ, TokenKind.EQUAL)) {
             let oper: Token = previous()
-            let right: Expr = comparison()
-            expr = Binary(expr, oper, right)
+            let right: Expr = (comparison() as Expr).getOrThrow()
+            expr = Binary((expr as Expr).getOrThrow(), oper, right)
         }
         expr
     }
 
-    private func comparison(): Expr {
-        var expr: Expr = term()
+    private func comparison(): Node {
+        var expr: Node = term()
 
         while (matches(TokenKind.GT, TokenKind.GE, TokenKind.LT, TokenKind.LE)) {
             let oper: Token = previous()
-            let right: Expr = term()
-            expr = Binary(expr, oper, right)
+            let right: Expr = (term() as Expr).getOrThrow()
+            expr = Binary((expr as Expr).getOrThrow(), oper, right)
         }
         expr
     }
 
-    private func term(): Expr {
-        var expr: Expr = factor()
+    private func term(): Node {
+        var expr: Node = factor()
 
         while (matches(TokenKind.ADD, TokenKind.SUB)) {
             let oper: Token = previous()
-            let right: Expr = factor()
+            let right: Node = factor()
             expr = Binary(expr, oper, right)
         }
         expr
     }
 
-    private func factor(): Expr {
-        var expr: Expr = unary()
+    private func factor(): Node {
+        var expr: Node = unary()
 
         while (matches(TokenKind.MUL, TokenKind.DIV)) {
             let oper: Token = previous()
-            let right: Expr = unary()
-            expr = Binary(expr, oper, right)
+            let right: Expr = (unary() as Expr).getOrThrow()
+            expr = Binary((expr as Expr).getOrThrow(), oper, right)
         }
         expr
     }
 
-    private func unary(): Expr {
+    private func unary(): Node {
         if (matches(TokenKind.NOT, TokenKind.SUB)) {
             let oper: Token = previous()
-            let right: Expr = unary()
+            let right: Expr = (unary() as Expr).getOrThrow()
             return Unary(oper, right)
         }
 
         primary()
     }
 
-    private func primary(): Expr {
+    private func primary(): Node {
         if (matches(TokenKind.BOOL_LITERAL)) { return Literal(Some(Bool.parse(previous().value))) }
         if (matches(TokenKind.INTEGER_LITERAL, TokenKind.STRING_LITERAL)) { return Literal(previous().value) }
         if (matches(TokenKind.LPAREN)) {
-            let expr: Expr = expression()
+            let expr: Node = expression()
             consume(TokenKind.RPAREN, "Expect ')' after expression.")
             return Grouping(expr)
         }
+        if (matches(TokenKind.IDENTIFIER)) { return VarPattern(previous()) }     
         // if (matches(TokenKind.IDENTIFIER)) { return Variable(previous()) }         
         throw error(peek(), "Expect expression.")
     }
@@ -251,7 +271,7 @@ public class Parser {
         tokens.get(current).getOrThrow()
     }
 
-    private func previous() {
+    private func previous(): Token {
         tokens.get(current - 1).getOrThrow()
     }
 }

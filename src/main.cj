@@ -39,7 +39,7 @@ public class Cj {
     }
 
     private static func run(source: String) {
-        getStdOut().writeln(source)
+        // getStdOut().writeln(source)
         let scanner = Scanner(source.toRuneArray())
         let tokens = scanner.scanTokens()
 
@@ -56,6 +56,7 @@ public class Cj {
         if (let Some(nodes) <- nodes) {
             for (node in nodes) {
                 node.prettyPrint()
+                PrettyPrinter.append("\n")
             }
         }
         println(PrettyPrinter.toString())

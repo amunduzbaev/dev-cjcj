@@ -11,11 +11,11 @@ public abstract class Expr <: Node {
 }
 
 public class Binary <: Expr {
-    let left: Expr
+    let left: Node
     let oper: Token
-    let right: Expr
+    let right: Node
 
-    public Binary(left: Expr, oper: Token, right: Expr) {
+    public Binary(left: Node, oper: Token, right: Node) {
         super()
         this.left = left
         this.oper = oper
@@ -23,19 +23,25 @@ public class Binary <: Expr {
     }
 
     public override func prettyPrint(): String {
-        "${left.prettyPrint()} ${oper.value} ${right.prettyPrint()}"
+        left.prettyPrint()
+        PrettyPrinter.append(" ${oper.value} ")
+        right.prettyPrint()
+        ""
     }
 }
 
 public class Grouping <: Expr {
-    let expression: Expr
+    let node: Node
 
-    public Grouping(expression: Expr) {
+    public Grouping(node: Node) {
         super()
-        this.expression = expression
+        this.node = node
     }
     public override func prettyPrint(): String {
-        "${expression.prettyPrint()}"
+        PrettyPrinter.append("(")
+        node.prettyPrint()
+        PrettyPrinter.append(")")
+        ""
     }
 }
 
@@ -48,7 +54,8 @@ public class Literal <: Expr {
     }
 
     public override func prettyPrint(): String {
-        "${if (let Some(s) <- value) {s.toString()} else {""}}"
+        PrettyPrinter.append("${if (let Some(s) <- value) {s.toString()} else {""}}")
+        ""
     }
 }
 
@@ -63,7 +70,43 @@ public class Unary <: Expr {
     }
 
     public override func prettyPrint(): String {
-        "${oper.toString()}${right.prettyPrint()}"
+        PrettyPrinter.append("${oper.toString()}")
+        right.prettyPrint()
+        ""
+    }
+}
+
+public class Assign <: Expr {
+    let name: Token
+    let value: Expr
+
+    public Assign(name: Token, value: Expr) {
+        this.name = name
+        this.value = value
+    }
+
+    public override func prettyPrint(): String {
+        PrettyPrinter.append("${name.value} = ")
+        value.prettyPrint()
+        ""
+    }
+}
+
+public class Block <: Expr {
+    let nodes: Array<Node>
+
+    Block(statements: Array<Node>) {
+        this.nodes = statements
+    }
+
+    public override func prettyPrint(): String {
+        PrettyPrinter.append("{\n")
+        PrettyPrinter.indent()
+        nodes.iterator().forEach({ n => n.prettyPrint() })
+        PrettyPrinter.unindent()
+        PrettyPrinter.append("}\n")
+        // builder.toString()
+        ""
     }
 }
 
