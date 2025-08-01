@@ -1,6 +1,6 @@
 package cjcj.ast
 
-import cjcj.printUtils.PrintUtils
+import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 
@@ -22,13 +22,8 @@ public class Binary <: Expr {
         this.right = right
     }
 
-    public override func prettyPrint(indent!: Int64 = 0): String {
+    public override func prettyPrint(): String {
         return """
-Binary {
-${PrintUtils.indent(indent)}    left: ${left.prettyPrint(indent: indent + 1)}
-${PrintUtils.indent(indent)}    operator: ${oper.value}
-${PrintUtils.indent(indent)}    right: ${right.prettyPrint(indent: indent + 1)}
-${PrintUtils.indent(indent)}}
 """
     }
 }
@@ -40,11 +35,8 @@ public class Grouping <: Expr {
         super()
         this.expression = expression
     }
-    public override func prettyPrint(indent!: Int64 = 0): String {
+    public override func prettyPrint(): String {
         return """
-Grouping {
-${PrintUtils.indent(indent)}    expression: ${expression.prettyPrint(indent: indent + 1)}
-${PrintUtils.indent(indent)}}
 """
     }
 }
@@ -57,11 +49,8 @@ public class Literal <: Expr {
         this.value = value
     }
 
-    public override func prettyPrint(indent!: Int64 = 0): String {
+    public override func prettyPrint(): String {
         return """
-Literal {
-${PrintUtils.indent(indent)}    value: ${value}
-${PrintUtils.indent(indent)}}
 """
     }
 }
@@ -76,12 +65,8 @@ public class Unary <: Expr {
         this.right = right
     }
 
-    public override func prettyPrint(indent!: Int64 = 0): String {
+    public override func prettyPrint(): String {
         return """
-Unary {
-${PrintUtils.indent(indent)}    operator: ${oper.value}
-${PrintUtils.indent(indent)}    right: ${right.prettyPrint(indent: indent + 1)}
-${PrintUtils.indent(indent)}}
 """
     }
 }

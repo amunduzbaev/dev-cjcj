@@ -1,6 +1,6 @@
 package cjcj.ast
 
-import cjcj.printUtils.PrintUtils
+import cjcj.prettyPrinter.PrettyPrinter
 
 // Temporary imports to not have compilation errors.
 import cjcj.scanner.Token
@@ -50,12 +50,7 @@ public class VarDecl <: Decl {
         set(v) { initializer_ = v }
     }
 
-    public override func prettyPrint(indent!: Int64 = 0): String {
-        return """
-VarDecl {
-${PrintUtils.indent(indent)}    identifier: ${identifier.value}
-${PrintUtils.indent(indent)}    keyword: ${keyword.value}
-${PrintUtils.indent(indent)}    initializer: ${if (initializer.isSome()) {initializer.getOrThrow().prettyPrint(indent: indent + 1)} else {""}}
-"""
+    public override func prettyPrint(): String {
+        return ""
     }
 }

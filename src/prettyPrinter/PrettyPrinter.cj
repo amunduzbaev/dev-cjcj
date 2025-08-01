@@ -1,6 +1,6 @@
-package cjcj.printUtils
+package cjcj.prettyPrinter
 
-public class PrintUtils {
+public class PrettyPrinter {
     public static func indent(val: Int64): String {
         StringBuilder(r" ", val).toString()
     }

@@ -9,5 +9,12 @@
         "other": "on",
         "comments": "off",
         "strings": "on"
+    },
+    "terminal.integrated.env.linux": {
+        "CANGJIE_HOME": "/home/eric/Desktop/cangjie/tools/cangjie",
+        "CANGJIE_PATH": "/home/eric/Desktop/cangjie/tools/cangjie/bin:/home/eric/Desktop/cangjie/tools/cangjie/tools/bin:/home/eric/Desktop/cangjie/tools/cangjie/debugger/bin:/home/eric/.cjpm/bin",
+        "CANGJIE_LD_LIBRARY_PATH": "/home/eric/Desktop/cangjie/tools/cangjie/runtime/lib/linux_x86_64_llvm:/home/eric/Desktop/cangjie/tools/cangjie/tools/lib:",
+        "LD_LIBRARY_PATH": "${config:terminal.integrated.env.linux.CANGJIE_LD_LIBRARY_PATH}:${env:LD_LIBRARY_PATH}",
+        "PATH": "${config:terminal.integrated.env.linux.CANGJIE_PATH}:${env:PATH}"
     }
 }
