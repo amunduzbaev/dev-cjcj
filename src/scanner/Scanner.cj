@@ -4,6 +4,8 @@ import std.collection.*
 import std.convert.*
 import std.ast.Position
 
+import std.process.*
+
 public class Scanner {
     private let source: Array<Rune>
 
@@ -132,7 +134,11 @@ public class Scanner {
                             }else{
                                 while (peek() != r'\n' && !isAtEnd()) {advance()}
                             }
-                        } else {
+                        } else if(matches(r'*')) {
+                            cStyleComment()
+                            return
+                        
+                        }else {
                             addToken(       
                             if(matches(r'=')) {
                                 TokenKind.DIV_ASSIGN
@@ -204,8 +210,8 @@ public class Scanner {
                             }
                         )
 
-            case '\n' => if(!windowsiness() && matches(r'\n')) {
-                                addToken(TokenKind.NL)
+            case '\n' => if(!windowsiness()) {
+                                addToken(TokenKind.NL, "\\n".toRuneArray())
                                 line++
                                 column = 1
                             }
@@ -233,6 +239,32 @@ public class Scanner {
 
         }
 
+    }
+
+    private func cStyleComment() {
+        var counter = 1
+        while ( !isAtEnd() && counter > 0) {
+            if (peek() == r'\n') {
+                line++
+                column = 1
+                
+            } else if (peek() == r'/' && peekNext() == r'*') {
+                counter++
+                advance()
+                
+            } else if (peek() == r'*' && peekNext() == r'/') {
+                counter--
+                advance()
+                
+            }
+            advance()
+
+        }
+
+        if(isAtEnd() && counter > 0) {
+            println("Unterminated cStyle Comment")
+            Process.current.exit(65)
+        }
     }
 
     private func string() {
@@ -336,7 +368,7 @@ public class Scanner {
 
     private func addToken(typ: TokenKind, value: Array<Rune>) {
         tokens.add(Token(typ, String(value), Position(0, line, column)))
-        // print(Token(typ, String(value), Position(0, line, column)))
+        println(Token(typ, String(value), Position(0, line, column)))
     }
 
 }
