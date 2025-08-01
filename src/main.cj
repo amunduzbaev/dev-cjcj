@@ -8,10 +8,6 @@ import std.env.*
 import std.io.*
 import std.fs.File
 
-// Temporary imports to not have compilation errors.
-import std.ast.Token
-import std.ast.TokenKind
-
 public class Cj {
     static var hadError: Bool = false
     static var hadRuntimeError: Bool = false
