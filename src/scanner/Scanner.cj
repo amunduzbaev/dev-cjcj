@@ -4,7 +4,7 @@ import std.collection.*
 import std.convert.*
 import std.ast.Position
 
-import std.process.*
+import std.env.exit
 
 public class Scanner {
     private let source: Array<Rune>
@@ -263,7 +263,7 @@ public class Scanner {
 
         if(isAtEnd() && counter > 0) {
             println("Unterminated cStyle Comment")
-            Process.current.exit(65)
+            exit(65)
         }
     }
 
@@ -368,7 +368,6 @@ public class Scanner {
 
     private func addToken(typ: TokenKind, value: Array<Rune>) {
         tokens.add(Token(typ, String(value), Position(0, line, column)))
-        println(Token(typ, String(value), Position(0, line, column)))
     }
 
 }
