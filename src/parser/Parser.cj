@@ -26,9 +26,12 @@ parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
 statement      → exprStmt
                | ifStmt
                | whileStmt
+               | returnStmt
                | block;
 
 block          → "{" declaration* "}" ;
+
+returnStmt     → "return" expression? ";" ;
 
 ifStmt         → "if" "(" expression ")" statement
                ( "else" statement )? ;
@@ -183,10 +186,27 @@ public class Parser {
         if (matches(TokenKind.WHILE)) {
             return whileExpr()
         }
+        if (matches(TokenKind.RETURN)) {
+            return returnExpr()
+        }
         if (matches(TokenKind.LCURL)) {
             return Block(block())
         }
         return expressionStatement()
+    }
+
+    private func returnExpr(): Expr {
+        let keyword: Token = previous()
+        var value: Node = Expr()
+
+        if (!check(TokenKind.SEMI) && !check(TokenKind.NL)) {
+            value = expression()
+        }
+        if (!isAtEnd() && !matches(TokenKind.SEMI, TokenKind.NL)) {
+            consume(TokenKind.SEMI, "Expect ';' or new line after return statement.")
+        }
+
+        ReturnExpr(value, keyword)
     }
 
     private func ifExpr(): Expr {
