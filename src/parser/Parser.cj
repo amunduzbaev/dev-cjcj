@@ -17,7 +17,7 @@ declaration    → varDecl
 varDecl        → ( "var" | "let" ) IDENTIFIER ( "=" expression )? ( ";" | "\n" ) ;
 
 statement      → exprStmt
-               | printStmt ;
+               | ifStmt ;
 
 exprStmt       → expression ( ";" | "\n" ) ;
 
@@ -103,18 +103,42 @@ public class Parser {
         }
     }
 
-    private func statement(): ?Node {
-        // if (matches(TokenKind.PRINT)) {
-        //     return printStatement()
-        // }
+    private func statement(): Node {
+        if (matches(TokenKind.IF)) {
+            return ifExpr()
+        }
+        if (matches(TokenKind.LCURL)) {
+            return Block(block())
+        }
         return expressionStatement()
     }
 
-    // private func printStatement(): Statement {
-    //     let value: Expr = expression()
-    //     consume(TokenKind.SEMI, "Expect ';' after value.")
-    //     return Print(value)
-    // }
+    private func ifExpr(): Expr {
+        consume(TokenKind.LPAREN, "Expect '(' before condition.")
+        let condition: Node = expression()
+        consume(TokenKind.RPAREN, "Expect ')' after condition.")
+        skipNL()
+        consume(TokenKind.LCURL, "Expect '{' before if block.")
+        let ifBlock: Block = Block(block())
+        
+        var elseBranch: ?Expr = None
+        if (matches(TokenKind.ELSE)) {
+            elseBranch = statement() as Expr
+        }
+        IfExpr((condition as Expr).getOrThrow(), ifBlock, elseBranch)
+    }
+
+    private func block(): Array<Node> {
+        let statements = ArrayList<Node>()
+        skipNL()
+        while (!check(TokenKind.RCURL) && !isAtEnd()) {
+            statements.add(declaration().getOrThrow())
+        }
+        consume(TokenKind.RCURL, "Expect '}' after block.")
+        skipNL()
+        statements.toArray()
+    }
+
 
     private func varDeclaration(): VarDecl {
         let keyword: Token = previous()
@@ -129,7 +153,7 @@ public class Parser {
         VarDecl(keyword, name, initializer)
     }
 
-    private func expressionStatement(): ?Node {
+    private func expressionStatement(): Node {
         let expr: Node = expression()
         if (!isAtEnd() && !matches(TokenKind.SEMI, TokenKind.NL)) {
             consume(TokenKind.SEMI, "Expect ';' or new line after expression.")
@@ -273,5 +297,11 @@ public class Parser {
 
     private func previous(): Token {
         tokens.get(current - 1).getOrThrow()
+    }
+
+    private func skipNL(): Unit {
+        while(check(TokenKind.NL)) {
+            advance()
+        }
     }
 }
