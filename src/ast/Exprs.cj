@@ -6,10 +6,12 @@ import cjcj.scanner.TokenKind
 
 import std.collection.ArrayList
 
-public abstract class Expr <: Node {
-    init() {
+public open class Expr <: Node {
+    public init() {
         super()
     }
+
+    public override open func prettyPrint() { }
 }
 
 public class Binary <: Expr {
@@ -191,6 +193,22 @@ public class CallExpr <: Expr {
                 .forEach({ a => PrettyPrinter.append(", "); a.prettyPrint()})
         }
         PrettyPrinter.append(")")
+    }
+}
+
+public class ReturnExpr <: Expr {
+    let value: Node 
+    let keyword: Token
+
+    public init(value: Node, keyword: Token) {
+        this.value = value
+        this.keyword = keyword
+        // TODO: Add exception for keyword not return
+    }
+
+    public override func prettyPrint(): Unit {
+        PrettyPrinter.append(keyword.value + " ")
+        value.prettyPrint()
     }
 }
 
