@@ -4,7 +4,7 @@ import std.deriving.*
 
 @Derive[ToString, Equatable]
 
-public enum TokenKind {
+enum TokenKind {
         DOT
     | /*  "."           */
         COMMA
@@ -73,8 +73,8 @@ public enum TokenKind {
     | /*  "%="          */
         BACKARROW
     | /*  "<-"          */
-    //     DOUBLE_ARROW
-    // | /*  "=>"          */   Will be needed later for match
+        DOUBLE_ARROW
+    | /*  "=>"          */ 
         HASH
     | /*  "#"           */
         QUEST
@@ -208,7 +208,7 @@ public enum TokenKind {
         INTEGER_LITERAL
     | /*  e.g. "1"      */
         RUNE_BYTE_LITERAL
-    | /*  e.g. "b'x'"   */
+    | /*  e.g. "b'x'"   ---------------------------------------------------------------------*/
         FLOAT_LITERAL
     | /*  e.g. "'1.0'"  */
         COMMENT
@@ -220,10 +220,10 @@ public enum TokenKind {
     //     SENTINEL                     SAME AS SEMICOLON
     // | /*  ";"             */
         RUNE_LITERAL
-    | /*  e.g. "r'x'"      */
+    | /*  e.g. "r'x'"      ----------------------------------------------------------------------*/
         STRING_LITERAL
     | /*  e.g. ""xx""     */
-    //     SINGLE_QUOTED_STRING_LITERAL     ADD LATER, FOCUS ON NORMAL STRINGS FIRST
+    //     SINGLE_QUOTED_STRING_LITERAL     ADD LATER
     // | /*  e.g. "'xx'"     */
     //     MULTILINE_STRING
     // | /*  e.g. """"aaa""""   */
