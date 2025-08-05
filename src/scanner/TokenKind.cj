@@ -1,5 +1,6 @@
 package cjcj.scanner
 
+
 import std.deriving.*
 
 @Derive[ToString, Equatable]
@@ -171,8 +172,8 @@ enum TokenKind {
     | /*  "continue"    */
         BREAK
     | /*  "break"       */
-    //     MATCH
-    // | /*  "match"       */ Not a priority
+        MATCH
+    | /*  "match"       */ 
         PROP
     | /*  "prop"        */
         STATIC
@@ -208,7 +209,7 @@ enum TokenKind {
         INTEGER_LITERAL
     | /*  e.g. "1"      */
         RUNE_BYTE_LITERAL
-    | /*  e.g. "b'x'"   ---------------------------------------------------------------------*/
+    | /*  e.g. "b'x'"   */
         FLOAT_LITERAL
     | /*  e.g. "'1.0'"  */
         COMMENT
@@ -217,18 +218,20 @@ enum TokenKind {
     | /*  newline         */
         END
     | /*  end of file     */
-    //     SENTINEL                     SAME AS SEMICOLON
-    // | /*  ";"             */
         RUNE_LITERAL
-    | /*  e.g. "r'x'"      ----------------------------------------------------------------------*/
+    | /*  e.g. "r'x'"       */
         STRING_LITERAL
     | /*  e.g. ""xx""     */
-    //     SINGLE_QUOTED_STRING_LITERAL     ADD LATER
+
+
+    //     SINGLE_QUOTED_STRING_LITERAL
     // | /*  e.g. "'xx'"     */
     //     MULTILINE_STRING
     // | /*  e.g. """"aaa""""   */
     //     MULTILINE_RAW_STRING
     // | /*  e.g. "#"aaa"#"     */
+
+
         BOOL_LITERAL
     | /*  "true" or "false"  */
         UNIT_LITERAL
