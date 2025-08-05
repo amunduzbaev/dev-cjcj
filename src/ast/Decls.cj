@@ -38,7 +38,7 @@ public abstract class Decl <: Node {
     }
 
     public override open func prettyPrint() {
-        PrettyPrinter.append("${if (keyword.kind != TokenKind.ILLEGAL) {keyword.value} else {""}}${identifier.value} ")
+        PrettyPrinter.append("${if (keyword.kind != TokenKind.ILLEGAL) {keyword.value} else {""}} ")
     }
 }
 
@@ -74,6 +74,8 @@ public class VarDecl <: Decl {
         super.prettyPrint()
         if (let Some(dtype) <- declType) {
             dtype.prettyPrint()
+        } else {
+            PrettyPrinter.append(identifier.value)
         }
         PrettyPrinter.append("${if (initializer.isSome()) {" = "} else {""}}")
         if (let Some(ini) <- initializer) {ini.prettyPrint()}
@@ -81,7 +83,7 @@ public class VarDecl <: Decl {
 }
 
 public class FuncParam <: Decl {
-    let paramType: TypeNode
+    public let paramType: TypeNode
 
     public init(paramType: TypeNode) {
         super()
@@ -104,8 +106,9 @@ public class FuncDecl <: Decl {
     }
 
     public override func prettyPrint() {
-        PrettyPrinter.append("func ")
+        PrettyPrinter.append("func")
         super.prettyPrint()
+        PrettyPrinter.append(identifier.value)
         PrettyPrinter.append("(")
         if (!params.isEmpty()) {
             params[0].prettyPrint()

@@ -177,7 +177,10 @@ public class Parser {
 
     private func funcParameter(): FuncParam {
         let parameterName = consume(TokenKind.IDENTIFIER, "Expect parameter name")
-        FuncParam(TypeNode(parameterName))
+        consume(TokenKind.COLON, "Expect ':' after parameter name")
+        let keyword = advance()
+        // TODO: Add check for type category.
+        FuncParam(PrimitiveType(parameterName, keyword))
     }
 
     private func statement(): Node {

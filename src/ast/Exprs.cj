@@ -170,7 +170,7 @@ public class WhileExpr <: Expr {
     public override func prettyPrint() {
         PrettyPrinter.append("while (")
         condition.prettyPrint()
-        PrettyPrinter.append(")")
+        PrettyPrinter.append(") ")
         block.prettyPrint()
     }
 }
