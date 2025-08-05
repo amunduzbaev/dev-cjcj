@@ -356,8 +356,7 @@ public class Parser {
             consume(TokenKind.RPAREN, "Expect ')' after expression.")
             return Grouping(expr)
         }
-        if (matches(TokenKind.IDENTIFIER)) { return VarPattern(previous()) }     
-        // if (matches(TokenKind.IDENTIFIER)) { return Variable(previous()) }         
+        if (matches(TokenKind.IDENTIFIER)) { return VarPattern(previous()) }
         throw error(peek(), "Expect expression.")
     }
 
@@ -374,7 +373,7 @@ public class Parser {
 
     /**
     * When we find an error we don't want to break everything and stop parsing.
-    * So we synchronize, we discard tokens utinl we find a statement boundary.
+    * So we synchronize, we discard tokens until we find a statement boundary.
     */
     private func synchronize(): Unit {
         advance()

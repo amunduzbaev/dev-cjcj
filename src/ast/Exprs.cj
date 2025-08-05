@@ -211,25 +211,3 @@ public class ReturnExpr <: Expr {
         value.prettyPrint()
     }
 }
-
-
-// public class Variable <: Expr {
-//     let name: Token
-//     let isMutable: Bool
-
-//     public Variable(name: Token, isMutable: Bool) {
-//         super()
-//         this.name = name
-//         this.isMutable = isMutable
-//     }
-
-//     public override func prettyPrint(): String {
-//         return """
-// {
-//     left: ${left.prettyPrint()}
-//     operator: ${oper.value}
-//     right: ${right.prettyPrint()}
-// }
-// """
-//     }
-// }

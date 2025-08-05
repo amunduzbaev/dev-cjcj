@@ -15,9 +15,7 @@ public class Token <: ToString {
     }
 
     public func toString(): String {
-        
         return "${kind} ${value} "
-        
     }
 
 }
