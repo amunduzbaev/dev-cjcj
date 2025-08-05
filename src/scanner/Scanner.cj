@@ -132,10 +132,6 @@ public class Scanner {
             case 'r' => if(matches(r'\'')) {
                 addToken(TokenKind.RUNE_LITERAL, advance())
             }
-
-            case 'r' => if(matches(r'\'')) {
-                addToken(TokenKind.RUNE_BYTE_LITERAL, advance())
-            }
             
             case '%' => addToken(       
                         if(matches(r'=')) {
