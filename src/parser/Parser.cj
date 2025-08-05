@@ -104,8 +104,12 @@ public class Parser {
     }
 
     private func statement(): Node {
+        skipNL()
         if (matches(TokenKind.IF)) {
             return ifExpr()
+        }
+        if (matches(TokenKind.WHILE)) {
+            return whileExpr()
         }
         if (matches(TokenKind.LCURL)) {
             return Block(block())
@@ -117,7 +121,7 @@ public class Parser {
         consume(TokenKind.LPAREN, "Expect '(' before condition.")
         let condition: Node = expression()
         consume(TokenKind.RPAREN, "Expect ')' after condition.")
-        skipNL()
+        
         consume(TokenKind.LCURL, "Expect '{' before if block.")
         let ifBlock: Block = Block(block())
         
@@ -128,14 +132,23 @@ public class Parser {
         IfExpr((condition as Expr).getOrThrow(), ifBlock, elseBranch)
     }
 
+    private func whileExpr(): Expr {
+        consume(TokenKind.LPAREN, "Expect '(' before condition.")
+        let condition: Node = expression()
+        consume(TokenKind.RPAREN, "Expect ')' after condition.")
+        consume(TokenKind.LCURL, "Expect '{' before if block.")
+        let block: Block = Block(block())
+        WhileExpr((condition as Expr).getOrThrow(), block)
+    }
+
     private func block(): Array<Node> {
         let statements = ArrayList<Node>()
-        skipNL()
+        
         while (!check(TokenKind.RCURL) && !isAtEnd()) {
             statements.add(declaration().getOrThrow())
         }
         consume(TokenKind.RCURL, "Expect '}' after block.")
-        skipNL()
+        
         statements.toArray()
     }
 
@@ -174,7 +187,6 @@ public class Parser {
 
     private func comparison(): Node {
         var expr: Node = term()
-
         while (matches(TokenKind.GT, TokenKind.GE, TokenKind.LT, TokenKind.LE)) {
             let oper: Token = previous()
             let right: Expr = (term() as Expr).getOrThrow()
@@ -185,7 +197,6 @@ public class Parser {
 
     private func term(): Node {
         var expr: Node = factor()
-
         while (matches(TokenKind.ADD, TokenKind.SUB)) {
             let oper: Token = previous()
             let right: Node = factor()
@@ -196,7 +207,6 @@ public class Parser {
 
     private func factor(): Node {
         var expr: Node = unary()
-
         while (matches(TokenKind.MUL, TokenKind.DIV)) {
             let oper: Token = previous()
             let right: Expr = (unary() as Expr).getOrThrow()
@@ -211,11 +221,11 @@ public class Parser {
             let right: Expr = (unary() as Expr).getOrThrow()
             return Unary(oper, right)
         }
-
         primary()
     }
 
     private func primary(): Node {
+        skipNL()
         if (matches(TokenKind.BOOL_LITERAL)) { return Literal(Some(Bool.parse(previous().value))) }
         if (matches(TokenKind.INTEGER_LITERAL, TokenKind.STRING_LITERAL)) { return Literal(previous().value) }
         if (matches(TokenKind.LPAREN)) {

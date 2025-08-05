@@ -138,6 +138,24 @@ public class IfExpr <: Expr {
     }
 }
 
+public class WhileExpr <: Expr {
+    let condition: Expr 
+    let block: Block
+
+    public WhileExpr(condition: Expr, block: Block) {
+        this.condition = condition
+        this.block = block
+    }
+
+    public override func prettyPrint(): String {
+        PrettyPrinter.append("while (")
+        condition.prettyPrint()
+        PrettyPrinter.append(")")
+        block.prettyPrint()
+        ""
+    }
+}
+
 // public class Variable <: Expr {
 //     let name: Token
 //     let isMutable: Bool
