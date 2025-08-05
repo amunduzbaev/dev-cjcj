@@ -4,6 +4,8 @@ import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 
+import std.collection.ArrayList
+
 public abstract class Expr <: Node {
     init() {
         super()
@@ -22,11 +24,29 @@ public class Binary <: Expr {
         this.right = right
     }
 
-    public override func prettyPrint(): String {
+    public override func prettyPrint() {
         left.prettyPrint()
         PrettyPrinter.append(" ${oper.value} ")
         right.prettyPrint()
-        ""
+    }
+}
+
+public class Logical <: Expr {
+    let left: Node
+    let oper: Token
+    let right: Node
+
+    public Logical(left: Node, oper: Token, right: Node) {
+        super()
+        this.left = left
+        this.oper = oper
+        this.right = right
+    }
+
+    public override func prettyPrint() {
+        left.prettyPrint()
+        PrettyPrinter.append(" ${oper.value} ")
+        right.prettyPrint()
     }
 }
 
@@ -37,11 +57,10 @@ public class Grouping <: Expr {
         super()
         this.node = node
     }
-    public override func prettyPrint(): String {
+    public override func prettyPrint() {
         PrettyPrinter.append("(")
         node.prettyPrint()
         PrettyPrinter.append(")")
-        ""
     }
 }
 
@@ -53,9 +72,8 @@ public class Literal <: Expr {
         this.value = value
     }
 
-    public override func prettyPrint(): String {
+    public override func prettyPrint() {
         PrettyPrinter.append("${if (let Some(s) <- value) {s.toString()} else {""}}")
-        ""
     }
 }
 
@@ -69,10 +87,9 @@ public class Unary <: Expr {
         this.right = right
     }
 
-    public override func prettyPrint(): String {
+    public override func prettyPrint() {
         PrettyPrinter.append("${oper.toString()}")
         right.prettyPrint()
-        ""
     }
 }
 
@@ -81,34 +98,102 @@ public class Assign <: Expr {
     let value: Expr
 
     public Assign(name: Token, value: Expr) {
+        super()
         this.name = name
         this.value = value
     }
 
-    public override func prettyPrint(): String {
+    public override func prettyPrint() {
         PrettyPrinter.append("${name.value} = ")
         value.prettyPrint()
-        ""
     }
 }
 
 public class Block <: Expr {
     let nodes: Array<Node>
 
-    Block(statements: Array<Node>) {
+    public Block(statements: Array<Node>) {
+        super()
         this.nodes = statements
     }
 
-    public override func prettyPrint(): String {
-        PrettyPrinter.append("{\n")
+    public override func prettyPrint() {
+        PrettyPrinter.append("{")
         PrettyPrinter.indent()
+        PrettyPrinter.append("\n")
         nodes.iterator().forEach({ n => n.prettyPrint() })
         PrettyPrinter.unindent()
-        PrettyPrinter.append("}\n")
-        // builder.toString()
-        ""
+        PrettyPrinter.append("\n}\n")
     }
 }
+
+public class IfExpr <: Expr {
+    let condition: Expr
+    let ifBlock: Block
+    let elseBranch: ?Expr
+
+    public init(condition: Expr, ifBlock: Block) {
+        this(condition, ifBlock, None)
+    }
+
+    public IfExpr(condition: Expr, ifBlock: Block, elseBranch: ?Expr) {
+        super()
+        this.condition = condition
+        this.ifBlock = ifBlock
+        this.elseBranch = elseBranch
+    }
+
+    public override func prettyPrint() {
+        PrettyPrinter.append("if (")
+        condition.prettyPrint()
+        PrettyPrinter.append(") ")
+        ifBlock.prettyPrint()
+        if (let Some(eb) <- elseBranch) {
+            PrettyPrinter.append("else ")
+            eb.prettyPrint()
+        }
+    }
+}
+
+public class WhileExpr <: Expr {
+    let condition: Expr 
+    let block: Block
+
+    public WhileExpr(condition: Expr, block: Block) {
+        super()
+        this.condition = condition
+        this.block = block
+    }
+
+    public override func prettyPrint() {
+        PrettyPrinter.append("while (")
+        condition.prettyPrint()
+        PrettyPrinter.append(")")
+        block.prettyPrint()
+    }
+}
+
+public class CallExpr <: Expr {
+    let callee: Node
+    let arguments: ArrayList<Argument>
+
+    public CallExpr(callee: Node, arguments: ArrayList<Argument>) {
+        this.callee = callee
+        this.arguments = arguments
+    }
+
+    public override func prettyPrint(): Unit {
+        callee.prettyPrint()
+        PrettyPrinter.append("(")
+        if (!arguments.isEmpty()) {
+            arguments[0].prettyPrint()
+            arguments.iterator().enumerate().filter({ a => a[0] > 0}).map({ a => a[1] })
+                .forEach({ a => PrettyPrinter.append(", "); a.prettyPrint()})
+        }
+        PrettyPrinter.append(")")
+    }
+}
+
 
 // public class Variable <: Expr {
 //     let name: Token

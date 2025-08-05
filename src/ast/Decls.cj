@@ -6,12 +6,17 @@ import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 
-public abstract class Decl <: Node {
-    protected var identifier_: Token
-    protected var keyword_: Token
+import std.ast.Position
+import std.collection.ArrayList
 
-    init (keyword: Token, identifier: Token) {
-        super()
+public abstract class Decl <: Node {
+    // TODO: Use the default token constructor.
+    protected var identifier_: Token = Token(TokenKind.ILLEGAL, "", Position())
+    protected var keyword_: Token = identifier_
+
+    init() { }
+
+    init(identifier: Token, keyword: Token) {
         identifier_ = identifier
         keyword_ = keyword
     }
@@ -32,9 +37,8 @@ public abstract class Decl <: Node {
         set(v) { keyword_ = v }
     }
 
-    public override open func prettyPrint(): String {
-        PrettyPrinter.append("${keyword.value} ${identifier.value} ")
-        ""
+    public override open func prettyPrint() {
+        PrettyPrinter.append("${if (keyword.kind != TokenKind.ILLEGAL) {keyword.value + " "} else {""}}${identifier.value} ")
     }
 }
 
@@ -45,7 +49,7 @@ public class VarDecl <: Decl {
         this(keyword, identifier, None)
     }
 
-    public init (keyword: Token, identifier: Token, initializer: ?Expr) {
+    public init(keyword: Token, identifier: Token, initializer: ?Expr) {
         super(keyword, identifier)
         initializer_ = initializer
     }
@@ -55,10 +59,48 @@ public class VarDecl <: Decl {
         set(v) { initializer_ = v }
     }
 
-    public override func prettyPrint(): String {
+    public override func prettyPrint() {
         super.prettyPrint()
         PrettyPrinter.append("${if (initializer.isSome()) {"= "} else {""}}")
         if (let Some(ini) <- initializer) {ini.prettyPrint()}
-        ""
+    }
+}
+
+public class FuncParam <: Decl {
+    let paramType: TypeNode
+
+    public init(paramType: TypeNode) {
+        super()
+        this.paramType = paramType
+    }
+
+    public override func prettyPrint() {
+        paramType.prettyPrint()
+    }
+}
+
+public class FuncDecl <: Decl {
+    let block: Block
+    let params: ArrayList<FuncParam>
+
+    public init(identifier: Token, block: Block, params: ArrayList<FuncParam>) {
+        this.block = block
+        this.params = params
+        this.identifier = identifier
+    }
+
+    public override func prettyPrint() {
+        PrettyPrinter.append("func ")
+        super.prettyPrint()
+        PrettyPrinter.append("(")
+        if (!params.isEmpty()) {
+            params[0].prettyPrint()
+            for (i in 1..params.size) {
+                PrettyPrinter.append(", ")
+                params[i].prettyPrint()
+            }
+        }
+        PrettyPrinter.append(") ")
+        block.prettyPrint()
     }
 }
