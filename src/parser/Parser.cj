@@ -47,8 +47,11 @@ term           → factor ( ( "-" | "+" ) factor )* ;
 
 factor         → unary ( ( "/" | "*" ) unary )* ;
 
-unary          → ( "!" | "-" ) unary
-               | primary ;
+unary          → ( "!" | "-" ) unary | call;
+
+call           → primary ( "(" arguments? ")" )* ;
+
+arguments      → expression ( "," expression )* ;
 
 primary        → "true" | "false" |
                | NUMBER | STRING
@@ -254,7 +257,31 @@ public class Parser {
             let right: Expr = (unary() as Expr).getOrThrow()
             return Unary(oper, right)
         }
-        primary()
+        call()
+    }
+
+    private func finishCall(callee: Node): Node {
+        let arguments: ArrayList<Argument> = ArrayList()
+        if (!check(TokenKind.RPAREN)) {
+            do {
+                arguments.add(Argument(expression()))
+            } while (matches(TokenKind.COMMA))
+        }
+
+        consume(TokenKind.RPAREN, "Expect ')' after agruments.")
+        CallExpr(callee, arguments)
+    }
+
+    private func call(): Node {
+        var expr: Node = primary()
+        while (true) {
+            if (matches(TokenKind.LPAREN)) {
+                expr = finishCall(expr)
+            } else {
+                break
+            }
+        }
+        expr
     }
 
     private func primary(): Node {

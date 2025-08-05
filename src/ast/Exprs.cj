@@ -4,6 +4,8 @@ import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 
+import std.collection.ArrayList
+
 public abstract class Expr <: Node {
     init() {
         super()
@@ -22,11 +24,10 @@ public class Binary <: Expr {
         this.right = right
     }
 
-    public override func prettyPrint(): String {
+    public override func prettyPrint() {
         left.prettyPrint()
         PrettyPrinter.append(" ${oper.value} ")
         right.prettyPrint()
-        ""
     }
 }
 
@@ -42,11 +43,10 @@ public class Logical <: Expr {
         this.right = right
     }
 
-    public override func prettyPrint(): String {
+    public override func prettyPrint() {
         left.prettyPrint()
         PrettyPrinter.append(" ${oper.value} ")
         right.prettyPrint()
-        ""
     }
 }
 
@@ -57,11 +57,10 @@ public class Grouping <: Expr {
         super()
         this.node = node
     }
-    public override func prettyPrint(): String {
+    public override func prettyPrint() {
         PrettyPrinter.append("(")
         node.prettyPrint()
         PrettyPrinter.append(")")
-        ""
     }
 }
 
@@ -73,9 +72,8 @@ public class Literal <: Expr {
         this.value = value
     }
 
-    public override func prettyPrint(): String {
+    public override func prettyPrint() {
         PrettyPrinter.append("${if (let Some(s) <- value) {s.toString()} else {""}}")
-        ""
     }
 }
 
@@ -89,10 +87,9 @@ public class Unary <: Expr {
         this.right = right
     }
 
-    public override func prettyPrint(): String {
+    public override func prettyPrint() {
         PrettyPrinter.append("${oper.toString()}")
         right.prettyPrint()
-        ""
     }
 }
 
@@ -106,10 +103,9 @@ public class Assign <: Expr {
         this.value = value
     }
 
-    public override func prettyPrint(): String {
+    public override func prettyPrint() {
         PrettyPrinter.append("${name.value} = ")
         value.prettyPrint()
-        ""
     }
 }
 
@@ -121,14 +117,13 @@ public class Block <: Expr {
         this.nodes = statements
     }
 
-    public override func prettyPrint(): String {
+    public override func prettyPrint() {
         PrettyPrinter.append("{")
         PrettyPrinter.indent()
         PrettyPrinter.append("\n")
         nodes.iterator().forEach({ n => n.prettyPrint() })
         PrettyPrinter.unindent()
         PrettyPrinter.append("\n}\n")
-        ""
     }
 }
 
@@ -148,7 +143,7 @@ public class IfExpr <: Expr {
         this.elseBranch = elseBranch
     }
 
-    public override func prettyPrint(): String {
+    public override func prettyPrint() {
         PrettyPrinter.append("if (")
         condition.prettyPrint()
         PrettyPrinter.append(") ")
@@ -157,7 +152,6 @@ public class IfExpr <: Expr {
             PrettyPrinter.append("else ")
             eb.prettyPrint()
         }
-        ""
     }
 }
 
@@ -171,12 +165,32 @@ public class WhileExpr <: Expr {
         this.block = block
     }
 
-    public override func prettyPrint(): String {
+    public override func prettyPrint() {
         PrettyPrinter.append("while (")
         condition.prettyPrint()
         PrettyPrinter.append(")")
         block.prettyPrint()
-        ""
+    }
+}
+
+public class CallExpr <: Expr {
+    let callee: Node
+    let arguments: ArrayList<Argument>
+
+    public CallExpr(callee: Node, arguments: ArrayList<Argument>) {
+        this.callee = callee
+        this.arguments = arguments
+    }
+
+    public override func prettyPrint(): Unit {
+        callee.prettyPrint()
+        PrettyPrinter.append("(")
+        if (!arguments.isEmpty()) {
+            arguments[0].prettyPrint()
+            arguments.iterator().enumerate().filter({ a => a[0] > 0}).map({ a => a[1] })
+                .forEach({ a => PrettyPrinter.append(", "); a.prettyPrint()})
+        }
+        PrettyPrinter.append(")")
     }
 }
 
