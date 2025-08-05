@@ -4,9 +4,9 @@ import std.collection.*
 import std.convert.*
 import std.ast.Position
 
-import std.env.exit
+import std.process.*
 
-public class Scanner {
+class Scanner {
     private let source: Array<Rune>
 
     private let tokens: ArrayList<Token> = ArrayList<Token>()
@@ -20,7 +20,7 @@ public class Scanner {
     private static let keywords = HashMap<String, TokenKind>()
 
 
-    public init(source: Array<Rune>) {
+    init(source: Array<Rune>) {
         this.source = source
 
         keywords["is"] = TokenKind.IS
@@ -85,12 +85,11 @@ public class Scanner {
         keywords["mut"] = TokenKind.MUT
         keywords["operator"] = TokenKind.OPERATOR
         keywords["main"] = TokenKind.MAIN
-        keywords["true"] = TokenKind.BOOL_LITERAL // 'true' and 'false' are keywords representing boolean literals
+        keywords["true"] = TokenKind.BOOL_LITERAL
         keywords["false"] = TokenKind.BOOL_LITERAL
-        keywords["()"] = TokenKind.UNIT_LITERAL
     }
 
-    public func scanTokens() {
+    func scanTokens() {
         while (!isAtEnd()) {
             start = current
             scanToken()
@@ -103,7 +102,15 @@ public class Scanner {
         let c: Rune = advance()
         match (c) {
 
-            case '(' => addToken(TokenKind.LPAREN)
+            case '(' => addToken(       
+                        if(matches(r')')) {
+                            TokenKind.UNIT_LITERAL
+                        }else{
+                            TokenKind.LPAREN
+                            } 
+                        )
+
+
             case ')' => addToken(TokenKind.RPAREN)
             case '{' => addToken(TokenKind.LCURL)
             case '}' => addToken(TokenKind.RCURL)
@@ -118,6 +125,10 @@ public class Scanner {
             case '#' => addToken(TokenKind.HASH)
             case '?' => addToken(TokenKind.QUEST)
             case '_' => addToken(TokenKind.WILDCARD)
+
+            // case 'r' => matches(r'\'') implement for RUNE LITERAL
+
+
 
 
             case '%' => addToken(       
@@ -202,23 +213,54 @@ public class Scanner {
                             }
                         )
 
+            case '>' => addToken(       
+                        if(matches(r'=')) {
+                            TokenKind.GE
+                        }else if (matches(r'>')){
+                            TokenKind.RSHIFT
+                        }else{
+                            TokenKind.GT
+                            }
+                        )
+            
+            case '<' => addToken(       
+                        if(matches(r'=')) {
+                            TokenKind.LE
+                        }else if (matches(r':')){
+                            TokenKind.UPPERBOUND
+                        }else if (matches(r'-')){
+                            TokenKind.BACKARROW
+                        }else if (matches(r'<')){
+                            TokenKind.LSHIFT
+                        }else{
+                            TokenKind.LT
+                            }
+                        )
+
             case '=' => addToken(       
                         if(matches(r'=')) {
                             TokenKind.EQUAL
+                        }else if (matches(r'>')){
+                            TokenKind.DOUBLE_ARROW
                         }else{
                             TokenKind.ASSIGN
                             }
                         )
 
             case '\n' => if(!windowsiness()) {
-                                addToken(TokenKind.NL, "\\n".toRuneArray())
                                 line++
                                 column = 1
+                                while(!isAtEnd() && matches(r'\n')) {
+                                    line++
+                                    column = 1
+                                }
+                                
                             }
+                            addToken(TokenKind.NL, "\\n".toRuneArray())
                             return
             
             case '\r' =>if(windowsiness() && matches(r'\n')) {
-                                addToken(TokenKind.NL)
+                                addToken(TokenKind.NL, "\\n".toRuneArray())
                                 line++
                                 column = 1
                         }
@@ -263,16 +305,17 @@ public class Scanner {
 
         if(isAtEnd() && counter > 0) {
             println("Unterminated cStyle Comment")
-            exit(65)
+            Process.current.exit(65)
         }
+
+        let value = source[start+2..current-2]
+        addToken(TokenKind.COMMENT, value)
+
+
     }
 
     private func string() {
         while(peek() != r'"' && !isAtEnd()) {
-            // if (peek() == r'$' and peekNext() == r'{') {
-            //     line++
-            //     column = 1
-            // }
             advance()
         }
 
