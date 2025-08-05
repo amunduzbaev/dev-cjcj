@@ -6,7 +6,7 @@ import std.ast.Position
 
 import std.process.*
 
-class Scanner {
+public class Scanner {
     private let source: Array<Rune>
 
     private let tokens: ArrayList<Token> = ArrayList<Token>()
@@ -20,7 +20,7 @@ class Scanner {
     private static let keywords = HashMap<String, TokenKind>()
 
 
-    init(source: Array<Rune>) {
+    public init(source: Array<Rune>) {
         this.source = source
 
         keywords["is"] = TokenKind.IS
@@ -89,7 +89,7 @@ class Scanner {
         keywords["false"] = TokenKind.BOOL_LITERAL
     }
 
-    func scanTokens() {
+    public func scanTokens() {
         while (!isAtEnd()) {
             start = current
             scanToken()
@@ -118,7 +118,10 @@ class Scanner {
             case ']' => addToken(TokenKind.RSQUARE)
             case ',' => addToken(TokenKind.COMMA)
             case '.' => addToken(TokenKind.DOT)
+
             case ';' => addToken(TokenKind.SEMI)
+                        if(matches(r'\n')) {}
+
             case '^' => addToken(TokenKind.BITXOR)
             case '~' => addToken(TokenKind.BITNOT)
             case ':' => addToken(TokenKind.COLON)
