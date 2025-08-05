@@ -4,7 +4,7 @@ import std.collection.*
 import std.convert.*
 import std.ast.Position
 
-import std.process.*
+import std.env.*
 
 public class Scanner {
     private let source: Array<Rune>
@@ -310,7 +310,7 @@ public class Scanner {
 
         if(isAtEnd() && counter > 0) {
             println("Unterminated cStyle Comment")
-            Process.current.exit(65)
+            exit(65)
         }
 
         let value = source[start+2..current-2]
