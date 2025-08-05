@@ -126,11 +126,14 @@ class Scanner {
             case '?' => addToken(TokenKind.QUEST)
             case '_' => addToken(TokenKind.WILDCARD)
 
-            // case 'r' => matches(r'\'') implement for RUNE LITERAL
+            case 'r' => if(matches(r'\'')) {
+                addToken(TokenKind.RUNE_LITERAL, advance())
+            }
 
-
-
-
+            case 'r' => if(matches(r'\'')) {
+                addToken(TokenKind.RUNE_BYTE_LITERAL, advance())
+            }
+            
             case '%' => addToken(       
                         if(matches(r'=')) {
                             TokenKind.MOD_ASSIGN
@@ -315,19 +318,23 @@ class Scanner {
     }
 
     private func string() {
+
+        var value: String = ""
+
         while(peek() != r'"' && !isAtEnd()) {
-            advance()
+            if (peek() == r'\\'  && peekNext() == r'"') {
+                advance()
+            }
+            value += advance().toString()
         }
 
         if(isAtEnd()) {
             println("Line: ${line} , Unterminated String.")
             return
         }
-
         advance()
 
-        let value = source[start+1..current-1]
-        addToken(TokenKind.STRING_LITERAL, value)
+        addToken(TokenKind.STRING_LITERAL, value.toRuneArray())
     }
 
     private func number() {
