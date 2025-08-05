@@ -139,6 +139,7 @@ public class Parser {
     }
 
     private func declaration(): ?Node {
+        skipNL()
         try {
             if (matches(TokenKind.LET, TokenKind.VAR)) {
                 return varDeclaration()
@@ -155,19 +156,20 @@ public class Parser {
 
     private func function(kind: String): FuncDecl {
         let name: Token = consume(TokenKind.IDENTIFIER, "Expect " + kind + " name.")
-        consume(TokenKind.LPAREN, "Expect '(' after " + kind + " name.")
         let parameters: ArrayList<FuncParam> = ArrayList()
-        if (!check(TokenKind.RPAREN)) {
-            do {
-                if (parameters.size >= MAX_PARAM_NUMBER) {
-                    error(peek(), "Can't have more than " + MAX_PARAM_NUMBER.toString() + " parameters.")
-                }
+        if (!matches(TokenKind.UNIT_LITERAL)) {
+            consume(TokenKind.LPAREN, "Expect '(' after " + kind + " name.")
+            if (!check(TokenKind.RPAREN)) {
+                do {
+                    if (parameters.size >= MAX_PARAM_NUMBER) {
+                        error(peek(), "Can't have more than " + MAX_PARAM_NUMBER.toString() + " parameters.")
+                    }
 
-                parameters.add(funcParameter())
-            } while(matches(TokenKind.COMMA))
+                    parameters.add(funcParameter())
+                } while(matches(TokenKind.COMMA))
+            }
+            consume(TokenKind.RPAREN, "Expect ') after parameters.")
         }
-        consume(TokenKind.RPAREN, "Expect ') after parameters.")
-
         consume(TokenKind.LCURL, "Expect '{' before " + kind + " body.")
         let block: Block = Block(block())
         FuncDecl(name, block, parameters)
@@ -318,20 +320,25 @@ public class Parser {
 
     private func finishCall(callee: Node): Node {
         let arguments: ArrayList<Argument> = ArrayList()
-        if (!check(TokenKind.RPAREN)) {
-            do {
-                arguments.add(Argument(expression()))
-            } while (matches(TokenKind.COMMA))
-        }
+        if (matches(TokenKind.LPAREN)) {
+            if (!check(TokenKind.RPAREN)) {
+                do {
+                    arguments.add(Argument(expression()))
+                } while (matches(TokenKind.COMMA))
+            }
 
-        consume(TokenKind.RPAREN, "Expect ')' after agruments.")
+            consume(TokenKind.RPAREN, "Expect ')' after agruments.")
+        }
+        else {
+            consume(TokenKind.UNIT_LITERAL, "Expect '()' if no parameters are passed")
+        }
         CallExpr(callee, arguments)
     }
 
     private func call(): Node {
         var expr: Node = primary()
         while (true) {
-            if (matches(TokenKind.LPAREN)) {
+            if (check(TokenKind.LPAREN) || check(TokenKind.UNIT_LITERAL)) {
                 expr = finishCall(expr)
             } else {
                 break
