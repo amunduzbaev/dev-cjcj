@@ -12,9 +12,16 @@ import std.convert.*
 program        → declaration* EOF ;
 
 declaration    → varDecl
+               | funcDecl
                | statement ;
 
 varDecl        → ( "var" | "let" ) IDENTIFIER ( "=" expression )? ( ";" | "\n" ) ;
+
+funDecl        → "func" function ;
+
+function       → IDENTIFIER "(" parameters? ")" block ;
+
+parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
 
 statement      → exprStmt
                | ifStmt
@@ -62,6 +69,7 @@ primary        → "true" | "false" |
 private class ParseError <: Exception { }
 
 public class Parser {
+    private static let MAX_PARAM_NUMBER = 255
     private let tokens: Array<Token>
     private let reporter: Reporter
     private var current: Int64 = 0
@@ -132,11 +140,39 @@ public class Parser {
             if (matches(TokenKind.LET, TokenKind.VAR)) {
                 return varDeclaration()
             }
+            if (matches(TokenKind.FUNC)) {
+                return function("function")
+            }
             return statement()
         } catch (error: ParseError) {
             synchronize()
             return None
         }
+    }
+
+    private func function(kind: String): FuncDecl {
+        let name: Token = consume(TokenKind.IDENTIFIER, "Expect " + kind + " name.")
+        consume(TokenKind.LPAREN, "Expect '(' after " + kind + " name.")
+        let parameters: ArrayList<FuncParam> = ArrayList()
+        if (!check(TokenKind.RPAREN)) {
+            do {
+                if (parameters.size >= MAX_PARAM_NUMBER) {
+                    error(peek(), "Can't have more than " + MAX_PARAM_NUMBER.toString() + " parameters.")
+                }
+
+                parameters.add(funcParameter())
+            } while(matches(TokenKind.COMMA))
+        }
+        consume(TokenKind.RPAREN, "Expect ') after parameters.")
+
+        consume(TokenKind.LCURL, "Expect '{' before " + kind + " body.")
+        let block: Block = Block(block())
+        FuncDecl(name, block, parameters)
+    }
+
+    private func funcParameter(): FuncParam {
+        let parameterName = consume(TokenKind.IDENTIFIER, "Expect parameter name")
+        FuncParam(TypeNode(parameterName))
     }
 
     private func statement(): Node {

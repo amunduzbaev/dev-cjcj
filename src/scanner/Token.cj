@@ -8,7 +8,7 @@ public class Token <: ToString {
     public let value: String
     public let pos: Position
 
-    init(typ: TokenKind, value: String, pos: Position) {
+    public init(typ: TokenKind, value: String, pos: Position) {
         this.kind = typ;
         this.value = value;
         this.pos = pos;
