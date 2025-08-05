@@ -130,8 +130,17 @@ public class Scanner {
             case '_' => addToken(TokenKind.WILDCARD)
 
             case 'r' => if(matches(r'\'')) {
-                addToken(TokenKind.RUNE_LITERAL, advance())
-            }
+                            addToken(TokenKind.RUNE_LITERAL, advance())
+                        }else{
+                            identifier()
+                        }
+
+            case 'b' => if(matches(r'\'')) {
+                            addToken(TokenKind.RUNE_BYTE_LITERAL, advance())
+                        }else{
+                            identifier()
+                        }
+
             
             case '%' => addToken(       
                         if(matches(r'=')) {
