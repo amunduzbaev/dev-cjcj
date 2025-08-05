@@ -2,7 +2,7 @@ var a = 3 + 5 * (2 + 3 / (1 + 5))
 a = 5
 let b = 8
 a + b
-if (a + b == 5) {
+if (a + b == 5 && true || 1 + 2 == 10) {
     1 + 2 * 3 / 4
 } else if (a + 1) {
     "else block"

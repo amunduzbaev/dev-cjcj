@@ -30,6 +30,26 @@ public class Binary <: Expr {
     }
 }
 
+public class Logical <: Expr {
+    let left: Node
+    let oper: Token
+    let right: Node
+
+    public Logical(left: Node, oper: Token, right: Node) {
+        super()
+        this.left = left
+        this.oper = oper
+        this.right = right
+    }
+
+    public override func prettyPrint(): String {
+        left.prettyPrint()
+        PrettyPrinter.append(" ${oper.value} ")
+        right.prettyPrint()
+        ""
+    }
+}
+
 public class Grouping <: Expr {
     let node: Node
 
@@ -81,6 +101,7 @@ public class Assign <: Expr {
     let value: Expr
 
     public Assign(name: Token, value: Expr) {
+        super()
         this.name = name
         this.value = value
     }
@@ -96,6 +117,7 @@ public class Block <: Expr {
     let nodes: Array<Node>
 
     public Block(statements: Array<Node>) {
+        super()
         this.nodes = statements
     }
 
@@ -120,6 +142,7 @@ public class IfExpr <: Expr {
     }
 
     public IfExpr(condition: Expr, ifBlock: Block, elseBranch: ?Expr) {
+        super()
         this.condition = condition
         this.ifBlock = ifBlock
         this.elseBranch = elseBranch
@@ -143,6 +166,7 @@ public class WhileExpr <: Expr {
     let block: Block
 
     public WhileExpr(condition: Expr, block: Block) {
+        super()
         this.condition = condition
         this.block = block
     }
@@ -155,6 +179,7 @@ public class WhileExpr <: Expr {
         ""
     }
 }
+
 
 // public class Variable <: Expr {
 //     let name: Token

@@ -33,7 +33,11 @@ exprStmt       → expression ( ";" | "\n" ) ;
 expression     → assignment ;
 
 assignment     → IDENTIFIER "=" assignment
-               | equality ;
+               | logic_or ;
+
+logic_or       → logic_and ( "or" logic_and )* ;
+
+logic_and      → equality ( "and" equality )* ;
 
 equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 
@@ -83,7 +87,7 @@ public class Parser {
 
     // Right associative
     private func assignment(): Node {
-        let expr: Node = equality()
+        let expr: Node = or()
 
         if (matches(TokenKind.ASSIGN)) {
             let equals: Token = previous()
@@ -98,6 +102,26 @@ public class Parser {
         }
 
         expr
+    }
+
+    private func or(): Node {
+        var expr: Node = and()
+        while (matches(TokenKind.OR)) {
+            let oper: Token = previous()
+            let right: Node = and()
+            expr = Logical(expr, oper, right)
+        }
+        return expr
+    }
+
+    private func and(): Node {
+        var expr: Node = equality()
+        while (matches(TokenKind.AND)) {
+            let oper: Token = previous()
+            let right: Node = equality()
+            expr = Logical(expr, oper, right)
+        }
+        return expr
     }
 
     private func declaration(): ?Node {
