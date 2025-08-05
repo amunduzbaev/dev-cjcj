@@ -12,7 +12,19 @@ enum StringKind {
 
 abstract sealed class Node {
     // public func traverse(v: Visitor): Unit
-    public func prettyPrint(): String
+    public func prettyPrint(): Unit
+}
+
+public class Argument <: Node {
+    let expr: Node
+
+    public Argument(expr: Node) {
+        this.expr = expr
+    }
+
+    public override func prettyPrint(): Unit {
+        expr.prettyPrint()
+    }
 }
 
 // public class Program <: Node {

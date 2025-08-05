@@ -18,8 +18,7 @@ public class VarPattern <: Pattern {
         set(v) { identifier_ = v }
     }
 
-    public override func prettyPrint() {
+    public override func prettyPrint(): Unit {
         PrettyPrinter.append(identifier.value)
-        ""
     }
 }

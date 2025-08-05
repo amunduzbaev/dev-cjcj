@@ -273,7 +273,6 @@ class Scanner {
 
             case '"' => string()  // TO BE IMPLEMENTED
 
-
             case _ =>   if (isDigit(c)) {
                             number()
                         } else if (isAlpha(c)) {

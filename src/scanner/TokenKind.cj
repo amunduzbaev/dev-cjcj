@@ -236,6 +236,6 @@ enum TokenKind {
     | /*  "true" or "false"  */
         UNIT_LITERAL
       /*  "()"               */
-
+    | ILLEGAL
 
 }
