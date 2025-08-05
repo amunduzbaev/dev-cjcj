@@ -4,15 +4,18 @@ import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 
+import std.ast.Position
+
 public open class TypeNode <: Node {
-    let typeParameterName: Token
+    var typeParameterName: Token = Token(TokenKind.ILLEGAL, "", Position())
+
+    public init() { }
 
     public init(typeParameterName: Token) {
         this.typeParameterName = typeParameterName
     }
 
     public override open func prettyPrint() {
-        PrettyPrinter.append(typeParameterName.value)
     }
 }
 
@@ -21,7 +24,7 @@ public class PrimitiveType <: TypeNode {
     let keyword: Token
 
     public init(typeParameterName: Token, keyword: Token) {
-        super(typeParameterName)
+        this.typeParameterName = typeParameterName
         this.keyword = keyword
     }
 

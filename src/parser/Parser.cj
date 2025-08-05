@@ -250,6 +250,15 @@ public class Parser {
     private func varDeclaration(): VarDecl {
         let keyword: Token = previous()
         let name: Token = consume(TokenKind.IDENTIFIER, "Expect variable name.")
+
+        var declType: ?TypeNode = None
+        if (matches(TokenKind.COLON)) {
+            try {
+                declType = PrimitiveType(name, advance())
+            } catch (_: IllegalArgumentException) {
+            }
+        }
+
         var initializer: ?Expr = None
         if (matches(TokenKind.ASSIGN)) {
             initializer = expression() as Expr
@@ -257,7 +266,7 @@ public class Parser {
         if (!isAtEnd() && !matches(TokenKind.SEMI, TokenKind.NL)) {
             consume(TokenKind.SEMI, "Expect ';' or new line after variable declaration.")
         }
-        VarDecl(keyword, name, initializer)
+        VarDecl(keyword, name, initializer, declType)
     }
 
     private func expressionStatement(): Node {

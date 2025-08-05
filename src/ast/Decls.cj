@@ -16,7 +16,7 @@ public abstract class Decl <: Node {
 
     init() { }
 
-    init(identifier: Token, keyword: Token) {
+    init(keyword: Token, identifier: Token) {
         identifier_ = identifier
         keyword_ = keyword
     }
@@ -38,20 +38,26 @@ public abstract class Decl <: Node {
     }
 
     public override open func prettyPrint() {
-        PrettyPrinter.append("${if (keyword.kind != TokenKind.ILLEGAL) {keyword.value + " "} else {""}}${identifier.value} ")
+        PrettyPrinter.append("${if (keyword.kind != TokenKind.ILLEGAL) {keyword.value} else {""}}${identifier.value} ")
     }
 }
 
 public class VarDecl <: Decl {
     private var initializer_: ?Expr
+    private var declType_: ?TypeNode
 
-    init (keyword: Token, identifier: Token) {
+    public init (keyword: Token, identifier: Token) {
         this(keyword, identifier, None)
     }
 
     public init(keyword: Token, identifier: Token, initializer: ?Expr) {
+        this(keyword, identifier, initializer, None)
+    }
+
+    public init(keyword: Token, identifier: Token, initializer: ?Expr, declType: ?TypeNode) {
         super(keyword, identifier)
         initializer_ = initializer
+        declType_ = declType
     }
 
     public mut prop initializer: ?Expr {
@@ -59,9 +65,17 @@ public class VarDecl <: Decl {
         set(v) { initializer_ = v }
     }
 
+    public mut prop declType: ?TypeNode {
+        get() { declType_ }
+        set(v) { declType_ = v }
+    }
+
     public override func prettyPrint() {
         super.prettyPrint()
-        PrettyPrinter.append("${if (initializer.isSome()) {"= "} else {""}}")
+        if (let Some(dtype) <- declType) {
+            dtype.prettyPrint()
+        }
+        PrettyPrinter.append("${if (initializer.isSome()) {" = "} else {""}}")
         if (let Some(ini) <- initializer) {ini.prettyPrint()}
     }
 }
