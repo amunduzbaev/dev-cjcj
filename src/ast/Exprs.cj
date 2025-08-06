@@ -123,7 +123,10 @@ public class Block <: Expr {
         PrettyPrinter.append("{")
         PrettyPrinter.indent()
         PrettyPrinter.append("\n")
-        nodes.iterator().forEach({ n => n.prettyPrint() })
+        nodes.iterator().forEach({ 
+            n =>    n.prettyPrint() 
+                    PrettyPrinter.append("\n")
+            })
         PrettyPrinter.unindent()
         PrettyPrinter.append("\n}\n")
     }
@@ -170,7 +173,7 @@ public class WhileExpr <: Expr {
     public override func prettyPrint() {
         PrettyPrinter.append("while (")
         condition.prettyPrint()
-        PrettyPrinter.append(")")
+        PrettyPrinter.append(") ")
         block.prettyPrint()
     }
 }
@@ -211,25 +214,3 @@ public class ReturnExpr <: Expr {
         value.prettyPrint()
     }
 }
-
-
-// public class Variable <: Expr {
-//     let name: Token
-//     let isMutable: Bool
-
-//     public Variable(name: Token, isMutable: Bool) {
-//         super()
-//         this.name = name
-//         this.isMutable = isMutable
-//     }
-
-//     public override func prettyPrint(): String {
-//         return """
-// {
-//     left: ${left.prettyPrint()}
-//     operator: ${oper.value}
-//     right: ${right.prettyPrint()}
-// }
-// """
-//     }
-// }

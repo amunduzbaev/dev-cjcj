@@ -44,7 +44,7 @@ exprStmt       → expression ( ";" | "\n" ) ;
 
 expression     → assignment ;
 
-assignment     → IDENTIFIER "=" assignment
+assignment     → ( call "." )? IDENTIFIER "=" assignment
                | logic_or ;
 
 logic_or       → logic_and ( "or" logic_and )* ;
@@ -61,7 +61,7 @@ factor         → unary ( ( "/" | "*" ) unary )* ;
 
 unary          → ( "!" | "-" ) unary | call;
 
-call           → primary ( "(" arguments? ")" )* ;
+call           → primary ( "(" arguments? ")" | "." IDENTIFIER )* ;
 
 arguments      → expression ( "," expression )* ;
 
@@ -145,6 +145,7 @@ public class Parser {
     }
 
     private func declaration(): ?Node {
+        skipNL()
         try {
             if (matches(TokenKind.LET, TokenKind.VAR)) {
                 return varDeclaration()
@@ -161,33 +162,45 @@ public class Parser {
 
     private func function(kind: String): FuncDecl {
         let name: Token = consume(TokenKind.IDENTIFIER, "Expect " + kind + " name.")
-        consume(TokenKind.LPAREN, "Expect '(' after " + kind + " name.")
         let parameters: ArrayList<FuncParam> = ArrayList()
-        if (!check(TokenKind.RPAREN)) {
-            do {
-                if (parameters.size >= MAX_PARAM_NUMBER) {
-                    error(peek(), "Can't have more than " + MAX_PARAM_NUMBER.toString() + " parameters.")
-                }
+        if (!matches(TokenKind.UNIT_LITERAL)) {
+            consume(TokenKind.LPAREN, "Expect '(' after " + kind + " name.")
+            if (!check(TokenKind.RPAREN)) {
+                do {
+                    if (parameters.size >= MAX_PARAM_NUMBER) {
+                        error(peek(), "Can't have more than " + MAX_PARAM_NUMBER.toString() + " parameters.")
+                    }
 
-                parameters.add(funcParameter())
-            } while(matches(TokenKind.COMMA))
+                    parameters.add(funcParameter())
+                } while(matches(TokenKind.COMMA))
+            }
+            consume(TokenKind.RPAREN, "Expect ') after parameters.")
         }
-        consume(TokenKind.RPAREN, "Expect ') after parameters.")
-
+        var declType: ?TypeNode = None
+        if (matches(TokenKind.COLON)) {
+            try {
+                declType = PrimitiveType(name, advance())
+            } catch (_: IllegalArgumentException) {
+            }
+        }
         consume(TokenKind.LCURL, "Expect '{' before " + kind + " body.")
         let block: Block = Block(block())
-        FuncDecl(name, block, parameters)
+        FuncDecl(name, block, parameters, declType)
     }
 
     private func funcParameter(): FuncParam {
         let parameterName = consume(TokenKind.IDENTIFIER, "Expect parameter name")
-        FuncParam(TypeNode(parameterName))
+        consume(TokenKind.COLON, "Expect ':' after parameter name")
+        let keyword = advance()
+        // TODO: Add check for type category.
+        FuncParam(PrimitiveType(parameterName, keyword))
     }
 
-    private func classDeclaration(): ?Node {
+    private func classDeclaration(): ?ClassDecl {
         let name: Token = consume(TokenKind.IDENTIFIER, "Expect class name.")
         consume(TokenKind.LCURL, "Expect '{' before class body.")
         let block: Block = Block(block())
+
         ClassDecl(name, block)
 
     }
@@ -262,6 +275,15 @@ public class Parser {
     private func varDeclaration(): VarDecl {
         let keyword: Token = previous()
         let name: Token = consume(TokenKind.IDENTIFIER, "Expect variable name.")
+
+        var declType: ?TypeNode = None
+        if (matches(TokenKind.COLON)) {
+            try {
+                declType = PrimitiveType(name, advance())
+            } catch (_: IllegalArgumentException) {
+            }
+        }
+
         var initializer: ?Expr = None
         if (matches(TokenKind.ASSIGN)) {
             initializer = expression() as Expr
@@ -269,7 +291,7 @@ public class Parser {
         if (!isAtEnd() && !matches(TokenKind.SEMI, TokenKind.NL)) {
             consume(TokenKind.SEMI, "Expect ';' or new line after variable declaration.")
         }
-        VarDecl(keyword, name, initializer)
+        VarDecl(keyword, name, initializer, declType)
     }
 
     private func expressionStatement(): Node {
@@ -332,20 +354,27 @@ public class Parser {
 
     private func finishCall(callee: Node): Node {
         let arguments: ArrayList<Argument> = ArrayList()
-        if (!check(TokenKind.RPAREN)) {
-            do {
-                arguments.add(Argument(expression()))
-            } while (matches(TokenKind.COMMA))
-        }
+        if (matches(TokenKind.LPAREN)) {
+            if (!check(TokenKind.RPAREN)) {
+                do {
+                    arguments.add(Argument(expression()))
+                } while (matches(TokenKind.COMMA))
+            }
 
-        consume(TokenKind.RPAREN, "Expect ')' after agruments.")
+            consume(TokenKind.RPAREN, "Expect ')' after agruments.")
+        }
+        else {
+            consume(TokenKind.UNIT_LITERAL, "Expect '()' if no parameters are passed")
+        }
         CallExpr(callee, arguments)
     }
+
+    
 
     private func call(): Node {
         var expr: Node = primary()
         while (true) {
-            if (matches(TokenKind.LPAREN)) {
+            if (check(TokenKind.LPAREN) || check(TokenKind.UNIT_LITERAL)) {
                 expr = finishCall(expr)
             } else {
                 break
@@ -363,8 +392,7 @@ public class Parser {
             consume(TokenKind.RPAREN, "Expect ')' after expression.")
             return Grouping(expr)
         }
-        if (matches(TokenKind.IDENTIFIER)) { return VarPattern(previous()) }     
-        // if (matches(TokenKind.IDENTIFIER)) { return Variable(previous()) }         
+        if (matches(TokenKind.IDENTIFIER)) { return VarPattern(previous()) }
         throw error(peek(), "Expect expression.")
     }
 
@@ -381,7 +409,7 @@ public class Parser {
 
     /**
     * When we find an error we don't want to break everything and stop parsing.
-    * So we synchronize, we discard tokens utinl we find a statement boundary.
+    * So we synchronize, we discard tokens until we find a statement boundary.
     */
     private func synchronize(): Unit {
         advance()
@@ -444,4 +472,9 @@ public class Parser {
             advance()
         }
     }
+}
+
+
+main(): Unit {
+    let a = return
 }
