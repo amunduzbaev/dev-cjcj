@@ -9,11 +9,13 @@ import std.convert.*
 
 
 /* Current Grammar
-program        → declaration* EOF ;
+program        → (declaration | classDecl)* EOF ;
 
 declaration    → varDecl
                | funcDecl
                | statement ;
+
+classDecl      → "class" IDENTIFIER block ;
 
 varDecl        → ( "var" | "let" ) IDENTIFIER ( "=" expression )? ( ";" | "\n" ) ;
 
@@ -87,7 +89,11 @@ public class Parser {
         let statements: ArrayList<Node> = ArrayList()
         try {
             while (!isAtEnd()) {
+                if (matches(TokenKind.CLASS)) {
+                    statements.add(classDeclaration().getOrThrow())
+                }else{
                 statements.add(declaration().getOrThrow())
+                }
             }
             return Some(statements.toArray())
         } catch (error: ParseError) {
@@ -176,6 +182,14 @@ public class Parser {
     private func funcParameter(): FuncParam {
         let parameterName = consume(TokenKind.IDENTIFIER, "Expect parameter name")
         FuncParam(TypeNode(parameterName))
+    }
+
+    private func classDeclaration(): ?Node {
+        let name: Token = consume(TokenKind.IDENTIFIER, "Expect class name.")
+        consume(TokenKind.LCURL, "Expect '{' before class body.")
+        let block: Block = Block(block())
+        ClassDecl(name, block)
+
     }
 
     private func statement(): Node {

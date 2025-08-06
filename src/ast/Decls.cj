@@ -104,3 +104,21 @@ public class FuncDecl <: Decl {
         block.prettyPrint()
     }
 }
+
+public class ClassDecl <: Decl {
+    let block: Block
+    //let modifiers = ArrayList<ClassModifiers>
+
+    public init(identifier: Token, block: Block) {
+        this.block = block
+        this.identifier = identifier
+    }
+
+    public override func prettyPrint() {
+        PrettyPrinter.append("class ")
+        super.prettyPrint()
+        block.prettyPrint()
+    }
+
+
+}

@@ -1,7 +1,6 @@
-var a = 3 + 5 * (2 + 3 / (1 + 5))
+var a: Int64 = 3 + 5 * (2 + 3 / (1 + 5))
 a = 5
-let b = 8
-a + b
+let b: Int64 = 8
 func a(a, b, c) {
     return a + b + c
 }

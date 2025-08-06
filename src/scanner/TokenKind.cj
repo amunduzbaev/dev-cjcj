@@ -75,7 +75,7 @@ public enum TokenKind {
         BACKARROW
     | /*  "<-"          */
         DOUBLE_ARROW
-    | /*  "=>"          */ 
+    | /*  "=>"          */
         HASH
     | /*  "#"           */
         QUEST

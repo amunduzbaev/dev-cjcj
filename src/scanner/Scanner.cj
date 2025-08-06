@@ -95,6 +95,7 @@ public class Scanner {
             scanToken()
         }
         tokens.add(Token(TokenKind.END, "END", Position(0,line,column)))
+        println(tokens)
         tokens
     }
     
@@ -131,12 +132,20 @@ public class Scanner {
 
             case 'r' => if(matches(r'\'')) {
                             addToken(TokenKind.RUNE_LITERAL, advance())
+                            if(peek() != r'\'') {
+                                println("Line: ${line} , Unterminated rune literal.")
+                                exit(65)
+                            }
                         }else{
                             identifier()
                         }
 
             case 'b' => if(matches(r'\'')) {
                             addToken(TokenKind.RUNE_BYTE_LITERAL, advance())
+                            if(peek() != r'\'') {
+                                println("Line: ${line} , Unterminated byte rune literal.")
+                                exit(65)
+                            }
                         }else{
                             identifier()
                         }
@@ -319,6 +328,7 @@ public class Scanner {
         }
 
         let value = source[start+2..current-2]
+
         addToken(TokenKind.COMMENT, value)
 
 
@@ -337,6 +347,7 @@ public class Scanner {
 
         if(isAtEnd()) {
             println("Line: ${line} , Unterminated String.")
+            exit(65)
             return
         }
         advance()
