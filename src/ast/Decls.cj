@@ -42,8 +42,8 @@ public abstract class Decl <: Node {
 }
 
 public class VarDecl <: Decl {
-    private var initializer_: ?Expr
-    private var declType_: ?TypeNode
+    private let initializer_: ?Expr
+    private let declType_: ?TypeNode
 
     public init (keyword: Token, identifier: Token) {
         this(keyword, identifier, None)
@@ -78,7 +78,7 @@ public class VarDecl <: Decl {
 }
 
 public class FuncParam <: Decl {
-    private var paramType_: TypeNode
+    private let paramType_: TypeNode
 
     public init(paramType: TypeNode) {
         super()
@@ -96,8 +96,8 @@ public class FuncParam <: Decl {
 }
 
 public class FuncDecl <: Decl {
-    private var block_: Block
-    private var params_: ArrayList<FuncParam>
+    private let block_: Block
+    private let params_: ArrayList<FuncParam>
 
     private let declType_: ?TypeNode
 
@@ -140,11 +140,11 @@ public class FuncDecl <: Decl {
 }
 
 public class ClassDecl <: Decl {
-    let block: Block
+    private let block_: Block
     //let modifiers = ArrayList<ClassModifiers>
 
     public init(identifier: Token, block: Block) {
-        this.block = block
+        block_ = block
         this.identifier = identifier
     }
 
@@ -154,5 +154,7 @@ public class ClassDecl <: Decl {
         block.prettyPrint()
     }
 
-
+    public prop block: Block {
+        get() { block_ }
+    }
 }
