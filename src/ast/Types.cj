@@ -6,7 +6,8 @@ import cjcj.scanner.*
 import std.ast.Position
 
 public open class TypeNode <: Node {
-    private var typeParameterName_: Token = Token(TokenKind.ILLEGAL, "", Position())
+    private var typeParameterName_: Token = Token(TokenKind.ILLEGAL, "",
+                                                    Position())
 
     public init() { }
 
@@ -31,7 +32,8 @@ public class PrimitiveType <: TypeNode {
     public init(typeParameterName: Token, keyword: Token) {
         keyword_ = keyword
         if (!isPrimitive(keyword)) {
-            throw IllegalArgumentException(keyword.value + " is not a primitive type.")
+            throw IllegalArgumentException(keyword.value +
+                                            " is not a primitive type.")
         }
         super.typeParameterName = typeParameterName
     }
@@ -42,7 +44,8 @@ public class PrimitiveType <: TypeNode {
     }
 
     private func isPrimitive(keyword: Token): Bool {
-        TokenKindHelper.PRIMITIVE_TYPE_TOKEN_KIND.iterator().any({ t => t == keyword.kind })
+        TokenKindHelper.PRIMITIVE_TYPE_TOKEN_KIND.iterator()
+            .any({ t => t == keyword.kind })
     }
 
     public prop keyword: Token {

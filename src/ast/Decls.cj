@@ -37,7 +37,10 @@ public abstract class Decl <: Node {
     }
 
     public override open func prettyPrint() {
-        PrettyPrinter.append("${if (keyword.kind != TokenKind.ILLEGAL) {keyword.value} else {""}} ${identifier.value}")
+        if (keyword.kind != TokenKind.ILLEGAL) {
+            PrettyPrinter.append(keyword.value)
+        }
+        PrettyPrinter.append(identifier.value)
     }
 }
 
@@ -53,7 +56,8 @@ public class VarDecl <: Decl {
         this(keyword, identifier, initializer, None)
     }
 
-    public init(keyword: Token, identifier: Token, initializer: ?Expr, declType: ?TypeNode) {
+    public init(keyword: Token, identifier: Token,
+                    initializer: ?Expr, declType: ?TypeNode) {
         super(keyword, identifier)
         initializer_ = initializer
         declType_ = declType
@@ -101,7 +105,8 @@ public class FuncDecl <: Decl {
 
     private let declType_: ?TypeNode
 
-    public init(identifier: Token, block: Block, params: ArrayList<FuncParam>, declType: ?TypeNode) {
+    public init(identifier: Token, block: Block,
+                    params: ArrayList<FuncParam>, declType: ?TypeNode) {
         this.block_ = block
         this.params_ = params
         this.declType_ = declType

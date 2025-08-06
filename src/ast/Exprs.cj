@@ -281,7 +281,10 @@ public class CallExpr <: Expr {
         PrettyPrinter.append("(")
         if (!arguments.isEmpty()) {
             arguments[0].prettyPrint()
-            arguments.iterator().enumerate().filter({ a => a[0] > 0}).map({ a => a[1] })
+            arguments.iterator()
+                .enumerate()
+                .filter({ a => a[0] > 0})
+                .map({ a => a[1] })
                 .forEach({ a => PrettyPrinter.append(", "); a.prettyPrint()})
         }
         PrettyPrinter.append(")")

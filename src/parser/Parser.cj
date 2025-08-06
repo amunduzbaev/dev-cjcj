@@ -16,7 +16,7 @@ declaration    → varDecl
 
 classDecl      → "class" IDENTIFIER block ;
 
-varDecl        → ( "var" | "let" ) IDENTIFIER ( "=" expression )? ( ";" | "\n" ) ;
+varDecl        → ( "var" | "let" ) IDENTIFIER ( "=" expression )? ( ";" | "\n");
 
 funDecl        → "func" function ;
 
@@ -165,14 +165,16 @@ public class Parser {
     }
 
     private func function(kind: String): FuncDecl {
-        let name: Token = consume(TokenKind.IDENTIFIER, "Expect " + kind + " name.")
+        let name: Token = consume(TokenKind.IDENTIFIER, "Expect " + kind +
+                                    " name.")
         let parameters: ArrayList<FuncParam> = ArrayList()
         if (!matches(TokenKind.UNIT_LITERAL)) {
             consume(TokenKind.LPAREN, "Expect '(' after " + kind + " name.")
             if (!check(TokenKind.RPAREN)) {
                 do {
                     if (parameters.size >= MAX_PARAM_NUMBER) {
-                        throw error(peek(), "Can't have more than " + MAX_PARAM_NUMBER.toString() + " parameters.")
+                        throw error(peek(), "Can't have more than " +
+                            MAX_PARAM_NUMBER.toString() + " parameters.")
                     }
 
                     parameters.add(funcParameter())
@@ -193,7 +195,8 @@ public class Parser {
     }
 
     private func funcParameter(): FuncParam {
-        let parameterName = consume(TokenKind.IDENTIFIER, "Expect parameter name")
+        let parameterName = consume(TokenKind.IDENTIFIER,
+            "Expect parameter name")
         consume(TokenKind.COLON, "Expect ':' after parameter name")
         let keyword = advance()
         // TODO: Add check for type category.
@@ -234,7 +237,8 @@ public class Parser {
             value = expression()
         }
         if (!isAtEnd() && !matches(TokenKind.SEMI, TokenKind.NL)) {
-            consume(TokenKind.SEMI, "Expect ';' or new line after return statement.")
+            consume(TokenKind.SEMI,
+                "Expect ';' or new line after return statement.")
         }
 
         ReturnExpr(value, keyword)
@@ -294,7 +298,8 @@ public class Parser {
             initializer = expression()
         }
         if (!isAtEnd() && !matches(TokenKind.SEMI, TokenKind.NL)) {
-            consume(TokenKind.SEMI, "Expect ';' or new line after variable declaration.")
+            consume(TokenKind.SEMI,
+                "Expect ';' or new line after variable declaration.")
         }
         VarDecl(keyword, name, initializer, declType)
     }
@@ -481,9 +486,4 @@ public class Parser {
             advance()
         }
     }
-}
-
-
-main(): Unit {
-    let a = return
 }
