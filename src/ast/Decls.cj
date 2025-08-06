@@ -2,7 +2,6 @@ package cjcj.ast
 
 import cjcj.prettyPrinter.PrettyPrinter
 
-// Temporary imports to not have compilation errors.
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 
@@ -60,14 +59,12 @@ public class VarDecl <: Decl {
         declType_ = declType
     }
 
-    public mut prop initializer: ?Expr {
+    public prop initializer: ?Expr {
         get() { initializer_ }
-        set(v) { initializer_ = v }
     }
 
-    public mut prop declType: ?TypeNode {
+    public prop declType: ?TypeNode {
         get() { declType_ }
-        set(v) { declType_ = v }
     }
 
     public override func prettyPrint() {
@@ -81,31 +78,33 @@ public class VarDecl <: Decl {
 }
 
 public class FuncParam <: Decl {
-    public let paramType: TypeNode
+    private var paramType_: TypeNode
 
     public init(paramType: TypeNode) {
         super()
-        this.paramType = paramType
+        paramType_ = paramType
     }
 
     public override func prettyPrint() {
         PrettyPrinter.append(paramType.typeParameterName.value)
         paramType.prettyPrint()
     }
+
+    public prop paramType: TypeNode {
+        get() { paramType_ }
+    }
 }
 
 public class FuncDecl <: Decl {
-    let block: Block
-    let params: ArrayList<FuncParam>
+    private var block_: Block
+    private var params_: ArrayList<FuncParam>
 
-    // TODO: Change this to TypeNode and think about how to pretty print without
-    // knowin
-    let declType: ?TypeNode
+    private let declType_: ?TypeNode
 
     public init(identifier: Token, block: Block, params: ArrayList<FuncParam>, declType: ?TypeNode) {
-        this.block = block
-        this.params = params
-        this.declType = declType
+        this.block_ = block
+        this.params_ = params
+        this.declType_ = declType
         this.identifier = identifier
     }
 
@@ -124,7 +123,19 @@ public class FuncDecl <: Decl {
         if (let Some(dtype) <- declType) {
             dtype.prettyPrint()
         }
-        block.prettyPrint()
+        block_.prettyPrint()
+    }
+
+    public prop block: Block {
+        get() { block_ }
+    }
+
+    public prop params: ArrayList<FuncParam> {
+        get() { params_ }
+    }
+
+    public prop declType: ?TypeNode {
+        get() { declType_ }
     }
 }
 

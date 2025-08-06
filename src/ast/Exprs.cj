@@ -15,34 +15,46 @@ public open class Expr <: Node {
 }
 
 public class Binary <: Expr {
-    let left: Node
-    let oper: Token
-    let right: Node
+    private let left_: Expr
+    private let oper_: Token
+    private let right_: Expr
 
-    public Binary(left: Node, oper: Token, right: Node) {
+    public Binary(left: Expr, oper: Token, right: Expr) {
         super()
-        this.left = left
-        this.oper = oper
-        this.right = right
+        left_ = left
+        oper_ = oper
+        right_ = right
     }
 
     public override func prettyPrint() {
         left.prettyPrint()
         PrettyPrinter.append(" ${oper.value} ")
         right.prettyPrint()
+    }
+
+    public prop left: Expr {
+        get() { left_ }
+    }
+
+    public prop oper: Token {
+        get() { oper_ }
+    }
+
+    public prop right: Expr {
+        get() { right_ }
     }
 }
 
 public class Logical <: Expr {
-    let left: Node
-    let oper: Token
-    let right: Node
+    private let left_: Expr
+    private let oper_: Token
+    private let right_: Expr
 
-    public Logical(left: Node, oper: Token, right: Node) {
+    public Logical(left: Expr, oper: Token, right: Expr) {
         super()
-        this.left = left
-        this.oper = oper
-        this.right = right
+        left_ = left
+        oper_ = oper
+        right_ = right
     }
 
     public override func prettyPrint() {
@@ -50,73 +62,126 @@ public class Logical <: Expr {
         PrettyPrinter.append(" ${oper.value} ")
         right.prettyPrint()
     }
+
+    public prop left: Expr {
+        get() { left_ }
+    }
+
+    public prop oper: Token {
+        get() { oper_ }
+    }
+
+    public prop right: Expr {
+        get() { right_ }
+    }
 }
 
 public class Grouping <: Expr {
-    let node: Node
+    private let node_: Expr
 
-    public Grouping(node: Node) {
+    public Grouping(node: Expr) {
         super()
-        this.node = node
+        node_ = node
     }
+
     public override func prettyPrint() {
         PrettyPrinter.append("(")
         node.prettyPrint()
         PrettyPrinter.append(")")
     }
+
+    public prop node: Expr {
+        get() { node_ }
+    }
 }
 
 public class Literal <: Expr {
-    let value: ?ToString
+    private let value_: ToString
 
-    public Literal(value: ?ToString) {
+    public Literal(value: ToString) {
         super()
-        this.value = value
+        value_ = value
     }
 
     public override func prettyPrint() {
-        PrettyPrinter.append("${if (let Some(s) <- value) {s.toString()} else {""}}")
+        PrettyPrinter.append(value.toString())
+    }
+
+    public prop value: ToString {
+        get() { value_ }
     }
 }
 
 public class Unary <: Expr {
-    let oper: Token
-    let right: Expr
+    private let oper_: Token
+    private let right_: Expr
 
     public Unary(oper: Token, right: Expr) {
         super()
-        this.oper = oper
-        this.right = right
+        oper_ = oper
+        right_ = right
     }
 
     public override func prettyPrint() {
         PrettyPrinter.append("${oper.toString()}")
         right.prettyPrint()
     }
+
+    public prop oper: Token {
+        get() { oper_ }
+    }
+
+    public prop right: Expr {
+        get() { right_ }
+    }
 }
 
 public class Assign <: Expr {
-    let name: Token
-    let value: Expr
+    private let name_: Token
+    private let value_: Expr
 
     public Assign(name: Token, value: Expr) {
         super()
-        this.name = name
-        this.value = value
+        name_ = name
+        value_ = value
     }
 
     public override func prettyPrint() {
         PrettyPrinter.append("${name.value} = ")
         value.prettyPrint()
     }
+
+    public prop name: Token {
+        get() { name_ }
+    }
+
+    public prop value: Expr {
+        get() { value_ }
+    }
+}
+
+public class RefExpr <: Expr {
+    private var identifier_: Token
+
+    public RefExpr(identifier: Token) {
+        identifier_ = identifier
+    }
+
+    public prop identifier: Token {
+        get() { identifier_ }
+    }
+
+    public override func prettyPrint(): Unit {
+        PrettyPrinter.append(identifier.value)
+    }
 }
 
 public class Block <: Expr {
-    let nodes: Array<Node>
+    private let nodes_: Array<Node>
 
     public Block(statements: Array<Node>) {
         super()
-        this.nodes = statements
+        nodes_ = statements
     }
 
     public override func prettyPrint() {
@@ -130,12 +195,16 @@ public class Block <: Expr {
         PrettyPrinter.unindent()
         PrettyPrinter.append("\n}\n")
     }
+
+    public prop nodes: Array<Node> {
+        get() { nodes_ }
+    }
 }
 
 public class IfExpr <: Expr {
-    let condition: Expr
-    let ifBlock: Block
-    let elseBranch: ?Expr
+    private let condition_: Expr
+    private let ifBlock_: Block
+    private let elseBranch_: ?Expr
 
     public init(condition: Expr, ifBlock: Block) {
         this(condition, ifBlock, None)
@@ -143,9 +212,9 @@ public class IfExpr <: Expr {
 
     public IfExpr(condition: Expr, ifBlock: Block, elseBranch: ?Expr) {
         super()
-        this.condition = condition
-        this.ifBlock = ifBlock
-        this.elseBranch = elseBranch
+        condition_ = condition
+        ifBlock_ = ifBlock
+        elseBranch_ = elseBranch
     }
 
     public override func prettyPrint() {
@@ -158,16 +227,28 @@ public class IfExpr <: Expr {
             eb.prettyPrint()
         }
     }
+
+    public prop condition: Expr {
+        get() { condition_ }
+    }
+
+    public prop ifBlock: Block {
+        get() { ifBlock_ }
+    }
+
+    public prop elseBranch: ?Expr {
+        get() { elseBranch_ }
+    }
 }
 
 public class WhileExpr <: Expr {
-    let condition: Expr 
-    let block: Block
+    private let condition_: Expr
+    private let block_: Block
 
     public WhileExpr(condition: Expr, block: Block) {
         super()
-        this.condition = condition
-        this.block = block
+        condition_ = condition
+        block_ = block
     }
 
     public override func prettyPrint() {
@@ -176,15 +257,23 @@ public class WhileExpr <: Expr {
         PrettyPrinter.append(") ")
         block.prettyPrint()
     }
+
+    public prop condition: Expr {
+        get() { condition_ }
+    }
+
+    public prop block: Block {
+        get() { block_ }
+    }
 }
 
 public class CallExpr <: Expr {
-    let callee: Node
-    let arguments: ArrayList<Argument>
+    private let callee_: Node
+    private let arguments_: ArrayList<Argument>
 
     public CallExpr(callee: Node, arguments: ArrayList<Argument>) {
-        this.callee = callee
-        this.arguments = arguments
+        callee_ = callee
+        arguments_ = arguments
     }
 
     public override func prettyPrint(): Unit {
@@ -197,20 +286,35 @@ public class CallExpr <: Expr {
         }
         PrettyPrinter.append(")")
     }
+
+    public prop callee: Node {
+        get() { callee_ }
+    }
+
+    public prop arguments: ArrayList<Argument> {
+        get() { arguments_ }
+    }
 }
 
 public class ReturnExpr <: Expr {
-    let value: Node 
-    let keyword: Token
+    private let value_: Expr 
+    private let keyword_: Token
 
-    public init(value: Node, keyword: Token) {
-        this.value = value
-        this.keyword = keyword
-        // TODO: Add exception for keyword not return
+    public ReturnExpr(value: Expr, keyword: Token) {
+        value_ = value
+        keyword_ = keyword
     }
 
     public override func prettyPrint(): Unit {
         PrettyPrinter.append(keyword.value + " ")
         value.prettyPrint()
+    }
+
+    public prop value: Expr {
+        get() { value_ }
+    }
+
+    public prop keyword: Token {
+        get() { keyword_ }
     }
 }

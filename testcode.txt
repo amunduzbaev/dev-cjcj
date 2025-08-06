@@ -3,7 +3,7 @@ var a: Int64 = 3 + 5 * (2 + 3 / (1 + 5))
 a = 5
 let b = 8
 a + b
-func a(a: UInt, b: String, c: Rune) {
+func a(a: UInt8, b: Float32, c: Rune) {
     return a + b + c
 }
 func b() {}
