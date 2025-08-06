@@ -1,8 +1,7 @@
 package cjcj.ast
 
 import cjcj.prettyPrinter.PrettyPrinter
-import cjcj.scanner.Token
-import cjcj.scanner.TokenKind
+import cjcj.scanner.*
 
 import std.ast.Position
 
@@ -27,10 +26,17 @@ public class PrimitiveType <: TypeNode {
     public init(typeParameterName: Token, keyword: Token) {
         this.typeParameterName = typeParameterName
         this.keyword = keyword
+        if (!isPrimitive(keyword)) {
+            throw IllegalArgumentException(keyword.value + " is not a primitive type.")
+        }
     }
 
     public override func prettyPrint() {
         super.prettyPrint()
         PrettyPrinter.append(": " + keyword.value)
+    }
+
+    private func isPrimitive(keyword: Token): Bool {
+        TokenKindHelper.PRIMITIVE_TYPE_TOKEN_KIND.iterator().any({ t => t == keyword.kind })
     }
 }

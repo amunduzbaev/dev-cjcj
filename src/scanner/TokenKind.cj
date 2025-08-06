@@ -4,7 +4,6 @@ package cjcj.scanner
 import std.deriving.*
 
 @Derive[ToString, Equatable]
-
 public enum TokenKind {
         DOT
     | /*  "."           */
@@ -238,4 +237,26 @@ public enum TokenKind {
       /*  "()"               */
     | ILLEGAL
 
+}
+
+public class TokenKindHelper {
+    public static let PRIMITIVE_TYPE_TOKEN_KIND: Array<TokenKind> = [
+        TokenKind.INT8, 
+        TokenKind.INT16,
+        TokenKind.INT32,
+        TokenKind.INT64,
+        TokenKind.INTNATIVE,
+        TokenKind.UINT8,
+        TokenKind.UINT16,
+        TokenKind.UINT32,
+        TokenKind.UINT64,
+        TokenKind.UINTNATIVE,
+        TokenKind.FLOAT16,
+        TokenKind.FLOAT32,
+        TokenKind.FLOAT64,
+        TokenKind.RUNE,
+        TokenKind.BOOLEAN,
+        TokenKind.NOTHING,
+        TokenKind.UNIT
+    ]
 }
