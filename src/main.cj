@@ -11,7 +11,6 @@ import std.fs.File
 
 public class Cj {
     static var hadError: Bool = false
-    static var hadRuntimeError: Bool = false
 
     public static func runFile(path: String) {
         let bytes: Array<Byte> = File.readFrom(path)
@@ -19,9 +18,6 @@ public class Cj {
 
         if (hadError) {
             exit(65)
-        }
-        if (hadRuntimeError) {
-            exit(70)
         }
     }
 
@@ -39,16 +35,8 @@ public class Cj {
     }
 
     private static func run(source: String) {
-        // getStdOut().writeln(source)
         let scanner = Scanner(source.toRuneArray())
         let tokens = scanner.scanTokens()
-
-        // let tokens: Array<Token> = [
-        //     Token(TokenKind.INTEGER_LITERAL, "10"),
-        //     Token(TokenKind.ADD),
-        //     Token(TokenKind.INTEGER_LITERAL, "5"),
-        //     Token(TokenKind.END)
-        // ]
 
         let parser: Parser = Parser(tokens.toArray(), Reporter(getStdErr()))
         let nodes: ?Array<Node> = parser.parse()
@@ -60,7 +48,6 @@ public class Cj {
             }
         }
         println(PrettyPrinter.toString())
-        // if (hadError) { return }
     }
 
     static func error(line: Int64, message: String) {
@@ -83,7 +70,6 @@ public class Cj {
 }
 
 main (args: Array<String>) {
-    // testAstPrinter()
     // if (args.size > 1) {
     //     getStdOut().writeln("Usage: cjlox [script]")
     //     exit(64)

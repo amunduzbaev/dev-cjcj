@@ -1,9 +1,15 @@
+let b: Int64
 var a: Int64 = 3 + 5 * (2 + 3 / (1 + 5))
 a = 5
-let b: Int64 = 8
-func a(a, b, c) {
+let b = 8
+a + b
+func a(a: UInt8, b: Float32, c: Rune) {
     return a + b + c
 }
+func b() {}
+func c(): Int64 {}
+func d(a: Unit): UInt8 {}
+b()
 if (a + b == 5 && true || 1 + 2 == 10) {
     1 + 2 * 3 / 4
 } else if (a + 1) {

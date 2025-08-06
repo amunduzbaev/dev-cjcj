@@ -2,7 +2,6 @@ package cjcj.ast
 
 import cjcj.prettyPrinter.PrettyPrinter
 
-// Temporary imports to not have compilation errors.
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 
@@ -16,7 +15,7 @@ public abstract class Decl <: Node {
 
     init() { }
 
-    init(identifier: Token, keyword: Token) {
+    init(keyword: Token, identifier: Token) {
         identifier_ = identifier
         keyword_ = keyword
     }
@@ -38,59 +37,79 @@ public abstract class Decl <: Node {
     }
 
     public override open func prettyPrint() {
-        PrettyPrinter.append("${if (keyword.kind != TokenKind.ILLEGAL) {keyword.value + " "} else {""}}${identifier.value} ")
+        PrettyPrinter.append("${if (keyword.kind != TokenKind.ILLEGAL) {keyword.value} else {""}} ${identifier.value}")
     }
 }
 
 public class VarDecl <: Decl {
     private var initializer_: ?Expr
+    private var declType_: ?TypeNode
 
-    init (keyword: Token, identifier: Token) {
+    public init (keyword: Token, identifier: Token) {
         this(keyword, identifier, None)
     }
 
     public init(keyword: Token, identifier: Token, initializer: ?Expr) {
-        super(keyword, identifier)
-        initializer_ = initializer
+        this(keyword, identifier, initializer, None)
     }
 
-    public mut prop initializer: ?Expr {
+    public init(keyword: Token, identifier: Token, initializer: ?Expr, declType: ?TypeNode) {
+        super(keyword, identifier)
+        initializer_ = initializer
+        declType_ = declType
+    }
+
+    public prop initializer: ?Expr {
         get() { initializer_ }
-        set(v) { initializer_ = v }
+    }
+
+    public prop declType: ?TypeNode {
+        get() { declType_ }
     }
 
     public override func prettyPrint() {
         super.prettyPrint()
-        PrettyPrinter.append("${if (initializer.isSome()) {"= "} else {""}}")
+        if (let Some(dtype) <- declType) {
+            dtype.prettyPrint()
+        }
+        PrettyPrinter.append("${if (initializer.isSome()) {" = "} else {""}}")
         if (let Some(ini) <- initializer) {ini.prettyPrint()}
     }
 }
 
 public class FuncParam <: Decl {
-    let paramType: TypeNode
+    private var paramType_: TypeNode
 
     public init(paramType: TypeNode) {
         super()
-        this.paramType = paramType
+        paramType_ = paramType
     }
 
     public override func prettyPrint() {
+        PrettyPrinter.append(paramType.typeParameterName.value)
         paramType.prettyPrint()
+    }
+
+    public prop paramType: TypeNode {
+        get() { paramType_ }
     }
 }
 
 public class FuncDecl <: Decl {
-    let block: Block
-    let params: ArrayList<FuncParam>
+    private var block_: Block
+    private var params_: ArrayList<FuncParam>
 
-    public init(identifier: Token, block: Block, params: ArrayList<FuncParam>) {
-        this.block = block
-        this.params = params
+    private let declType_: ?TypeNode
+
+    public init(identifier: Token, block: Block, params: ArrayList<FuncParam>, declType: ?TypeNode) {
+        this.block_ = block
+        this.params_ = params
+        this.declType_ = declType
         this.identifier = identifier
     }
 
     public override func prettyPrint() {
-        PrettyPrinter.append("func ")
+        PrettyPrinter.append("func")
         super.prettyPrint()
         PrettyPrinter.append("(")
         if (!params.isEmpty()) {
@@ -100,8 +119,23 @@ public class FuncDecl <: Decl {
                 params[i].prettyPrint()
             }
         }
-        PrettyPrinter.append(") ")
-        block.prettyPrint()
+        PrettyPrinter.append(")")
+        if (let Some(dtype) <- declType) {
+            dtype.prettyPrint()
+        }
+        block_.prettyPrint()
+    }
+
+    public prop block: Block {
+        get() { block_ }
+    }
+
+    public prop params: ArrayList<FuncParam> {
+        get() { params_ }
+    }
+
+    public prop declType: ?TypeNode {
+        get() { declType_ }
     }
 }
 
