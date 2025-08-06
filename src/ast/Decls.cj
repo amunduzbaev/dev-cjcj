@@ -38,7 +38,7 @@ public abstract class Decl <: Node {
     }
 
     public override open func prettyPrint() {
-        PrettyPrinter.append("${if (keyword.kind != TokenKind.ILLEGAL) {keyword.value} else {""}} ")
+        PrettyPrinter.append("${if (keyword.kind != TokenKind.ILLEGAL) {keyword.value} else {""}} ${identifier.value}")
     }
 }
 
@@ -74,8 +74,6 @@ public class VarDecl <: Decl {
         super.prettyPrint()
         if (let Some(dtype) <- declType) {
             dtype.prettyPrint()
-        } else {
-            PrettyPrinter.append(identifier.value)
         }
         PrettyPrinter.append("${if (initializer.isSome()) {" = "} else {""}}")
         if (let Some(ini) <- initializer) {ini.prettyPrint()}
@@ -91,6 +89,7 @@ public class FuncParam <: Decl {
     }
 
     public override func prettyPrint() {
+        PrettyPrinter.append(paramType.typeParameterName.value)
         paramType.prettyPrint()
     }
 }
@@ -99,16 +98,20 @@ public class FuncDecl <: Decl {
     let block: Block
     let params: ArrayList<FuncParam>
 
-    public init(identifier: Token, block: Block, params: ArrayList<FuncParam>) {
+    // TODO: Change this to TypeNode and think about how to pretty print without
+    // knowin
+    let declType: ?TypeNode
+
+    public init(identifier: Token, block: Block, params: ArrayList<FuncParam>, declType: ?TypeNode) {
         this.block = block
         this.params = params
+        this.declType = declType
         this.identifier = identifier
     }
 
     public override func prettyPrint() {
         PrettyPrinter.append("func")
         super.prettyPrint()
-        PrettyPrinter.append(identifier.value)
         PrettyPrinter.append("(")
         if (!params.isEmpty()) {
             params[0].prettyPrint()
@@ -117,7 +120,10 @@ public class FuncDecl <: Decl {
                 params[i].prettyPrint()
             }
         }
-        PrettyPrinter.append(") ")
+        PrettyPrinter.append(")")
+        if (let Some(dtype) <- declType) {
+            dtype.prettyPrint()
+        }
         block.prettyPrint()
     }
 }

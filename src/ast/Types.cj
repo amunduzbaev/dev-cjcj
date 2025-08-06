@@ -16,7 +16,7 @@ public open class TypeNode <: Node {
     }
 
     public override open func prettyPrint() {
-        PrettyPrinter.append(typeParameterName.value)
+        // PrettyPrinter.append(typeParameterName.value)
     }
 }
 

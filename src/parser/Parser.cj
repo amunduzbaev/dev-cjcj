@@ -170,9 +170,16 @@ public class Parser {
             }
             consume(TokenKind.RPAREN, "Expect ') after parameters.")
         }
+        var declType: ?TypeNode = None
+        if (matches(TokenKind.COLON)) {
+            try {
+                declType = PrimitiveType(name, advance())
+            } catch (_: IllegalArgumentException) {
+            }
+        }
         consume(TokenKind.LCURL, "Expect '{' before " + kind + " body.")
         let block: Block = Block(block())
-        FuncDecl(name, block, parameters)
+        FuncDecl(name, block, parameters, declType)
     }
 
     private func funcParameter(): FuncParam {
