@@ -20,10 +20,6 @@ public class Reporter {
         }
     }
 
-    func error(line: Int64, message: String) {
-        report(line, "", message)
-    }
-
     private func report(line: Int64, wher: String, message: String) {
         console.writeln(
             "[line " + line.toString() + "] Error" + wher + ": " + message)

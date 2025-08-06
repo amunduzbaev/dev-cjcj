@@ -6,29 +6,34 @@ import cjcj.scanner.*
 import std.ast.Position
 
 public open class TypeNode <: Node {
-    var typeParameterName: Token = Token(TokenKind.ILLEGAL, "", Position())
+    private var typeParameterName_: Token = Token(TokenKind.ILLEGAL, "", Position())
 
     public init() { }
 
     public init(typeParameterName: Token) {
-        this.typeParameterName = typeParameterName
+        typeParameterName_ = typeParameterName
     }
 
     public override open func prettyPrint() {
         // PrettyPrinter.append(typeParameterName.value)
     }
+
+    public mut prop typeParameterName: Token {
+        get() { typeParameterName_ }
+        set(v) { typeParameterName_ = v }
+    }
 }
 
 public class PrimitiveType <: TypeNode {
     // Keyword for constructing a primitive type.
-    let keyword: Token
+    private let keyword_: Token
 
     public init(typeParameterName: Token, keyword: Token) {
-        this.typeParameterName = typeParameterName
-        this.keyword = keyword
+        keyword_ = keyword
         if (!isPrimitive(keyword)) {
             throw IllegalArgumentException(keyword.value + " is not a primitive type.")
         }
+        super.typeParameterName = typeParameterName
     }
 
     public override func prettyPrint() {
@@ -38,5 +43,9 @@ public class PrimitiveType <: TypeNode {
 
     private func isPrimitive(keyword: Token): Bool {
         TokenKindHelper.PRIMITIVE_TYPE_TOKEN_KIND.iterator().any({ t => t == keyword.kind })
+    }
+
+    public prop keyword: Token {
+        get() { keyword_ }
     }
 }
