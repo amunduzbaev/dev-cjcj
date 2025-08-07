@@ -44,3 +44,8 @@ public static open struct MyStruct {
         return 10
     }
 }
+
+private func a(): Int64 {
+    a + b
+}
+

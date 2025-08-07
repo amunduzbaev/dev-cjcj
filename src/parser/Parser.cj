@@ -90,9 +90,9 @@ public class Parser {
     public func parse(): ?Array<Node> {
         let nodes: ArrayList<Node> = ArrayList()
         try {
+            skipNL()
             while (!isAtEnd()) {
                 let modifiers: ArrayList<Modifier> = modifiers()
-
                 // We're calling class and other custom declarations here
                 // because you cannot have a class inside a class.
                 if (matches(TokenKind.CLASS)) {
@@ -102,6 +102,7 @@ public class Parser {
                 } else {
                     nodes.add(node(modifiers))
                 }
+                skipNL()
             }
             return nodes.toArray()
         } catch (error: ParseError) {
@@ -190,12 +191,9 @@ public class Parser {
             }
             consume(TokenKind.RPAREN, "Expect ') after parameters.")
         }
-        var declType: ?TypeNode = None
         consume(TokenKind.LCURL, "Expect '{' before function" + " body.")
         let block: Block = Block(block())
         InitDecl(keyword, name, block, modifiers, parameters)
-
-        
     }
 
 
@@ -314,6 +312,7 @@ public class Parser {
     private func block(): Array<Node> {
         let nodes = ArrayList<Node>()
         
+        skipNL()
         while (!check(TokenKind.RCURL) && !isAtEnd()) {
             nodes.add(node(modifiers()))
             skipNL()
@@ -446,7 +445,6 @@ public class Parser {
     }
 
     private func primary(): Expr {
-        skipNL()
         if (matches(TokenKind.BOOL_LITERAL)) {
             return Literal(Bool.parse(previous().value))
         }
@@ -499,7 +497,6 @@ public class Parser {
     }
 
     private func modifiers(): ArrayList<Modifier> {
-        skipNL()
         let modifiers: ArrayList<Modifier> = ArrayList()
         while (matches(TokenKindHelper.MODIFIERS_TOKEN_KIND)) {
             modifiers.add(Modifier(previous()))
@@ -545,7 +542,7 @@ public class Parser {
     }
 
     private func skipNL(): Unit {
-        while(check(TokenKind.NL)) {
+        if (check(TokenKind.NL)) {
             advance()
         }
     }
