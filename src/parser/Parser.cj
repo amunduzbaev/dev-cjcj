@@ -3,6 +3,7 @@ package cjcj.parser
 import cjcj.ast.*
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
+import cjcj.scanner.TokenKindHelper
 
 import std.collection.ArrayList
 import std.convert.Parsable
@@ -90,12 +91,16 @@ public class Parser {
         let nodes: ArrayList<Node> = ArrayList()
         try {
             while (!isAtEnd()) {
+                let modifiers: ArrayList<Modifier> = modifiers()
+
+                // We're calling class and other custom declarations here
+                // because you cannot have a class inside a class.
                 if (matches(TokenKind.CLASS)) {
                     nodes.add(classDeclaration().getOrThrow())
                 } else if (matches(TokenKind.STRUCT)) {
-                    nodes.add(structDeclaration())
+                    nodes.add(structDeclaration(modifiers))
                 } else {
-                    nodes.add(node())
+                    nodes.add(node(modifiers))
                 }
             }
             return nodes.toArray()
@@ -104,8 +109,8 @@ public class Parser {
         }
     }
 
-    private func node(): Node {
-        if (let Some(decl) <- declaration()) {
+    private func node(modifiers: ArrayList<Modifier>): Node {
+        if (let Some(decl) <- declaration(modifiers)) {
             return decl
         }
         return statement()
@@ -120,7 +125,6 @@ public class Parser {
         let expr: Expr = or()
 
         if (matches(TokenKind.ASSIGN)) {
-            let equals: Token = previous()
             let value: Expr = assignment()
             return Assign(expr, value)
         }
@@ -148,14 +152,14 @@ public class Parser {
         return expr
     }
 
-    private func declaration(): ?Decl {
+    private func declaration(modifiers: ArrayList<Modifier>): ?Decl {
         skipNL()
         try {
             if (matches(TokenKind.LET, TokenKind.VAR)) {
-                return varDeclaration()
+                return varDeclaration(modifiers)
             }
             if (matches(TokenKind.FUNC)) {
-                return function("function")
+                return function(modifiers)
             }
         } catch (error: ParseError) {
             synchronize()
@@ -163,12 +167,12 @@ public class Parser {
         None
     }
 
-    private func function(kind: String): FuncDecl {
-        let name: Token = consume(TokenKind.IDENTIFIER, "Expect " + kind +
-                                    " name.")
+    private func function(modifiers: ArrayList<Modifier>): FuncDecl {
+        let keyword: Token = previous()
+        let name: Token = consume(TokenKind.IDENTIFIER, "Expect function name.")
         let parameters: ArrayList<FuncParam> = ArrayList()
         if (!matches(TokenKind.UNIT_LITERAL)) {
-            consume(TokenKind.LPAREN, "Expect '(' after " + kind + " name.")
+            consume(TokenKind.LPAREN, "Expect '(' after function " + " name.")
             if (!check(TokenKind.RPAREN)) {
                 do {
                     if (parameters.size >= MAX_PARAM_NUMBER) {
@@ -188,9 +192,9 @@ public class Parser {
             } catch (_: IllegalArgumentException) {
             }
         }
-        consume(TokenKind.LCURL, "Expect '{' before " + kind + " body.")
+        consume(TokenKind.LCURL, "Expect '{' before function" + " body.")
         let block: Block = Block(block())
-        FuncDecl(name, block, parameters, declType)
+        FuncDecl(keyword, name, block, modifiers, parameters, declType)
     }
 
     private func funcParameter(): FuncParam {
@@ -211,11 +215,12 @@ public class Parser {
 
     }
 
-    private func structDeclaration(): StructDecl {
+    private func structDeclaration(modifiers: ArrayList<Modifier>): StructDecl {
+        let keyword: Token = previous()
         let name: Token = consume(TokenKind.IDENTIFIER, "Expect struct name.")
         consume(TokenKind.LCURL, "Expect '{' before struct body.")
         let block: Block = Block(block())
-        StructDecl(name, block)
+        StructDecl(keyword, name, modifiers, block)
     }
 
     private func statement(): Expr {
@@ -278,7 +283,7 @@ public class Parser {
         let nodes = ArrayList<Node>()
         
         while (!check(TokenKind.RCURL) && !isAtEnd()) {
-            nodes.add(node())
+            nodes.add(node(modifiers()))
             skipNL()
         }
         consume(TokenKind.RCURL, "Expect '}' after block.")
@@ -287,7 +292,7 @@ public class Parser {
     }
 
 
-    private func varDeclaration(): VarDecl {
+    private func varDeclaration(modifiers: ArrayList<Modifier>): VarDecl {
         let keyword: Token = previous()
         let name: Token = consume(TokenKind.IDENTIFIER, "Expect variable name.")
 
@@ -308,7 +313,7 @@ public class Parser {
             consume(TokenKind.SEMI,
                 "Expect ';' or new line after variable declaration.")
         }
-        VarDecl(keyword, name, initializer, declType)
+        VarDecl(keyword, name, initializer, modifiers, declType)
     }
 
     private func expressionStatement(): Expr {
@@ -461,6 +466,15 @@ public class Parser {
         }
     }
 
+    private func modifiers(): ArrayList<Modifier> {
+        skipNL()
+        let modifiers: ArrayList<Modifier> = ArrayList()
+        while (matches(TokenKindHelper.MODIFIERS_TOKEN_KIND)) {
+            modifiers.add(Modifier(previous()))
+        }
+        modifiers
+    }
+
     private func matches(types: Array<TokenKind>): Bool {
         for (kind in types) {
             if (check(kind)) {
@@ -470,6 +484,7 @@ public class Parser {
         }
         return false
     }
+
 
     private func check(kind: TokenKind): Bool {
         if (isAtEnd()) {

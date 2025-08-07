@@ -9,15 +9,16 @@ import std.ast.Position
 import std.collection.ArrayList
 
 public abstract class Decl <: Node {
-    // TODO: Use the default token constructor.
     protected var identifier_: Token = Token()
     protected var keyword_: Token = identifier_
+    protected var modifiers_ = ArrayList<Modifier>()
 
     init() { }
 
-    init(keyword: Token, identifier: Token) {
+    init(keyword: Token, identifier: Token, modifiers: ArrayList<Modifier>) {
         identifier_ = identifier
         keyword_ = keyword
+        modifiers_ = modifiers
     }
 
     // Copy constructor
@@ -36,7 +37,14 @@ public abstract class Decl <: Node {
         set(v) { keyword_ = v }
     }
 
+    public mut open prop modifiers: ArrayList<Modifier> {
+        get() { modifiers_ }
+        set(v) { modifiers_ = v }
+    }
+
     public override open func prettyPrint() {
+        modifiers.iterator()
+            .forEach({ m => m.prettyPrint(); PrettyPrinter.append(" ")})
         if (keyword.kind != TokenKind.ILLEGAL) {
             PrettyPrinter.append(keyword.value + " ")
         }
@@ -53,12 +61,12 @@ public class VarDecl <: Decl {
     }
 
     public init(keyword: Token, identifier: Token, initializer: ?Expr) {
-        this(keyword, identifier, initializer, None)
+        this(keyword, identifier, initializer, ArrayList<Modifier>(), None)
     }
 
-    public init(keyword: Token, identifier: Token,
-                    initializer: ?Expr, declType: ?TypeNode) {
-        super(keyword, identifier)
+    public init(keyword: Token, identifier: Token, initializer: ?Expr,
+            modifiers: ArrayList<Modifier>, declType: ?TypeNode) {
+        super(keyword, identifier, modifiers)
         initializer_ = initializer
         declType_ = declType
     }
@@ -105,16 +113,16 @@ public class FuncDecl <: Decl {
 
     private let declType_: ?TypeNode
 
-    public init(identifier: Token, block: Block,
-                    params: ArrayList<FuncParam>, declType: ?TypeNode) {
+    public init(keyword: Token, identifier: Token, block: Block,
+                modifiers: ArrayList<Modifier>, params: ArrayList<FuncParam>,
+                declType: ?TypeNode) {
+        super(keyword, identifier, modifiers)
         this.block_ = block
         this.params_ = params
         this.declType_ = declType
-        this.identifier = identifier
     }
 
     public override func prettyPrint() {
-        PrettyPrinter.append("func ")
         super.prettyPrint()
         PrettyPrinter.append("(")
         if (!params.isEmpty()) {
@@ -146,7 +154,6 @@ public class FuncDecl <: Decl {
 
 public class ClassDecl <: Decl {
     private let block_: Block
-    //let modifiers = ArrayList<ClassModifiers>
 
     public init(identifier: Token, block: Block) {
         block_ = block
@@ -167,13 +174,13 @@ public class ClassDecl <: Decl {
 public class StructDecl <: Decl {
     private let block_: Block
 
-    public StructDecl(identifier: Token, block: Block) {
+    public StructDecl(keyword: Token, identifier: Token,
+                        modifiers: ArrayList<Modifier>, block: Block) {
+        super(keyword, identifier, modifiers)
         block_ = block
-        this.identifier = identifier
     }
 
     public override func prettyPrint() {
-        PrettyPrinter.append("struct ")
         super.prettyPrint()
         block.prettyPrint()
     }

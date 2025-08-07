@@ -22,3 +22,19 @@ public class Argument <: Node {
         expr.prettyPrint()
     }
 }
+
+public class Modifier <: Node {
+    private let keyword_: Token
+
+    public init(keyword: Token) {
+        keyword_ = keyword
+    }
+
+    public override func prettyPrint(): Unit {
+        PrettyPrinter.append(keyword.value)
+    }
+
+    public prop keyword: Token {
+        get() { keyword_ }
+    }
+}

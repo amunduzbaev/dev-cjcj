@@ -1,7 +1,7 @@
-struct st {
-    let a: Int64 = 5
+public static struct st {
+    private let a: Int64 = 5
     a + b
-    func a() {
+    public open mut func a() {
         return 5
     }
 }

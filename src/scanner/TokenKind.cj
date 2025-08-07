@@ -241,22 +241,37 @@ public enum TokenKind {
 
 public class TokenKindHelper {
     public static let PRIMITIVE_TYPE_TOKEN_KIND: Array<TokenKind> = [
-        TokenKind.INT8, 
-        TokenKind.INT16,
-        TokenKind.INT32,
-        TokenKind.INT64,
-        TokenKind.INTNATIVE,
-        TokenKind.UINT8,
-        TokenKind.UINT16,
-        TokenKind.UINT32,
-        TokenKind.UINT64,
-        TokenKind.UINTNATIVE,
-        TokenKind.FLOAT16,
-        TokenKind.FLOAT32,
-        TokenKind.FLOAT64,
-        TokenKind.RUNE,
-        TokenKind.BOOLEAN,
-        TokenKind.NOTHING,
-        TokenKind.UNIT
+        INT8, 
+        INT16,
+        INT32,
+        INT64,
+        INTNATIVE,
+        UINT8,
+        UINT16,
+        UINT32,
+        UINT64,
+        UINTNATIVE,
+        FLOAT16,
+        FLOAT32,
+        FLOAT64,
+        RUNE,
+        BOOLEAN,
+        NOTHING,
+        UNIT
+    ]
+
+    public static let MODIFIERS_TOKEN_KIND: Array<TokenKind> = [
+        PROP,
+        STATIC,
+        PUBLIC,
+        PRIVATE,
+        INTERNAL,
+        PROTECTED,
+        OVERRIDE,
+        ABSTRACT,
+        SEALED,
+        OPEN,
+        INOUT,
+        MUT
     ]
 }
