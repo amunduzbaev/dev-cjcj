@@ -22,8 +22,10 @@ abstract sealed class Node {
     }
     // public func traverse(v: Visitor): Unit
 
+    /*
+    * Print the node and its children as a piece of Cangjie code.
+    */
     public func prettyPrint(printer: PrettyPrinter): Unit
-
 
     public prop id: NodeId {
         get() { id_ }
@@ -31,15 +33,19 @@ abstract sealed class Node {
 }
 
 public class Argument <: Node {
-    let expr: Node
+    private let expr_: Node
 
     public Argument(id: NodeId, expr: Node) {
         super(id)
-        this.expr = expr
+        expr_ = expr
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
         expr.prettyPrint(printer)
+    }
+
+    public prop expr: Node {
+        get() { expr_ }
     }
 }
 

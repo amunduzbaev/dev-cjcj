@@ -33,6 +33,7 @@ public abstract class Decl <: Node {
         get() { identifier_ }
         set(v) { identifier_ = v }
     }
+
     public mut open prop keyword: Token {
         get() { keyword_ }
         set(v) { keyword_ = v }

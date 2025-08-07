@@ -148,7 +148,7 @@ public class Parser {
         while (matches(TokenKind.OR)) {
             let oper: Token = previous()
             let right: Expr = and()
-            expr = Logical(NodeIdManager.nextId(), expr, oper, right)
+            expr = Binary(NodeIdManager.nextId(), expr, oper, right)
         }
         return expr
     }
@@ -158,7 +158,7 @@ public class Parser {
         while (matches(TokenKind.AND)) {
             let oper: Token = previous()
             let right: Expr = equality()
-            expr = Logical(NodeIdManager.nextId(), expr, oper, right)
+            expr = Binary(NodeIdManager.nextId(), expr, oper, right)
         }
         return expr
     }

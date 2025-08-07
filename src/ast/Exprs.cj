@@ -45,37 +45,6 @@ public class Binary <: Expr {
     }
 }
 
-public class Logical <: Expr {
-    private let left_: Expr
-    private let oper_: Token
-    private let right_: Expr
-
-    public Logical(id: NodeId, left: Expr, oper: Token, right: Expr) {
-        super(id)
-        left_ = left
-        oper_ = oper
-        right_ = right
-    }
-
-    public override func prettyPrint(printer: PrettyPrinter) {
-        left.prettyPrint(printer)
-        printer.append(" ${oper.value} ")
-        right.prettyPrint(printer)
-    }
-
-    public prop left: Expr {
-        get() { left_ }
-    }
-
-    public prop oper: Token {
-        get() { oper_ }
-    }
-
-    public prop right: Expr {
-        get() { right_ }
-    }
-}
-
 public class Grouping <: Expr {
     private let node_: Expr
 
