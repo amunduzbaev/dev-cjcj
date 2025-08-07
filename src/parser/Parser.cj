@@ -161,11 +161,43 @@ public class Parser {
             if (matches(TokenKind.FUNC)) {
                 return function(modifiers)
             }
+            if (matches(TokenKind.INIT)) {
+                return initialiser(modifiers)
+            }
         } catch (error: ParseError) {
             synchronize()
         }
         None
     }
+
+    private func initialiser(modifiers:ArrayList<Modifier>): InitDecl {
+        let parameters: ArrayList<FuncParam> = ArrayList()
+        let keyword: Token = previous()
+
+        let name: Token = Token()
+
+        if (!matches(TokenKind.UNIT_LITERAL)) {
+            consume(TokenKind.LPAREN, "Expect '(' after function " + " name.")
+            if (!check(TokenKind.RPAREN)) {
+                do {
+                    if (parameters.size >= MAX_PARAM_NUMBER) {
+                        throw error(peek(), "Can't have more than " +
+                            MAX_PARAM_NUMBER.toString() + " parameters.")
+                    }
+
+                    parameters.add(funcParameter())
+                } while(matches(TokenKind.COMMA))
+            }
+            consume(TokenKind.RPAREN, "Expect ') after parameters.")
+        }
+        var declType: ?TypeNode = None
+        consume(TokenKind.LCURL, "Expect '{' before function" + " body.")
+        let block: Block = Block(block())
+        InitDecl(keyword, name, block, modifiers, parameters)
+
+        
+    }
+
 
     private func function(modifiers: ArrayList<Modifier>): FuncDecl {
         let keyword: Token = previous()

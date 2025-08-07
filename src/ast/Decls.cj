@@ -89,6 +89,42 @@ public class VarDecl <: Decl {
     }
 }
 
+public class InitDecl <: Decl {
+    private let block_: Block
+    private let params_: ArrayList<FuncParam>
+
+    public init(keyword: Token, identifier: Token, block: Block,
+                modifiers: ArrayList<Modifier>, params: ArrayList<FuncParam>) {
+        super(keyword, identifier, modifiers)
+        this.block_ = block
+        this.params_ = params
+    }
+
+    public override func prettyPrint() {
+        super.prettyPrint()
+        PrettyPrinter.append("(")
+        if (!params.isEmpty()) {
+            params[0].prettyPrint()
+            for (i in 1..params.size) {
+                PrettyPrinter.append(", ")
+                params[i].prettyPrint()
+            }
+        }
+        PrettyPrinter.append(")")
+        block_.prettyPrint()
+    }
+
+    public prop block: Block {
+        get() { block_ }
+    }
+
+    public prop params: ArrayList<FuncParam> {
+        get() { params_ }
+    }
+
+
+}
+
 public class FuncParam <: Decl {
     private let paramType_: TypeNode
 

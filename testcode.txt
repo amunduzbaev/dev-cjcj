@@ -36,7 +36,11 @@ while (a + b == 5) {
 }
 a(b, c, d)
 
-class MyClass {
+public static open struct MyStruct {
     let a:Int64 = 0
     return a
+
+    public init(a: Int64) {
+        return 10
+    }
 }
