@@ -8,13 +8,15 @@ import std.collection.ArrayList
 import std.convert.Parsable
 
 /* Current Grammar
-program        → (declaration | classDecl)* EOF ;
+program        → (declaration | classDecl | structDecl)* EOF ;
 
 declaration    → varDecl
                | funcDecl
                | statement ;
 
 classDecl      → "class" IDENTIFIER block ;
+
+structDecl     → "struct" IDENTIFIER block ;
 
 varDecl        → ( "var" | "let" ) IDENTIFIER ( "=" expression )? ( ";" | "\n");
 
@@ -90,7 +92,9 @@ public class Parser {
             while (!isAtEnd()) {
                 if (matches(TokenKind.CLASS)) {
                     nodes.add(classDeclaration().getOrThrow())
-                }else{
+                } else if (matches(TokenKind.STRUCT)) {
+                    nodes.add(structDeclaration())
+                } else {
                     nodes.add(node())
                 }
             }
@@ -118,12 +122,7 @@ public class Parser {
         if (matches(TokenKind.ASSIGN)) {
             let equals: Token = previous()
             let value: Expr = assignment()
-
-            if (expr is RefExpr) {
-                let name: Token = (expr as RefExpr).getOrThrow().identifier
-                return Assign(name, value)
-            }
-            throw error(equals, "Invalid assignment target.")
+            return Assign(expr, value)
         }
 
         expr
@@ -212,6 +211,13 @@ public class Parser {
 
     }
 
+    private func structDeclaration(): StructDecl {
+        let name: Token = consume(TokenKind.IDENTIFIER, "Expect struct name.")
+        consume(TokenKind.LCURL, "Expect '{' before struct body.")
+        let block: Block = Block(block())
+        StructDecl(name, block)
+    }
+
     private func statement(): Expr {
         skipNL()
         if (matches(TokenKind.IF)) {
@@ -273,6 +279,7 @@ public class Parser {
         
         while (!check(TokenKind.RCURL) && !isAtEnd()) {
             nodes.add(node())
+            skipNL()
         }
         consume(TokenKind.RCURL, "Expect '}' after block.")
         
@@ -386,6 +393,14 @@ public class Parser {
         while (true) {
             if (check(TokenKind.LPAREN) || check(TokenKind.UNIT_LITERAL)) {
                 expr = finishCall(expr)
+            } else if (matches(TokenKind.DOT)) {
+                let name: Token = consume(TokenKind.IDENTIFIER,
+                    "Expected property name after '.'.")
+                expr = MemberAccess(expr, name)
+                
+                if (matches(TokenKind.COLON)) {
+                    
+                }
             } else {
                 break
             }
@@ -437,7 +452,8 @@ public class Parser {
                 peek().kind == TokenKind.VAR ||
                 peek().kind == TokenKind.IF ||
                 peek().kind == TokenKind.WHILE ||
-                peek().kind == TokenKind.RETURN
+                peek().kind == TokenKind.RETURN ||
+                peek().kind == TokenKind.STRUCT
             ) {
                 return
             }

@@ -38,7 +38,7 @@ public abstract class Decl <: Node {
 
     public override open func prettyPrint() {
         if (keyword.kind != TokenKind.ILLEGAL) {
-            PrettyPrinter.append(keyword.value)
+            PrettyPrinter.append(keyword.value + " ")
         }
         PrettyPrinter.append(identifier.value)
     }
@@ -114,7 +114,7 @@ public class FuncDecl <: Decl {
     }
 
     public override func prettyPrint() {
-        PrettyPrinter.append("func")
+        PrettyPrinter.append("func ")
         super.prettyPrint()
         PrettyPrinter.append("(")
         if (!params.isEmpty()) {
@@ -155,6 +155,25 @@ public class ClassDecl <: Decl {
 
     public override func prettyPrint() {
         PrettyPrinter.append("class ")
+        super.prettyPrint()
+        block.prettyPrint()
+    }
+
+    public prop block: Block {
+        get() { block_ }
+    }
+}
+
+public class StructDecl <: Decl {
+    private let block_: Block
+
+    public StructDecl(identifier: Token, block: Block) {
+        block_ = block
+        this.identifier = identifier
+    }
+
+    public override func prettyPrint() {
+        PrettyPrinter.append("struct ")
         super.prettyPrint()
         block.prettyPrint()
     }

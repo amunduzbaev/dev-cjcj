@@ -95,7 +95,6 @@ public class Scanner {
             scanToken()
         }
         tokens.add(Token(TokenKind.END, "END", Position(0,line,column)))
-        println(tokens)
         tokens
     }
     

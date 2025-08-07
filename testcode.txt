@@ -1,3 +1,18 @@
+struct st {
+    let a: Int64 = 5
+    a + b
+    func a() {
+        return 5
+    }
+}
+-5
+
+st.a
+st.b()
+st().b = 5
+
+(a + b).c()
+
 let b: Int64
 var a: Int64 = 3 + 5 * (2 + 3 / (1 + 5))
 a = 5

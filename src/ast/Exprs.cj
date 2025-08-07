@@ -123,7 +123,7 @@ public class Unary <: Expr {
     }
 
     public override func prettyPrint() {
-        PrettyPrinter.append("${oper.toString()}")
+        PrettyPrinter.append("${oper.value}")
         right.prettyPrint()
     }
 
@@ -137,26 +137,27 @@ public class Unary <: Expr {
 }
 
 public class Assign <: Expr {
-    private let name_: Token
-    private let value_: Expr
+    private let left_: Expr
+    private let right_: Expr
 
-    public Assign(name: Token, value: Expr) {
+    public Assign(name: Expr, value: Expr) {
         super()
-        name_ = name
-        value_ = value
+        left_ = name
+        right_ = value
     }
 
     public override func prettyPrint() {
-        PrettyPrinter.append("${name.value} = ")
-        value.prettyPrint()
+        left.prettyPrint()
+        PrettyPrinter.append(" = ")
+        right.prettyPrint()
     }
 
-    public prop name: Token {
-        get() { name_ }
+    public prop left: Expr {
+        get() { left_ }
     }
 
-    public prop value: Expr {
-        get() { value_ }
+    public prop right: Expr {
+        get() { right_ }
     }
 }
 
@@ -186,13 +187,20 @@ public class Block <: Expr {
 
     public override func prettyPrint() {
         PrettyPrinter.append("{")
-        PrettyPrinter.indent()
-        PrettyPrinter.append("\n")
-        nodes.iterator().forEach({ 
-            n =>    n.prettyPrint() 
-                    PrettyPrinter.append("\n")
-            })
-        PrettyPrinter.unindent()
+        if (!nodes.isEmpty()) {
+            PrettyPrinter.indent()
+            PrettyPrinter.append("\n")
+            nodes[0].prettyPrint()
+            nodes.iterator()
+                .enumerate()
+                .filter({ v => v[0] > 0})
+                .map({ v => v[1] })
+                .forEach({ 
+                n => PrettyPrinter.append("\n")    
+                    n.prettyPrint()     
+                })
+            PrettyPrinter.unindent()
+        }
         PrettyPrinter.append("\n}\n")
     }
 
@@ -268,10 +276,10 @@ public class WhileExpr <: Expr {
 }
 
 public class CallExpr <: Expr {
-    private let callee_: Node
+    private let callee_: Expr
     private let arguments_: ArrayList<Argument>
 
-    public CallExpr(callee: Node, arguments: ArrayList<Argument>) {
+    public CallExpr(callee: Expr, arguments: ArrayList<Argument>) {
         callee_ = callee
         arguments_ = arguments
     }
@@ -290,10 +298,9 @@ public class CallExpr <: Expr {
         PrettyPrinter.append(")")
     }
 
-    public prop callee: Node {
+    public prop callee: Expr {
         get() { callee_ }
     }
-
     public prop arguments: ArrayList<Argument> {
         get() { arguments_ }
     }
@@ -320,4 +327,28 @@ public class ReturnExpr <: Expr {
     public prop keyword: Token {
         get() { keyword_ }
     }
+}
+
+public class MemberAccess <: Expr {
+    private let baseExpr_: Expr
+    private let field_: Token
+
+    public MemberAccess(baseExpr: Expr, field: Token) {
+        baseExpr_ = baseExpr
+        field_ = field
+    }
+
+    public override func prettyPrint() {
+        baseExpr.prettyPrint()
+        PrettyPrinter.append("." + field.value)
+    }
+
+    public prop baseExpr: Expr {
+        get() { baseExpr_ }
+    }
+
+    public prop field: Token {
+        get() { field_ }
+    }
+
 }
