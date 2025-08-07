@@ -6,15 +6,33 @@ import cjcj.scanner.Token
 
 import std.collection.ArrayList
 
+public struct NodeId {
+    public let id: UInt64
+
+    public NodeId(id: UInt64) {
+        this.id = id
+    }
+}
+
 abstract sealed class Node {
+    private let id_: NodeId
+
+    public Node(id: NodeId) {
+        id_ = id
+    }
     // public func traverse(v: Visitor): Unit
     public func prettyPrint(): Unit
+
+    public prop id: NodeId {
+        get() { id_ }
+    }
 }
 
 public class Argument <: Node {
     let expr: Node
 
-    public Argument(expr: Node) {
+    public Argument(id: NodeId, expr: Node) {
+        super(id)
         this.expr = expr
     }
 
@@ -26,7 +44,8 @@ public class Argument <: Node {
 public class Modifier <: Node {
     private let keyword_: Token
 
-    public init(keyword: Token) {
+    public init(id: NodeId, keyword: Token) {
+        super(id)
         keyword_ = keyword
     }
 

@@ -13,9 +13,10 @@ public abstract class Decl <: Node {
     protected var keyword_: Token = identifier_
     protected var modifiers_ = ArrayList<Modifier>()
 
-    init() { }
+    init(id: NodeId) { super(id) }
 
-    init(keyword: Token, identifier: Token, modifiers: ArrayList<Modifier>) {
+    init(id: NodeId, keyword: Token, identifier: Token, modifiers: ArrayList<Modifier>) {
+        this(id)
         identifier_ = identifier
         keyword_ = keyword
         modifiers_ = modifiers
@@ -23,7 +24,7 @@ public abstract class Decl <: Node {
 
     // Copy constructor
     init (decl: Decl) {
-        super()
+        this(decl.id)
         this.identifier_ = decl.identifier_
         this.keyword_ = decl.keyword_
     }
@@ -56,17 +57,17 @@ public class VarDecl <: Decl {
     private let initializer_: ?Expr
     private let declType_: ?TypeNode
 
-    public init (keyword: Token, identifier: Token) {
-        this(keyword, identifier, None)
+    public init (id: NodeId, keyword: Token, identifier: Token) {
+        this(id, keyword, identifier, None)
     }
 
-    public init(keyword: Token, identifier: Token, initializer: ?Expr) {
-        this(keyword, identifier, initializer, ArrayList<Modifier>(), None)
+    public init(id: NodeId, keyword: Token, identifier: Token, initializer: ?Expr) {
+        this(id, keyword, identifier, initializer, ArrayList<Modifier>(), None)
     }
 
-    public init(keyword: Token, identifier: Token, initializer: ?Expr,
+    public init(id: NodeId, keyword: Token, identifier: Token, initializer: ?Expr,
             modifiers: ArrayList<Modifier>, declType: ?TypeNode) {
-        super(keyword, identifier, modifiers)
+        super(id, keyword, identifier, modifiers)
         initializer_ = initializer
         declType_ = declType
     }
@@ -93,9 +94,9 @@ public class InitDecl <: Decl {
     private let block_: Block
     private let params_: ArrayList<FuncParam>
 
-    public init(keyword: Token, identifier: Token, block: Block,
+    public init(id: NodeId, keyword: Token, identifier: Token, block: Block,
                 modifiers: ArrayList<Modifier>, params: ArrayList<FuncParam>) {
-        super(keyword, identifier, modifiers)
+        super(id, keyword, identifier, modifiers)
         this.block_ = block
         this.params_ = params
     }
@@ -128,8 +129,8 @@ public class InitDecl <: Decl {
 public class FuncParam <: Decl {
     private let paramType_: TypeNode
 
-    public init(paramType: TypeNode) {
-        super()
+    public init(id: NodeId, paramType: TypeNode) {
+        super(id)
         paramType_ = paramType
     }
 
@@ -149,10 +150,10 @@ public class FuncDecl <: Decl {
 
     private let declType_: ?TypeNode
 
-    public init(keyword: Token, identifier: Token, block: Block,
+    public init(id: NodeId, keyword: Token, identifier: Token, block: Block,
                 modifiers: ArrayList<Modifier>, params: ArrayList<FuncParam>,
                 declType: ?TypeNode) {
-        super(keyword, identifier, modifiers)
+        super(id, keyword, identifier, modifiers)
         this.block_ = block
         this.params_ = params
         this.declType_ = declType
@@ -191,7 +192,8 @@ public class FuncDecl <: Decl {
 public class ClassDecl <: Decl {
     private let block_: Block
 
-    public init(identifier: Token, block: Block) {
+    public init(id: NodeId, identifier: Token, block: Block) {
+        super(id)
         block_ = block
         this.identifier = identifier
     }
@@ -210,9 +212,9 @@ public class ClassDecl <: Decl {
 public class StructDecl <: Decl {
     private let block_: Block
 
-    public StructDecl(keyword: Token, identifier: Token,
+    public StructDecl(id: NodeId, keyword: Token, identifier: Token,
                         modifiers: ArrayList<Modifier>, block: Block) {
-        super(keyword, identifier, modifiers)
+        super(id, keyword, identifier, modifiers)
         block_ = block
     }
 

@@ -9,9 +9,10 @@ public open class TypeNode <: Node {
     private var typeParameterName_: Token = Token(TokenKind.ILLEGAL, "",
                                                     Position())
 
-    public init() { }
+    public init(id: NodeId) { super(id) }
 
-    public init(typeParameterName: Token) {
+    public init(id: NodeId, typeParameterName: Token) {
+        this(id)
         typeParameterName_ = typeParameterName
     }
 
@@ -29,7 +30,8 @@ public class PrimitiveType <: TypeNode {
     // Keyword for constructing a primitive type.
     private let keyword_: Token
 
-    public init(typeParameterName: Token, keyword: Token) {
+    public init(id: NodeId, typeParameterName: Token, keyword: Token) {
+        super(id)
         keyword_ = keyword
         if (!isPrimitive(keyword)) {
             throw IllegalArgumentException(keyword.value +

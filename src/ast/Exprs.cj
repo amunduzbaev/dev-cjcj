@@ -7,8 +7,8 @@ import cjcj.scanner.TokenKind
 import std.collection.ArrayList
 
 public open class Expr <: Node {
-    public init() {
-        super()
+    public init(id: NodeId) {
+        super(id)
     }
 
     public override open func prettyPrint() { }
@@ -19,8 +19,8 @@ public class Binary <: Expr {
     private let oper_: Token
     private let right_: Expr
 
-    public Binary(left: Expr, oper: Token, right: Expr) {
-        super()
+    public Binary(id: NodeId, left: Expr, oper: Token, right: Expr) {
+        super(id)
         left_ = left
         oper_ = oper
         right_ = right
@@ -50,8 +50,8 @@ public class Logical <: Expr {
     private let oper_: Token
     private let right_: Expr
 
-    public Logical(left: Expr, oper: Token, right: Expr) {
-        super()
+    public Logical(id: NodeId, left: Expr, oper: Token, right: Expr) {
+        super(id)
         left_ = left
         oper_ = oper
         right_ = right
@@ -79,8 +79,8 @@ public class Logical <: Expr {
 public class Grouping <: Expr {
     private let node_: Expr
 
-    public Grouping(node: Expr) {
-        super()
+    public Grouping(id: NodeId, node: Expr) {
+        super(id)
         node_ = node
     }
 
@@ -98,8 +98,8 @@ public class Grouping <: Expr {
 public class Literal <: Expr {
     private let value_: ToString
 
-    public Literal(value: ToString) {
-        super()
+    public Literal(id: NodeId, value: ToString) {
+        super(id)
         value_ = value
     }
 
@@ -116,8 +116,8 @@ public class Unary <: Expr {
     private let oper_: Token
     private let right_: Expr
 
-    public Unary(oper: Token, right: Expr) {
-        super()
+    public Unary(id: NodeId, oper: Token, right: Expr) {
+        super(id)
         oper_ = oper
         right_ = right
     }
@@ -140,8 +140,8 @@ public class Assign <: Expr {
     private let left_: Expr
     private let right_: Expr
 
-    public Assign(name: Expr, value: Expr) {
-        super()
+    public Assign(id: NodeId, name: Expr, value: Expr) {
+        super(id)
         left_ = name
         right_ = value
     }
@@ -164,7 +164,8 @@ public class Assign <: Expr {
 public class RefExpr <: Expr {
     private var identifier_: Token
 
-    public RefExpr(identifier: Token) {
+    public RefExpr(id: NodeId, identifier: Token) {
+        super(id)
         identifier_ = identifier
     }
 
@@ -180,8 +181,8 @@ public class RefExpr <: Expr {
 public class Block <: Expr {
     private let nodes_: Array<Node>
 
-    public Block(statements: Array<Node>) {
-        super()
+    public Block(id: NodeId, statements: Array<Node>) {
+        super(id)
         nodes_ = statements
     }
 
@@ -214,12 +215,12 @@ public class IfExpr <: Expr {
     private let ifBlock_: Block
     private let elseBranch_: ?Expr
 
-    public init(condition: Expr, ifBlock: Block) {
-        this(condition, ifBlock, None)
+    public init(id: NodeId, condition: Expr, ifBlock: Block) {
+        this(id, condition, ifBlock, None)
     }
 
-    public IfExpr(condition: Expr, ifBlock: Block, elseBranch: ?Expr) {
-        super()
+    public IfExpr(id: NodeId, condition: Expr, ifBlock: Block, elseBranch: ?Expr) {
+        super(id)
         condition_ = condition
         ifBlock_ = ifBlock
         elseBranch_ = elseBranch
@@ -253,8 +254,8 @@ public class WhileExpr <: Expr {
     private let condition_: Expr
     private let block_: Block
 
-    public WhileExpr(condition: Expr, block: Block) {
-        super()
+    public WhileExpr(id: NodeId, condition: Expr, block: Block) {
+        super(id)
         condition_ = condition
         block_ = block
     }
@@ -279,7 +280,8 @@ public class CallExpr <: Expr {
     private let callee_: Expr
     private let arguments_: ArrayList<Argument>
 
-    public CallExpr(callee: Expr, arguments: ArrayList<Argument>) {
+    public CallExpr(id: NodeId, callee: Expr, arguments: ArrayList<Argument>) {
+        super(id)
         callee_ = callee
         arguments_ = arguments
     }
@@ -310,7 +312,8 @@ public class ReturnExpr <: Expr {
     private let value_: Expr 
     private let keyword_: Token
 
-    public ReturnExpr(value: Expr, keyword: Token) {
+    public ReturnExpr(id: NodeId, value: Expr, keyword: Token) {
+        super(id)
         value_ = value
         keyword_ = keyword
     }
@@ -333,7 +336,8 @@ public class MemberAccess <: Expr {
     private let baseExpr_: Expr
     private let field_: Token
 
-    public MemberAccess(baseExpr: Expr, field: Token) {
+    public MemberAccess(id: NodeId, baseExpr: Expr, field: Token) {
+        super(id)
         baseExpr_ = baseExpr
         field_ = field
     }
