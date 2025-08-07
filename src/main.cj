@@ -41,13 +41,14 @@ public class Cj {
         let parser: Parser = Parser(tokens.toArray(), Reporter(getStdErr()))
         let nodes: ?Array<Node> = parser.parse()
 
+        let printer: PrettyPrinter = PrettyPrinter()
         if (let Some(nodes) <- nodes) {
             for (node in nodes) {
-                node.prettyPrint()
-                PrettyPrinter.append("\n")
+                node.prettyPrint(printer)
+                printer.append("\n")
             }
         }
-        println(PrettyPrinter.toString())
+        println(printer.toString())
     }
 
     static func error(line: Int64, message: String) {

@@ -43,13 +43,13 @@ public abstract class Decl <: Node {
         set(v) { modifiers_ = v }
     }
 
-    public override open func prettyPrint() {
+    public override open func prettyPrint(printer: PrettyPrinter) {
         modifiers.iterator()
-            .forEach({ m => m.prettyPrint(); PrettyPrinter.append(" ")})
+            .forEach({ m => m.prettyPrint(printer); printer.append(" ")})
         if (keyword.kind != TokenKind.ILLEGAL) {
-            PrettyPrinter.append(keyword.value + " ")
+            printer.append(keyword.value + " ")
         }
-        PrettyPrinter.append(identifier.value)
+        printer.append(identifier.value)
     }
 }
 
@@ -80,13 +80,13 @@ public class VarDecl <: Decl {
         get() { declType_ }
     }
 
-    public override func prettyPrint() {
-        super.prettyPrint()
+    public override func prettyPrint(printer: PrettyPrinter) {
+        super.prettyPrint(printer)
         if (let Some(dtype) <- declType) {
-            dtype.prettyPrint()
+            dtype.prettyPrint(printer)
         }
-        PrettyPrinter.append("${if (initializer.isSome()) {" = "} else {""}}")
-        if (let Some(ini) <- initializer) {ini.prettyPrint()}
+        printer.append("${if (initializer.isSome()) {" = "} else {""}}")
+        if (let Some(ini) <- initializer) {ini.prettyPrint(printer)}
     }
 }
 
@@ -101,18 +101,18 @@ public class InitDecl <: Decl {
         this.params_ = params
     }
 
-    public override func prettyPrint() {
-        super.prettyPrint()
-        PrettyPrinter.append("(")
+    public override func prettyPrint(printer: PrettyPrinter) {
+        super.prettyPrint(printer)
+        printer.append("(")
         if (!params.isEmpty()) {
-            params[0].prettyPrint()
+            params[0].prettyPrint(printer)
             for (i in 1..params.size) {
-                PrettyPrinter.append(", ")
-                params[i].prettyPrint()
+                printer.append(", ")
+                params[i].prettyPrint(printer)
             }
         }
-        PrettyPrinter.append(")")
-        block_.prettyPrint()
+        printer.append(")")
+        block_.prettyPrint(printer)
     }
 
     public prop block: Block {
@@ -134,9 +134,9 @@ public class FuncParam <: Decl {
         paramType_ = paramType
     }
 
-    public override func prettyPrint() {
-        PrettyPrinter.append(paramType.typeParameterName.value)
-        paramType.prettyPrint()
+    public override func prettyPrint(printer: PrettyPrinter) {
+        printer.append(paramType.typeParameterName.value)
+        paramType.prettyPrint(printer)
     }
 
     public prop paramType: TypeNode {
@@ -159,21 +159,21 @@ public class FuncDecl <: Decl {
         this.declType_ = declType
     }
 
-    public override func prettyPrint() {
-        super.prettyPrint()
-        PrettyPrinter.append("(")
+    public override func prettyPrint(printer: PrettyPrinter) {
+        super.prettyPrint(printer)
+        printer.append("(")
         if (!params.isEmpty()) {
-            params[0].prettyPrint()
+            params[0].prettyPrint(printer)
             for (i in 1..params.size) {
-                PrettyPrinter.append(", ")
-                params[i].prettyPrint()
+                printer.append(", ")
+                params[i].prettyPrint(printer)
             }
         }
-        PrettyPrinter.append(")")
+        printer.append(")")
         if (let Some(dtype) <- declType) {
-            dtype.prettyPrint()
+            dtype.prettyPrint(printer)
         }
-        block_.prettyPrint()
+        block_.prettyPrint(printer)
     }
 
     public prop block: Block {
@@ -198,10 +198,10 @@ public class ClassDecl <: Decl {
         this.identifier = identifier
     }
 
-    public override func prettyPrint() {
-        PrettyPrinter.append("class ")
-        super.prettyPrint()
-        block.prettyPrint()
+    public override func prettyPrint(printer: PrettyPrinter) {
+        printer.append("class ")
+        super.prettyPrint(printer)
+        block.prettyPrint(printer)
     }
 
     public prop block: Block {
@@ -218,9 +218,9 @@ public class StructDecl <: Decl {
         block_ = block
     }
 
-    public override func prettyPrint() {
-        super.prettyPrint()
-        block.prettyPrint()
+    public override func prettyPrint(printer: PrettyPrinter) {
+        super.prettyPrint(printer)
+        block.prettyPrint(printer)
     }
 
     public prop block: Block {

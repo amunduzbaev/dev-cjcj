@@ -11,7 +11,7 @@ public open class Expr <: Node {
         super(id)
     }
 
-    public override open func prettyPrint() { }
+    public override open func prettyPrint(_: PrettyPrinter): Unit { }
 }
 
 public class Binary <: Expr {
@@ -26,10 +26,10 @@ public class Binary <: Expr {
         right_ = right
     }
 
-    public override func prettyPrint() {
-        left.prettyPrint()
-        PrettyPrinter.append(" ${oper.value} ")
-        right.prettyPrint()
+    public override func prettyPrint(printer: PrettyPrinter) {
+        left.prettyPrint(printer)
+        printer.append(" ${oper.value} ")
+        right.prettyPrint(printer)
     }
 
     public prop left: Expr {
@@ -57,10 +57,10 @@ public class Logical <: Expr {
         right_ = right
     }
 
-    public override func prettyPrint() {
-        left.prettyPrint()
-        PrettyPrinter.append(" ${oper.value} ")
-        right.prettyPrint()
+    public override func prettyPrint(printer: PrettyPrinter) {
+        left.prettyPrint(printer)
+        printer.append(" ${oper.value} ")
+        right.prettyPrint(printer)
     }
 
     public prop left: Expr {
@@ -84,10 +84,10 @@ public class Grouping <: Expr {
         node_ = node
     }
 
-    public override func prettyPrint() {
-        PrettyPrinter.append("(")
-        node.prettyPrint()
-        PrettyPrinter.append(")")
+    public override func prettyPrint(printer: PrettyPrinter) {
+        printer.append("(")
+        node.prettyPrint(printer)
+        printer.append(")")
     }
 
     public prop node: Expr {
@@ -103,8 +103,8 @@ public class Literal <: Expr {
         value_ = value
     }
 
-    public override func prettyPrint() {
-        PrettyPrinter.append(value.toString())
+    public override func prettyPrint(printer: PrettyPrinter) {
+        printer.append(value.toString())
     }
 
     public prop value: ToString {
@@ -122,9 +122,9 @@ public class Unary <: Expr {
         right_ = right
     }
 
-    public override func prettyPrint() {
-        PrettyPrinter.append("${oper.value}")
-        right.prettyPrint()
+    public override func prettyPrint(printer: PrettyPrinter) {
+        printer.append("${oper.value}")
+        right.prettyPrint(printer)
     }
 
     public prop oper: Token {
@@ -146,10 +146,10 @@ public class Assign <: Expr {
         right_ = value
     }
 
-    public override func prettyPrint() {
-        left.prettyPrint()
-        PrettyPrinter.append(" = ")
-        right.prettyPrint()
+    public override func prettyPrint(printer: PrettyPrinter) {
+        left.prettyPrint(printer)
+        printer.append(" = ")
+        right.prettyPrint(printer)
     }
 
     public prop left: Expr {
@@ -173,8 +173,8 @@ public class RefExpr <: Expr {
         get() { identifier_ }
     }
 
-    public override func prettyPrint(): Unit {
-        PrettyPrinter.append(identifier.value)
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        printer.append(identifier.value)
     }
 }
 
@@ -186,23 +186,23 @@ public class Block <: Expr {
         nodes_ = statements
     }
 
-    public override func prettyPrint() {
-        PrettyPrinter.append("{")
+    public override func prettyPrint(printer: PrettyPrinter) {
+        printer.append("{")
         if (!nodes.isEmpty()) {
-            PrettyPrinter.indent()
-            PrettyPrinter.append("\n")
-            nodes[0].prettyPrint()
+            printer.indent()
+            printer.append("\n")
+            nodes[0].prettyPrint(printer)
             nodes.iterator()
                 .enumerate()
                 .filter({ v => v[0] > 0})
                 .map({ v => v[1] })
                 .forEach({ 
-                n => PrettyPrinter.append("\n")    
-                    n.prettyPrint()     
+                n => printer.append("\n")    
+                    n.prettyPrint(printer)     
                 })
-            PrettyPrinter.unindent()
+            printer.unindent()
         }
-        PrettyPrinter.append("\n}\n")
+        printer.append("\n}\n")
     }
 
     public prop nodes: Array<Node> {
@@ -226,14 +226,14 @@ public class IfExpr <: Expr {
         elseBranch_ = elseBranch
     }
 
-    public override func prettyPrint() {
-        PrettyPrinter.append("if (")
-        condition.prettyPrint()
-        PrettyPrinter.append(") ")
-        ifBlock.prettyPrint()
+    public override func prettyPrint(printer: PrettyPrinter) {
+        printer.append("if (")
+        condition.prettyPrint(printer)
+        printer.append(") ")
+        ifBlock.prettyPrint(printer)
         if (let Some(eb) <- elseBranch) {
-            PrettyPrinter.append("else ")
-            eb.prettyPrint()
+            printer.append("else ")
+            eb.prettyPrint(printer)
         }
     }
 
@@ -260,11 +260,11 @@ public class WhileExpr <: Expr {
         block_ = block
     }
 
-    public override func prettyPrint() {
-        PrettyPrinter.append("while (")
-        condition.prettyPrint()
-        PrettyPrinter.append(") ")
-        block.prettyPrint()
+    public override func prettyPrint(printer: PrettyPrinter) {
+        printer.append("while (")
+        condition.prettyPrint(printer)
+        printer.append(") ")
+        block.prettyPrint(printer)
     }
 
     public prop condition: Expr {
@@ -286,18 +286,18 @@ public class CallExpr <: Expr {
         arguments_ = arguments
     }
 
-    public override func prettyPrint(): Unit {
-        callee.prettyPrint()
-        PrettyPrinter.append("(")
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        callee.prettyPrint(printer)
+        printer.append("(")
         if (!arguments.isEmpty()) {
-            arguments[0].prettyPrint()
+            arguments[0].prettyPrint(printer)
             arguments.iterator()
                 .enumerate()
                 .filter({ a => a[0] > 0})
                 .map({ a => a[1] })
-                .forEach({ a => PrettyPrinter.append(", "); a.prettyPrint()})
+                .forEach({ a => printer.append(", "); a.prettyPrint(printer)})
         }
-        PrettyPrinter.append(")")
+        printer.append(")")
     }
 
     public prop callee: Expr {
@@ -318,9 +318,9 @@ public class ReturnExpr <: Expr {
         keyword_ = keyword
     }
 
-    public override func prettyPrint(): Unit {
-        PrettyPrinter.append(keyword.value + " ")
-        value.prettyPrint()
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        printer.append(keyword.value + " ")
+        value.prettyPrint(printer)
     }
 
     public prop value: Expr {
@@ -342,9 +342,9 @@ public class MemberAccess <: Expr {
         field_ = field
     }
 
-    public override func prettyPrint() {
-        baseExpr.prettyPrint()
-        PrettyPrinter.append("." + field.value)
+    public override func prettyPrint(printer: PrettyPrinter) {
+        baseExpr.prettyPrint(printer)
+        printer.append("." + field.value)
     }
 
     public prop baseExpr: Expr {

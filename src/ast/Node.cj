@@ -21,7 +21,9 @@ abstract sealed class Node {
         id_ = id
     }
     // public func traverse(v: Visitor): Unit
-    public func prettyPrint(): Unit
+
+    public func prettyPrint(printer: PrettyPrinter): Unit
+
 
     public prop id: NodeId {
         get() { id_ }
@@ -36,8 +38,8 @@ public class Argument <: Node {
         this.expr = expr
     }
 
-    public override func prettyPrint(): Unit {
-        expr.prettyPrint()
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        expr.prettyPrint(printer)
     }
 }
 
@@ -49,8 +51,8 @@ public class Modifier <: Node {
         keyword_ = keyword
     }
 
-    public override func prettyPrint(): Unit {
-        PrettyPrinter.append(keyword.value)
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        printer.append(keyword.value)
     }
 
     public prop keyword: Token {

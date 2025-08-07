@@ -16,7 +16,7 @@ public open class TypeNode <: Node {
         typeParameterName_ = typeParameterName
     }
 
-    public override open func prettyPrint() {
+    public override open func prettyPrint(_: PrettyPrinter): Unit {
         // PrettyPrinter.append(typeParameterName.value)
     }
 
@@ -40,9 +40,9 @@ public class PrimitiveType <: TypeNode {
         super.typeParameterName = typeParameterName
     }
 
-    public override func prettyPrint() {
-        super.prettyPrint()
-        PrettyPrinter.append(": " + keyword.value)
+    public override func prettyPrint(printer: PrettyPrinter) {
+        super.prettyPrint(printer)
+        printer.append(": " + keyword.value)
     }
 
     private func isPrimitive(keyword: Token): Bool {
