@@ -13,9 +13,10 @@ public abstract class Decl <: Node {
     protected var keyword_: Token = identifier_
     protected var modifiers_ = ArrayList<Modifier>()
 
-    init() { }
+    init(id: NodeId) { super(id) }
 
-    init(keyword: Token, identifier: Token, modifiers: ArrayList<Modifier>) {
+    init(id: NodeId, keyword: Token, identifier: Token, modifiers: ArrayList<Modifier>) {
+        this(id)
         identifier_ = identifier
         keyword_ = keyword
         modifiers_ = modifiers
@@ -30,7 +31,7 @@ public abstract class Decl <: Node {
 
     // Copy constructor
     init (decl: Decl) {
-        super()
+        this(decl.id)
         this.identifier_ = decl.identifier_
         this.keyword_ = decl.keyword_
     }
@@ -39,6 +40,7 @@ public abstract class Decl <: Node {
         get() { identifier_ }
         set(v) { identifier_ = v }
     }
+
     public mut open prop keyword: Token {
         get() { keyword_ }
         set(v) { keyword_ = v }
@@ -49,13 +51,13 @@ public abstract class Decl <: Node {
         set(v) { modifiers_ = v }
     }
 
-    public override open func prettyPrint() {
+    public override open func prettyPrint(printer: PrettyPrinter) {
         modifiers.iterator()
-            .forEach({ m => m.prettyPrint(); PrettyPrinter.append(" ")})
+            .forEach({ m => m.prettyPrint(printer); printer.append(" ")})
         if (keyword.kind != TokenKind.ILLEGAL) {
-            PrettyPrinter.append(keyword.value + " ")
+            printer.append(keyword.value + " ")
         }
-        PrettyPrinter.append(identifier.value)
+        printer.append(identifier.value)
     }
 }
 
@@ -63,17 +65,17 @@ public class VarDecl <: Decl {
     private let initializer_: ?Expr
     private let declType_: ?TypeNode
 
-    public init (keyword: Token, identifier: Token) {
-        this(keyword, identifier, None)
+    public init (id: NodeId, keyword: Token, identifier: Token) {
+        this(id, keyword, identifier, None)
     }
 
-    public init(keyword: Token, identifier: Token, initializer: ?Expr) {
-        this(keyword, identifier, initializer, ArrayList<Modifier>(), None)
+    public init(id: NodeId, keyword: Token, identifier: Token, initializer: ?Expr) {
+        this(id, keyword, identifier, initializer, ArrayList<Modifier>(), None)
     }
 
-    public init(keyword: Token, identifier: Token, initializer: ?Expr,
+    public init(id: NodeId, keyword: Token, identifier: Token, initializer: ?Expr,
             modifiers: ArrayList<Modifier>, declType: ?TypeNode) {
-        super(keyword, identifier, modifiers)
+        super(id, keyword, identifier, modifiers)
         initializer_ = initializer
         declType_ = declType
     }
@@ -86,13 +88,13 @@ public class VarDecl <: Decl {
         get() { declType_ }
     }
 
-    public override func prettyPrint() {
-        super.prettyPrint()
+    public override func prettyPrint(printer: PrettyPrinter) {
+        super.prettyPrint(printer)
         if (let Some(dtype) <- declType) {
-            dtype.prettyPrint()
+            dtype.prettyPrint(printer)
         }
-        PrettyPrinter.append("${if (initializer.isSome()) {" = "} else {""}}")
-        if (let Some(ini) <- initializer) {ini.prettyPrint()}
+        printer.append("${if (initializer.isSome()) {" = "} else {""}}")
+        if (let Some(ini) <- initializer) {ini.prettyPrint(printer)}
     }
 }
 
@@ -100,25 +102,25 @@ public class InitDecl <: Decl {
     private let block_: Block
     private let params_: ArrayList<FuncParam>
 
-    public init(keyword: Token, block: Block,
+    public init(id: NodeId, keyword: Token, identifier: Token, block: Block,
                 modifiers: ArrayList<Modifier>, params: ArrayList<FuncParam>) {
-        super(keyword, modifiers)
+        super(id, keyword, identifier, modifiers)
         this.block_ = block
         this.params_ = params
     }
 
-    public override func prettyPrint() {
-        super.prettyPrint()
-        PrettyPrinter.append("(")
+    public override func prettyPrint(printer: PrettyPrinter) {
+        super.prettyPrint(printer)
+        printer.append("(")
         if (!params.isEmpty()) {
-            params[0].prettyPrint()
+            params[0].prettyPrint(printer)
             for (i in 1..params.size) {
-                PrettyPrinter.append(", ")
-                params[i].prettyPrint()
+                printer.append(", ")
+                params[i].prettyPrint(printer)
             }
         }
-        PrettyPrinter.append(")")
-        block_.prettyPrint()
+        printer.append(")")
+        block_.prettyPrint(printer)
     }
 
     public prop block: Block {
@@ -135,14 +137,14 @@ public class InitDecl <: Decl {
 public class FuncParam <: Decl {
     private let paramType_: TypeNode
 
-    public init(paramType: TypeNode) {
-        super()
+    public init(id: NodeId, paramType: TypeNode) {
+        super(id)
         paramType_ = paramType
     }
 
-    public override func prettyPrint() {
-        PrettyPrinter.append(paramType.typeParameterName.value)
-        paramType.prettyPrint()
+    public override func prettyPrint(printer: PrettyPrinter) {
+        printer.append(paramType.typeParameterName.value)
+        paramType.prettyPrint(printer)
     }
 
     public prop paramType: TypeNode {
@@ -156,30 +158,30 @@ public class FuncDecl <: Decl {
 
     private let declType_: ?TypeNode
 
-    public init(keyword: Token, identifier: Token, block: Block,
+    public init(id: NodeId, keyword: Token, identifier: Token, block: Block,
                 modifiers: ArrayList<Modifier>, params: ArrayList<FuncParam>,
                 declType: ?TypeNode) {
-        super(keyword, identifier, modifiers)
+        super(id, keyword, identifier, modifiers)
         this.block_ = block
         this.params_ = params
         this.declType_ = declType
     }
 
-    public override func prettyPrint() {
-        super.prettyPrint()
-        PrettyPrinter.append("(")
+    public override func prettyPrint(printer: PrettyPrinter) {
+        super.prettyPrint(printer)
+        printer.append("(")
         if (!params.isEmpty()) {
-            params[0].prettyPrint()
+            params[0].prettyPrint(printer)
             for (i in 1..params.size) {
-                PrettyPrinter.append(", ")
-                params[i].prettyPrint()
+                printer.append(", ")
+                params[i].prettyPrint(printer)
             }
         }
-        PrettyPrinter.append(")")
+        printer.append(")")
         if (let Some(dtype) <- declType) {
-            dtype.prettyPrint()
+            dtype.prettyPrint(printer)
         }
-        block_.prettyPrint()
+        block_.prettyPrint(printer)
     }
 
     public prop block: Block {
@@ -198,15 +200,16 @@ public class FuncDecl <: Decl {
 public class ClassDecl <: Decl {
     private let body_: Body
 
-    public init(identifier: Token, body: Body) {
-        body_ = body
+    public init(id: NodeId, identifier: Token, block: Block) {
+        super(id)
+        block_ = block
         this.identifier = identifier
     }
 
-    public override func prettyPrint() {
-        PrettyPrinter.append("class ")
-        super.prettyPrint()
-        body.prettyPrint()
+    public override func prettyPrint(printer: PrettyPrinter) {
+        printer.append("class ")
+        super.prettyPrint(printer)
+        block.prettyPrint(printer)
     }
 
     public prop body: Body {
@@ -217,15 +220,15 @@ public class ClassDecl <: Decl {
 public class StructDecl <: Decl {
     private let block_: Body
 
-    public StructDecl(keyword: Token, identifier: Token,
-                        modifiers: ArrayList<Modifier>, block: Body) {
-        super(keyword, identifier, modifiers)
+    public StructDecl(id: NodeId, keyword: Token, identifier: Token,
+                        modifiers: ArrayList<Modifier>, block: Block) {
+        super(id, keyword, identifier, modifiers)
         block_ = block
     }
 
-    public override func prettyPrint() {
-        super.prettyPrint()
-        block.prettyPrint()
+    public override func prettyPrint(printer: PrettyPrinter) {
+        super.prettyPrint(printer)
+        block.prettyPrint(printer)
     }
 
     public prop block: Body {

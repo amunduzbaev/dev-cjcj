@@ -1,18 +1,18 @@
 package cjcj.prettyPrinter
 
 public class PrettyPrinter {
-    private static var indentation: Int64 = 0
-    private static let builder: StringBuilder = StringBuilder()
+    private var indentation: Int64 = 0
+    private let builder: StringBuilder = StringBuilder()
 
-    public static func indent(): Unit {
+    public func indent(): Unit {
         indentation++
     }
 
-    public static func unindent(): Unit {
+    public func unindent(): Unit {
         indentation--
     }
 
-    public static func append(val: String): Unit {
+    public func append(val: String): Unit {
         val.runes().forEach({
             r => builder.append(r)
             if (r == r"\n") {
@@ -21,7 +21,7 @@ public class PrettyPrinter {
         })
     }
 
-    public static func toString(): String {
+    public func toString(): String {
         builder.toString()
     }
 }

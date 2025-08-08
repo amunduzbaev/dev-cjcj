@@ -6,32 +6,59 @@ import cjcj.scanner.Token
 
 import std.collection.ArrayList
 
+public struct NodeId {
+    public let id: UInt64
+
+    public NodeId(id: UInt64) {
+        this.id = id
+    }
+}
+
 abstract sealed class Node {
+    private let id_: NodeId
+
+    public Node(id: NodeId) {
+        id_ = id
+    }
     // public func traverse(v: Visitor): Unit
-    public func prettyPrint(): Unit
+
+    /*
+    * Print the node and its children as a piece of Cangjie code.
+    */
+    public func prettyPrint(printer: PrettyPrinter): Unit
+
+    public prop id: NodeId {
+        get() { id_ }
+    }
 }
 
 public class Argument <: Node {
-    let expr: Node
+    private let expr_: Node
 
-    public Argument(expr: Node) {
-        this.expr = expr
+    public Argument(id: NodeId, expr: Node) {
+        super(id)
+        expr_ = expr
     }
 
-    public override func prettyPrint(): Unit {
-        expr.prettyPrint()
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        expr.prettyPrint(printer)
+    }
+
+    public prop expr: Node {
+        get() { expr_ }
     }
 }
 
 public class Modifier <: Node {
     private let keyword_: Token
 
-    public init(keyword: Token) {
+    public init(id: NodeId, keyword: Token) {
+        super(id)
         keyword_ = keyword
     }
 
-    public override func prettyPrint(): Unit {
-        PrettyPrinter.append(keyword.value)
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        printer.append(keyword.value)
     }
 
     public prop keyword: Token {

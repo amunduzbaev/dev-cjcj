@@ -75,6 +75,16 @@ primary        → "true" | "false" |
 
 private class ParseError <: Exception { }
 
+public class NodeIdManager {
+    private static var count: UInt64 = 0
+
+    public static func nextId(): NodeId {
+        let id = NodeId(count)
+        count++
+        id
+    }
+}
+
 public class Parser {
     private static let MAX_PARAM_NUMBER = 255
     private let tokens: Array<Token>
@@ -90,9 +100,9 @@ public class Parser {
     public func parse(): ?Array<Node> {
         let nodes: ArrayList<Node> = ArrayList()
         try {
+            skipNL()
             while (!isAtEnd()) {
                 let modifiers: ArrayList<Modifier> = modifiers()
-
                 // We're calling class and other custom declarations here
                 // because you cannot have a class inside a class.
                 if (matches(TokenKind.CLASS)) {
@@ -102,6 +112,7 @@ public class Parser {
                 } else {
                     nodes.add(node(modifiers))
                 }
+                skipNL()
             }
             return nodes.toArray()
         } catch (error: ParseError) {
@@ -128,7 +139,7 @@ public class Parser {
 
         if (matches(TokenKind.ASSIGN)) {
             let value: Expr = assignment()
-            return Assign(expr, value)
+            return Assign(NodeIdManager.nextId(), expr, value)
         }
 
         expr
@@ -139,7 +150,7 @@ public class Parser {
         while (matches(TokenKind.OR)) {
             let oper: Token = previous()
             let right: Expr = and()
-            expr = Logical(expr, oper, right)
+            expr = Binary(NodeIdManager.nextId(), expr, oper, right)
         }
         return expr
     }
@@ -149,7 +160,7 @@ public class Parser {
         while (matches(TokenKind.AND)) {
             let oper: Token = previous()
             let right: Expr = equality()
-            expr = Logical(expr, oper, right)
+            expr = Binary(NodeIdManager.nextId(), expr, oper, right)
         }
         return expr
     }
@@ -193,6 +204,10 @@ public class Parser {
             }
             consume(TokenKind.RPAREN, "Expect ') after parameters.")
         }
+        consume(TokenKind.LCURL, "Expect '{' before function" + " body.")
+        let block: Block = Block(NodeIdManager.nextId(), block())
+        InitDecl(NodeIdManager.nextId(),
+                keyword, name, block, modifiers, parameters)
         var declType: ?TypeNode = None
         consume(TokenKind.LCURL, "Expect '{' before initialiser" + " body.")
         let block: Block = Block(block())
@@ -223,11 +238,15 @@ public class Parser {
         var declType: ?TypeNode = None
         if (matches(TokenKind.COLON)) {
             try {
-                declType = PrimitiveType(name, advance())
+                declType = PrimitiveType(NodeIdManager.nextId(),
+                                            name, advance())
             } catch (_: IllegalArgumentException) {
             }
         }
         consume(TokenKind.LCURL, "Expect '{' before function" + " body.")
+        let block: Block = Block(NodeIdManager.nextId(), block())
+        FuncDecl(NodeIdManager.nextId(),
+                keyword, name, block, modifiers, parameters, declType)
         
         let block: Block = Block(block())
         FuncDecl(keyword, name, block, modifiers, parameters, declType)
@@ -240,14 +259,17 @@ public class Parser {
         consume(TokenKind.COLON, "Expect ':' after parameter name")
         let keyword = advance()
         // TODO: Add check for type category.
-        FuncParam(PrimitiveType(parameterName, keyword))
+        FuncParam(NodeIdManager.nextId(),
+            PrimitiveType(NodeIdManager.nextId(), parameterName, keyword))
     }
 
     private func classDeclaration(): ?ClassDecl {
         let name: Token = consume(TokenKind.IDENTIFIER, "Expect class name.")
         consume(TokenKind.LCURL, "Expect '{' before class body.")
+        let block: Block = Block(NodeIdManager.nextId(), block())
         let body: Body = Body(body())
 
+        ClassDecl(NodeIdManager.nextId(), name, block)
         ClassDecl(name, body)
 
     }
@@ -256,6 +278,8 @@ public class Parser {
         let keyword: Token = previous()
         let name: Token = consume(TokenKind.IDENTIFIER, "Expect struct name.")
         consume(TokenKind.LCURL, "Expect '{' before struct body.")
+        let block: Block = Block(NodeIdManager.nextId(), block())
+        StructDecl(NodeIdManager.nextId(), keyword, name, modifiers, block)
         let body: Body = Body(body())
         StructDecl(keyword, name, modifiers, body)
     }
@@ -272,14 +296,14 @@ public class Parser {
             return returnExpr()
         }
         if (matches(TokenKind.LCURL)) {
-            return Block(block())
+            return Block(NodeIdManager.nextId(), block())
         }
         return expressionStatement()
     }
 
     private func returnExpr(): Expr {
         let keyword: Token = previous()
-        var value: Expr = Expr()
+        var value: Expr = Expr(NodeIdManager.nextId())
 
         if (!check(TokenKind.SEMI) && !check(TokenKind.NL)) {
             value = expression()
@@ -289,7 +313,7 @@ public class Parser {
                 "Expect ';' or new line after return statement.")
         }
 
-        ReturnExpr(value, keyword)
+        ReturnExpr(NodeIdManager.nextId(), value, keyword)
     }
 
     private func ifExpr(): Expr {
@@ -298,13 +322,13 @@ public class Parser {
         consume(TokenKind.RPAREN, "Expect ')' after condition.")
         
         consume(TokenKind.LCURL, "Expect '{' before if block.")
-        let ifBlock: Block = Block(block())
+        let ifBlock: Block = Block(NodeIdManager.nextId(), block())
         
         var elseBranch: ?Expr = None
         if (matches(TokenKind.ELSE)) {
             elseBranch = statement()
         }
-        IfExpr(condition, ifBlock, elseBranch)
+        IfExpr(NodeIdManager.nextId(), condition, ifBlock, elseBranch)
     }
 
     private func whileExpr(): Expr {
@@ -312,12 +336,29 @@ public class Parser {
         let condition: Expr = expression()
         consume(TokenKind.RPAREN, "Expect ')' after condition.")
         consume(TokenKind.LCURL, "Expect '{' before if block.")
-        let block: Block = Block(block())
-        WhileExpr(condition, block)
+        let block: Block = Block(NodeIdManager.nextId(), block())
+        WhileExpr(NodeIdManager.nextId(), condition, block)
     }
 
     private func block(): Array<Node> {
         let nodes = ArrayList<Node>()
+        
+        skipNL()
+        while (!check(TokenKind.RCURL) && !isAtEnd()) {
+            try {nodes.add(node(modifiers()))
+            skipNL()
+            } catch (error: ParseError) {
+            synchronize()
+            }
+        }
+        consume(TokenKind.RCURL, "Expect '}' after block.")
+        
+        nodes.toArray()
+    }
+
+
+    private func body(): Array<Decl> {
+        let nodes = ArrayList<Decl>()
         
         while (!check(TokenKind.RCURL) && !isAtEnd()) {
             try {nodes.add(node(modifiers()))
@@ -360,7 +401,9 @@ public class Parser {
         var declType: ?TypeNode = None
         if (matches(TokenKind.COLON)) {
             try {
-                declType = PrimitiveType(name, advance())
+                declType = PrimitiveType(
+                    NodeIdManager.nextId(), name, advance()
+                )
             } catch (_: IllegalArgumentException) {
                 throw error(peek(), "Expected primitive type.")
             }
@@ -374,7 +417,8 @@ public class Parser {
             consume(TokenKind.SEMI,
                 "Expect ';' or new line after variable declaration.")
         }
-        VarDecl(keyword, name, initializer, modifiers, declType)
+        VarDecl(NodeIdManager.nextId(),
+            keyword, name, initializer, modifiers, declType)
     }
 
     private func expressionStatement(): Expr {
@@ -391,7 +435,7 @@ public class Parser {
         while (matches(TokenKind.NOTEQ, TokenKind.EQUAL)) {
             let oper: Token = previous()
             let right: Expr = comparison()
-            expr = Binary(expr, oper, right)
+            expr = Binary(NodeIdManager.nextId(), expr, oper, right)
         }
         expr
     }
@@ -402,7 +446,7 @@ public class Parser {
                 TokenKind.LT, TokenKind.LE)) {
             let oper: Token = previous()
             let right: Expr = term()
-            expr = Binary(expr, oper, right)
+            expr = Binary(NodeIdManager.nextId(), expr, oper, right)
         }
         expr
     }
@@ -412,7 +456,7 @@ public class Parser {
         while (matches(TokenKind.ADD, TokenKind.SUB)) {
             let oper: Token = previous()
             let right: Expr = factor()
-            expr = Binary(expr, oper, right)
+            expr = Binary(NodeIdManager.nextId(), expr, oper, right)
         }
         expr
     }
@@ -422,7 +466,7 @@ public class Parser {
         while (matches(TokenKind.MUL, TokenKind.DIV)) {
             let oper: Token = previous()
             let right: Expr = unary()
-            expr = Binary(expr, oper, right)
+            expr = Binary(NodeIdManager.nextId(), expr, oper, right)
         }
         expr
     }
@@ -431,7 +475,7 @@ public class Parser {
         if (matches(TokenKind.NOT, TokenKind.SUB)) {
             let oper: Token = previous()
             let right: Expr = unary()
-            return Unary(oper, right)
+            return Unary(NodeIdManager.nextId(), oper, right)
         }
         call()
     }
@@ -441,7 +485,8 @@ public class Parser {
         if (matches(TokenKind.LPAREN)) {
             if (!check(TokenKind.RPAREN)) {
                 do {
-                    arguments.add(Argument(expression()))
+                    arguments.add(Argument(NodeIdManager.nextId(),
+                                            expression()))
                 } while (matches(TokenKind.COMMA))
             }
 
@@ -451,7 +496,7 @@ public class Parser {
             consume(TokenKind.UNIT_LITERAL,
                 "Expect '()' if no parameters are passed")
         }
-        CallExpr(callee, arguments)
+        CallExpr(NodeIdManager.nextId(), callee, arguments)
     }
 
     private func call(): Expr {
@@ -462,7 +507,7 @@ public class Parser {
             } else if (matches(TokenKind.DOT)) {
                 let name: Token = consume(TokenKind.IDENTIFIER,
                     "Expected property name after '.'.")
-                expr = MemberAccess(expr, name)
+                expr = MemberAccess(NodeIdManager.nextId(), expr, name)
                 
                 if (matches(TokenKind.COLON)) {
                     
@@ -475,19 +520,20 @@ public class Parser {
     }
 
     private func primary(): Expr {
-        skipNL()
         if (matches(TokenKind.BOOL_LITERAL)) {
-            return Literal(Bool.parse(previous().value))
+            return Literal(NodeIdManager.nextId(), Bool.parse(previous().value))
         }
         if (matches(TokenKind.INTEGER_LITERAL, TokenKind.STRING_LITERAL)) {
-            return Literal(previous().value)
+            return Literal(NodeIdManager.nextId(), previous().value)
         }
         if (matches(TokenKind.LPAREN)) {
             let expr: Expr = expression()
             consume(TokenKind.RPAREN, "Expect ')' after expression.")
-            return Grouping(expr)
+            return Grouping(NodeIdManager.nextId(), expr)
         }
-        if (matches(TokenKind.IDENTIFIER)) { return RefExpr(previous()) }
+        if (matches(TokenKind.IDENTIFIER)) {
+            return RefExpr(NodeIdManager.nextId(), previous())
+        }
         throw error(peek(), "Expect expression.")
     }
 
@@ -528,10 +574,9 @@ public class Parser {
     }
 
     private func modifiers(): ArrayList<Modifier> {
-        skipNL()
         let modifiers: ArrayList<Modifier> = ArrayList()
         while (matches(TokenKindHelper.MODIFIERS_TOKEN_KIND)) {
-            modifiers.add(Modifier(previous()))
+            modifiers.add(Modifier(NodeIdManager.nextId(), previous()))
         }
         modifiers
     }
@@ -585,7 +630,7 @@ public class Parser {
     }
 
     private func skipNL(): Unit {
-        while(check(TokenKind.NL)) {
+        if (check(TokenKind.NL)) {
             advance()
         }
     }

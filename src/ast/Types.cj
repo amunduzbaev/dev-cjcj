@@ -9,13 +9,14 @@ public open class TypeNode <: Node {
     private var typeParameterName_: Token = Token(TokenKind.ILLEGAL, "",
                                                     Position())
 
-    public init() { }
+    public init(id: NodeId) { super(id) }
 
-    public init(typeParameterName: Token) {
+    public init(id: NodeId, typeParameterName: Token) {
+        this(id)
         typeParameterName_ = typeParameterName
     }
 
-    public override open func prettyPrint() {
+    public override open func prettyPrint(_: PrettyPrinter): Unit {
         // PrettyPrinter.append(typeParameterName.value)
     }
 
@@ -29,7 +30,8 @@ public class PrimitiveType <: TypeNode {
     // Keyword for constructing a primitive type.
     private let keyword_: Token
 
-    public init(typeParameterName: Token, keyword: Token) {
+    public init(id: NodeId, typeParameterName: Token, keyword: Token) {
+        super(id)
         keyword_ = keyword
         if (!isPrimitive(keyword)) {
             throw IllegalArgumentException(keyword.value +
@@ -38,9 +40,9 @@ public class PrimitiveType <: TypeNode {
         super.typeParameterName = typeParameterName
     }
 
-    public override func prettyPrint() {
-        super.prettyPrint()
-        PrettyPrinter.append(": " + keyword.value)
+    public override func prettyPrint(printer: PrettyPrinter) {
+        super.prettyPrint(printer)
+        printer.append(": " + keyword.value)
     }
 
     private func isPrimitive(keyword: Token): Bool {
