@@ -1,8 +1,7 @@
 public static open struct MyStruct {
-    let a: Int64 = 0
+    private let a: Int64 = 0
     public init (a: Int64) {
         let b: Int64 = 2
-        return a
     }}
 private func a(): Int64 {
     a + b

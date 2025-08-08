@@ -354,6 +354,7 @@ public class Parser {
         
         while (!check(TokenKind.RCURL) && !isAtEnd()) {
             try {
+                skipNL()
                 if (let Some(a) <- declaration(modifiers())) {
                     nodes.add(a)
                     }
