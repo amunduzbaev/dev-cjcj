@@ -228,11 +228,8 @@ public class Parser {
         }
         var declType: ?TypeNode = None
         if (matches(TokenKind.COLON)) {
-            try {
-                declType = PrimitiveType(NodeIdManager.nextId(),
-                                            name, advance())
-            } catch (_: IllegalArgumentException) {
-            }
+            let keyword = advance()
+            declType = nodeType(NodeIdManager.nextId(), name, keyword)
         }
         consume(TokenKind.LCURL, "Expect '{' before function" + " body.")
         let block: Block = Block(NodeIdManager.nextId(), block())
@@ -240,14 +237,21 @@ public class Parser {
                 keyword, name, block, modifiers, parameters, declType)
     }
 
+    private func nodeType(id: NodeId, name: Token, keyword: Token): TypeNode {
+        try {
+            return PrimitiveType(id, name, keyword)
+        } catch (_: IllegalArgumentException) {
+            return RefType(id, name, keyword)
+        }
+    }
+
     private func funcParameter(): FuncParam {
         let parameterName = consume(TokenKind.IDENTIFIER,
             "Expect parameter name")
         consume(TokenKind.COLON, "Expect ':' after parameter name")
         let keyword = advance()
-        // TODO: Add check for type category.
         FuncParam(NodeIdManager.nextId(),
-            PrimitiveType(NodeIdManager.nextId(), parameterName, keyword))
+            nodeType(NodeIdManager.nextId(), parameterName, keyword))
     }
 
     private func classDeclaration(): ?ClassDecl {
@@ -343,13 +347,7 @@ public class Parser {
 
         var declType: ?TypeNode = None
         if (matches(TokenKind.COLON)) {
-            try {
-                declType = PrimitiveType(
-                    NodeIdManager.nextId(), name, advance()
-                )
-            } catch (_: IllegalArgumentException) {
-                throw error(peek(), "Expected primitive type.")
-            }
+            declType = nodeType(NodeIdManager.nextId(), name, advance())
         }
 
         var initializer: ?Expr = None

@@ -13,16 +13,16 @@ st().b = 5
 
 (a + b).c()
 
-let b: Int64
-var a: Int64 = 3 + 5 * (2 + 3 / (1 + 5))
+let b: Wow
+var a: Wow = 3 + 5 * (2 + 3 / (1 + 5))
 a = 5
 let b = 8
 a + b
-func a(a: UInt8, b: Float32, c: Rune) {
+func a(a: UInt8, b: Crazy, c: Rune) {
     return a + b + c
 }
 func b() {}
-func c(): Int64 {}
+func c(): ABCD {}
 func d(a: Unit): UInt8 {}
 b()
 if (a + b == 5 && true || 1 + 2 == 10) {
@@ -40,7 +40,7 @@ public static open struct MyStruct {
     let a:Int64 = 0
     return a
 
-    public init(a: Int64) {
+    public init(a: ABCD) {
         return 10
     }
 }
