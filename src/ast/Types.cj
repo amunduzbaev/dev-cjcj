@@ -16,6 +16,10 @@ public open class TypeNode <: Node {
         typeParameterName_ = typeParameterName
     }
 
+    public override open func traverse(v: Visitor): Unit {
+        v.visit(this)
+    }
+
     public override open func prettyPrint(_: PrettyPrinter): Unit {
         // PrettyPrinter.append(typeParameterName.value)
     }
@@ -40,6 +44,10 @@ public class PrimitiveType <: TypeNode {
         super.typeParameterName = typeParameterName
     }
 
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+    }
+
     public override func prettyPrint(printer: PrettyPrinter) {
         super.prettyPrint(printer)
         printer.append(": " + keyword.value)
@@ -61,6 +69,10 @@ public class RefType <: TypeNode {
     public init(id: NodeId, typeParameterName: Token, identifier: Token) {
         super(id, typeParameterName)
         identifier_ = identifier
+    }
+
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {

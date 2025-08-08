@@ -204,11 +204,8 @@ public class Parser {
         }
         consume(TokenKind.LCURL, "Expect '{' before initialiser" + " body.")
         let body: Body = Body(NodeIdManager.nextId(), body())
-        var declType: ?TypeNode = None
 
-        InitDecl(NodeIdManager.nextId(), keyword, body, modifiers, parameters)
-
-        
+        InitDecl(NodeIdManager.nextId(), keyword, body, modifiers, parameters)        
     }
 
 
@@ -578,13 +575,6 @@ public class Parser {
         peek().kind == kind
     }
 
-    private func checkNext(kind: TokenKind): Bool {  //THINK ABOUT EOF, WHAT TO DO IF WE'RE AT THE END OF THE ARRAY
-        if (isAtEnd()) {
-            return false
-        }
-        peekNext().kind == kind
-    }
-
     private func advance(): Token {
         if (!isAtEnd()) {
             current++
@@ -600,10 +590,6 @@ public class Parser {
         tokens[current]
     }
 
-    private func peekNext(): Token {
-        tokens[current + 1]
-    }
-    
     private func previous(): Token {
         tokens[current - 1]
     }

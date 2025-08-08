@@ -20,7 +20,11 @@ abstract sealed class Node {
     public Node(id: NodeId) {
         id_ = id
     }
-    // public func traverse(v: Visitor): Unit
+
+    /*
+    * Visits the subtree of which this node is the root.
+    */
+    public func traverse(v: Visitor): Unit
 
     /*
     * Print the node and its children as a piece of Cangjie code.
@@ -40,6 +44,12 @@ public class Argument <: Node {
         expr_ = expr
     }
 
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (v.needBreakTraverse()) { return }
+        expr.traverse(v)
+    }
+
     public override func prettyPrint(printer: PrettyPrinter): Unit {
         expr.prettyPrint(printer)
     }
@@ -55,6 +65,10 @@ public class Modifier <: Node {
     public init(id: NodeId, keyword: Token) {
         super(id)
         keyword_ = keyword
+    }
+
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {

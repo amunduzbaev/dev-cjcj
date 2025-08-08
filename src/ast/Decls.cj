@@ -37,6 +37,12 @@ public abstract class Decl <: Node {
         this.keyword_ = decl.keyword_
     }
 
+    public override open func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (!v.needBreakTraverse()) { return }
+        modifiers.iterator().forEach({ m => m.traverse(v) })
+    }
+
     public mut open prop identifier: Token {
         get() { identifier_ }
         set(v) { identifier_ = v }
@@ -81,6 +87,15 @@ public class VarDecl <: Decl {
         declType_ = declType
     }
 
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (!v.needBreakTraverse()) { return }
+        super.traverse(v)
+        if (let Some(ini) <- initializer) {
+            ini.traverse(v)
+        }
+    }
+
     public prop initializer: ?Expr {
         get() { initializer_ }
     }
@@ -108,6 +123,14 @@ public class InitDecl <: Decl {
         super(id, keyword, modifiers)
         this.body_ = body
         this.params_ = params
+    }
+
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (!v.needBreakTraverse()) { return }
+        super.traverse(v)
+        params.iterator().forEach({ p => p.traverse(v) })
+        body.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -143,6 +166,13 @@ public class FuncParam <: Decl {
         paramType_ = paramType
     }
 
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (!v.needBreakTraverse()) { return }
+        super.traverse(v)
+        paramType.traverse(v)
+    }
+
     public override func prettyPrint(printer: PrettyPrinter) {
         printer.append(paramType.typeParameterName.value)
         paramType.prettyPrint(printer)
@@ -166,6 +196,14 @@ public class FuncDecl <: Decl {
         this.block_ = block
         this.params_ = params
         this.declType_ = declType
+    }
+
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (!v.needBreakTraverse()) { return }
+        super.traverse(v)
+        params.iterator().forEach({ p => p.traverse(v) })
+        block.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -207,6 +245,13 @@ public class ClassDecl <: Decl {
         this.identifier = identifier
     }
 
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (!v.needBreakTraverse()) { return }
+        super.traverse(v)
+        body.traverse(v)
+    }
+
     public override func prettyPrint(printer: PrettyPrinter) {
         printer.append("class ")
         super.prettyPrint(printer)
@@ -225,6 +270,13 @@ public class StructDecl <: Decl {
                         modifiers: ArrayList<Modifier>, body: Body) {
         super(id, keyword, identifier, modifiers)
         body_ = body
+    }
+
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (!v.needBreakTraverse()) { return }
+        super.traverse(v)
+        body.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {

@@ -11,6 +11,10 @@ public open class Expr <: Node {
         super(id)
     }
 
+    public override open func traverse(v: Visitor): Unit {
+        v.visit(this)
+    }
+
     public override open func prettyPrint(_: PrettyPrinter): Unit { }
 }
 
@@ -24,6 +28,13 @@ public class Binary <: Expr {
         left_ = left
         oper_ = oper
         right_ = right
+    }
+
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (!v.needBreakTraverse()) { return }
+        left.traverse(v)
+        right.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -46,21 +57,27 @@ public class Binary <: Expr {
 }
 
 public class Grouping <: Expr {
-    private let node_: Expr
+    private let expr_: Expr
 
     public Grouping(id: NodeId, node: Expr) {
         super(id)
-        node_ = node
+        expr_ = node
+    }
+
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (!v.needBreakTraverse()) { return }
+        expr.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
         printer.append("(")
-        node.prettyPrint(printer)
+        expr.prettyPrint(printer)
         printer.append(")")
     }
 
-    public prop node: Expr {
-        get() { node_ }
+    public prop expr: Expr {
+        get() { expr_ }
     }
 }
 
@@ -70,6 +87,10 @@ public class Literal <: Expr {
     public Literal(id: NodeId, value: ToString) {
         super(id)
         value_ = value
+    }
+
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -89,6 +110,12 @@ public class Unary <: Expr {
         super(id)
         oper_ = oper
         right_ = right
+    }
+
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (!v.needBreakTraverse()) { return }
+        right.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -115,6 +142,13 @@ public class Assign <: Expr {
         right_ = value
     }
 
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (!v.needBreakTraverse()) { return }
+        left.traverse(v)
+        right.traverse(v)
+    }
+
     public override func prettyPrint(printer: PrettyPrinter) {
         left.prettyPrint(printer)
         printer.append(" = ")
@@ -138,6 +172,10 @@ public class RefExpr <: Expr {
         identifier_ = identifier
     }
 
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+    }
+
     public prop identifier: Token {
         get() { identifier_ }
     }
@@ -153,6 +191,12 @@ public class Block <: Expr {
     public Block(id: NodeId, statements: Array<Node>) {
         super(id)
         nodes_ = statements
+    }
+
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (!v.needBreakTraverse()) { return }
+        nodes.iterator().forEach({ n => n.traverse(v) })
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -186,6 +230,12 @@ public class Body <: Expr {
 
         super(id)
         decls_ = decls
+    }
+
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (!v.needBreakTraverse()) { return }
+        decls.iterator().forEach({ d => d.traverse(v) })
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -229,6 +279,16 @@ public class IfExpr <: Expr {
         elseBranch_ = elseBranch
     }
 
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (!v.needBreakTraverse()) { return }
+        condition.traverse(v)
+        ifBlock.traverse(v)
+        if (let Some(branch) <- elseBranch) {
+            branch.traverse(v)
+        }
+    }
+
     public override func prettyPrint(printer: PrettyPrinter) {
         printer.append("if (")
         condition.prettyPrint(printer)
@@ -263,6 +323,13 @@ public class WhileExpr <: Expr {
         block_ = block
     }
 
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (!v.needBreakTraverse()) { return }
+        condition.traverse(v)
+        block.traverse(v)
+    }
+
     public override func prettyPrint(printer: PrettyPrinter) {
         printer.append("while (")
         condition.prettyPrint(printer)
@@ -287,6 +354,13 @@ public class CallExpr <: Expr {
         super(id)
         callee_ = callee
         arguments_ = arguments
+    }
+
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (!v.needBreakTraverse()) { return }
+        callee.traverse(v)
+        arguments.iterator().forEach({ a => a.traverse(v) })
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
@@ -321,6 +395,12 @@ public class ReturnExpr <: Expr {
         keyword_ = keyword
     }
 
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (!v.needBreakTraverse()) { return }
+        value.traverse(v)
+    }
+
     public override func prettyPrint(printer: PrettyPrinter): Unit {
         printer.append(keyword.value + " ")
         value.prettyPrint(printer)
@@ -343,6 +423,12 @@ public class MemberAccess <: Expr {
         super(id)
         baseExpr_ = baseExpr
         field_ = field
+    }
+
+    public override func traverse(v: Visitor): Unit {
+        v.visit(this)
+        if (!v.needBreakTraverse()) { return }
+        baseExpr.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
