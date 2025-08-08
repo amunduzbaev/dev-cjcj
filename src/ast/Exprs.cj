@@ -179,6 +179,40 @@ public class Block <: Expr {
     }
 }
 
+public class Body <: Expr {
+    private let decls_: Array<Decl>
+
+    public Body(id: NodeId, decls: Array<Decl>) {
+
+        super(id)
+        decls_ = decls
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter) {
+        
+        printer.append("{")
+        if (!decls.isEmpty()) {
+            printer.indent()
+            printer.append("\n")
+            decls[0].prettyPrint(printer)
+            decls.iterator()
+                .enumerate()
+                .filter({ v => v[0] > 0})
+                .map({ v => v[1] })
+                .forEach({ 
+                n => printer.append("\n")    
+                    n.prettyPrint(printer)     
+                })
+            printer.unindent()
+        }
+        printer.append("\n}\n")
+    }
+
+    public prop decls: Array<Decl> {
+        get() { decls_ }
+    }
+}
+
 public class IfExpr <: Expr {
     private let condition_: Expr
     private let ifBlock_: Block

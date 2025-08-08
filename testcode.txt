@@ -48,4 +48,3 @@ public static open struct MyStruct {
 private func a(): Int64 {
     a + b
 }
-
