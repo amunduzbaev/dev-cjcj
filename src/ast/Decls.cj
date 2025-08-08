@@ -21,6 +21,13 @@ public abstract class Decl <: Node {
         modifiers_ = modifiers
     }
 
+    //Constructor for constructors, they have no name
+    init(keyword: Token, modifiers: ArrayList<Modifier>) {
+        keyword_ = keyword
+        modifiers_ = modifiers
+    }
+
+
     // Copy constructor
     init (decl: Decl) {
         super()
@@ -93,9 +100,9 @@ public class InitDecl <: Decl {
     private let block_: Block
     private let params_: ArrayList<FuncParam>
 
-    public init(keyword: Token, identifier: Token, block: Block,
+    public init(keyword: Token, block: Block,
                 modifiers: ArrayList<Modifier>, params: ArrayList<FuncParam>) {
-        super(keyword, identifier, modifiers)
+        super(keyword, modifiers)
         this.block_ = block
         this.params_ = params
     }
@@ -189,29 +196,29 @@ public class FuncDecl <: Decl {
 }
 
 public class ClassDecl <: Decl {
-    private let block_: Block
+    private let body_: Body
 
-    public init(identifier: Token, block: Block) {
-        block_ = block
+    public init(identifier: Token, body: Body) {
+        body_ = body
         this.identifier = identifier
     }
 
     public override func prettyPrint() {
         PrettyPrinter.append("class ")
         super.prettyPrint()
-        block.prettyPrint()
+        body.prettyPrint()
     }
 
-    public prop block: Block {
-        get() { block_ }
+    public prop body: Body {
+        get() { body_ }
     }
 }
 
 public class StructDecl <: Decl {
-    private let block_: Block
+    private let block_: Body
 
     public StructDecl(keyword: Token, identifier: Token,
-                        modifiers: ArrayList<Modifier>, block: Block) {
+                        modifiers: ArrayList<Modifier>, block: Body) {
         super(keyword, identifier, modifiers)
         block_ = block
     }
@@ -221,7 +228,7 @@ public class StructDecl <: Decl {
         block.prettyPrint()
     }
 
-    public prop block: Block {
+    public prop block: Body {
         get() { block_ }
     }
 }

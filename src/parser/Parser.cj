@@ -116,6 +116,8 @@ public class Parser {
         return statement()
     }
 
+    
+
     private func expression(): Expr {
         assignment()
     }
@@ -172,12 +174,13 @@ public class Parser {
 
     private func initialiser(modifiers:ArrayList<Modifier>): InitDecl {
         let parameters: ArrayList<FuncParam> = ArrayList()
+
         let keyword: Token = previous()
 
         let name: Token = Token()
 
         if (!matches(TokenKind.UNIT_LITERAL)) {
-            consume(TokenKind.LPAREN, "Expect '(' after function " + " name.")
+            consume(TokenKind.LPAREN, "Expect '(' after initialiser " + " name.")
             if (!check(TokenKind.RPAREN)) {
                 do {
                     if (parameters.size >= MAX_PARAM_NUMBER) {
@@ -191,9 +194,9 @@ public class Parser {
             consume(TokenKind.RPAREN, "Expect ') after parameters.")
         }
         var declType: ?TypeNode = None
-        consume(TokenKind.LCURL, "Expect '{' before function" + " body.")
+        consume(TokenKind.LCURL, "Expect '{' before initialiser" + " body.")
         let block: Block = Block(block())
-        InitDecl(keyword, name, block, modifiers, parameters)
+        InitDecl(keyword, block, modifiers, parameters)
 
         
     }
@@ -225,8 +228,10 @@ public class Parser {
             }
         }
         consume(TokenKind.LCURL, "Expect '{' before function" + " body.")
+        
         let block: Block = Block(block())
         FuncDecl(keyword, name, block, modifiers, parameters, declType)
+        
     }
 
     private func funcParameter(): FuncParam {
@@ -241,9 +246,9 @@ public class Parser {
     private func classDeclaration(): ?ClassDecl {
         let name: Token = consume(TokenKind.IDENTIFIER, "Expect class name.")
         consume(TokenKind.LCURL, "Expect '{' before class body.")
-        let block: Block = Block(block())
+        let body: Body = Body(body())
 
-        ClassDecl(name, block)
+        ClassDecl(name, body)
 
     }
 
@@ -251,8 +256,8 @@ public class Parser {
         let keyword: Token = previous()
         let name: Token = consume(TokenKind.IDENTIFIER, "Expect struct name.")
         consume(TokenKind.LCURL, "Expect '{' before struct body.")
-        let block: Block = Block(block())
-        StructDecl(keyword, name, modifiers, block)
+        let body: Body = Body(body())
+        StructDecl(keyword, name, modifiers, body)
     }
 
     private func statement(): Expr {
@@ -315,8 +320,32 @@ public class Parser {
         let nodes = ArrayList<Node>()
         
         while (!check(TokenKind.RCURL) && !isAtEnd()) {
-            nodes.add(node(modifiers()))
+            try {nodes.add(node(modifiers()))
             skipNL()
+            } catch (error: ParseError) {
+            synchronize()
+            }
+        }
+        consume(TokenKind.RCURL, "Expect '}' after block.")
+        
+        nodes.toArray()
+    }
+
+
+    private func body(): Array<Decl> {
+        let nodes = ArrayList<Decl>()
+        
+        while (!check(TokenKind.RCURL) && !isAtEnd()) {
+            try {
+            if (let Some(a) <- declaration(modifiers())) {nodes.add(a)}
+            else {
+                throw error(previous(),"Found non-declaration in Struct or Class declaration")
+            }
+            skipNL()
+
+            } catch (error: ParseError) {
+                synchronize()
+            }
         }
         consume(TokenKind.RCURL, "Expect '}' after block.")
         
@@ -482,7 +511,7 @@ public class Parser {
 
         while (!isAtEnd()) {
             // Finished a statement
-            if (previous().kind == TokenKind.SEMI) { return }
+            if (previous().kind == TokenKind.SEMI || previous().kind == TokenKind.NL) { return }
 
             if (peek().kind == TokenKind.CLASS ||
                 peek().kind == TokenKind.FUNC ||
@@ -525,6 +554,13 @@ public class Parser {
         peek().kind == kind
     }
 
+    private func checkNext(kind: TokenKind): Bool {  //THINK ABOUT EOF, WHAT TO DO IF WE'RE AT THE END OF THE ARRAY
+        if (isAtEnd()) {
+            return false
+        }
+        peekNext().kind == kind
+    }
+
     private func advance(): Token {
         if (!isAtEnd()) {
             current++
@@ -540,6 +576,10 @@ public class Parser {
         tokens[current]
     }
 
+    private func peekNext(): Token {
+        tokens[current + 1]
+    }
+    
     private func previous(): Token {
         tokens[current - 1]
     }
