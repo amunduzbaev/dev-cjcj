@@ -188,8 +188,6 @@ public class Parser {
 
         let keyword: Token = previous()
 
-        let name: Token = Token()
-
         if (!matches(TokenKind.UNIT_LITERAL)) {
             consume(TokenKind.LPAREN, "Expect '(' after initialiser " + " name.")
             if (!check(TokenKind.RPAREN)) {
@@ -204,14 +202,11 @@ public class Parser {
             }
             consume(TokenKind.RPAREN, "Expect ') after parameters.")
         }
-        consume(TokenKind.LCURL, "Expect '{' before function" + " body.")
-        let block: Block = Block(NodeIdManager.nextId(), block())
-        InitDecl(NodeIdManager.nextId(),
-                keyword, name, block, modifiers, parameters)
-        var declType: ?TypeNode = None
         consume(TokenKind.LCURL, "Expect '{' before initialiser" + " body.")
-        let block: Block = Block(block())
-        InitDecl(keyword, block, modifiers, parameters)
+        let body: Body = Body(NodeIdManager.nextId(), body())
+        var declType: ?TypeNode = None
+
+        InitDecl(NodeIdManager.nextId(), keyword, body, modifiers, parameters)
 
         
     }
@@ -243,13 +238,12 @@ public class Parser {
             } catch (_: IllegalArgumentException) {
             }
         }
-        consume(TokenKind.LCURL, "Expect '{' before function" + " body.")
+        consume(TokenKind.LCURL, "Expect '{' before function body.")
         let block: Block = Block(NodeIdManager.nextId(), block())
         FuncDecl(NodeIdManager.nextId(),
                 keyword, name, block, modifiers, parameters, declType)
-        
-        let block: Block = Block(block())
-        FuncDecl(keyword, name, block, modifiers, parameters, declType)
+
+        FuncDecl(NodeIdManager.nextId(), keyword, name, block, modifiers, parameters, declType)
         
     }
 
@@ -266,11 +260,9 @@ public class Parser {
     private func classDeclaration(): ?ClassDecl {
         let name: Token = consume(TokenKind.IDENTIFIER, "Expect class name.")
         consume(TokenKind.LCURL, "Expect '{' before class body.")
-        let block: Block = Block(NodeIdManager.nextId(), block())
-        let body: Body = Body(body())
+        let body: Body = Body(NodeIdManager.nextId(), body())
 
-        ClassDecl(NodeIdManager.nextId(), name, block)
-        ClassDecl(name, body)
+        ClassDecl(NodeIdManager.nextId(), name, body)
 
     }
 
@@ -278,10 +270,10 @@ public class Parser {
         let keyword: Token = previous()
         let name: Token = consume(TokenKind.IDENTIFIER, "Expect struct name.")
         consume(TokenKind.LCURL, "Expect '{' before struct body.")
-        let block: Block = Block(NodeIdManager.nextId(), block())
-        StructDecl(NodeIdManager.nextId(), keyword, name, modifiers, block)
-        let body: Body = Body(body())
-        StructDecl(keyword, name, modifiers, body)
+
+        let body: Body = Body(NodeIdManager.nextId(), body())
+        StructDecl(NodeIdManager.nextId(), keyword, name, modifiers, body)
+
     }
 
     private func statement(): Expr {
@@ -361,34 +353,20 @@ public class Parser {
         let nodes = ArrayList<Decl>()
         
         while (!check(TokenKind.RCURL) && !isAtEnd()) {
-            try {nodes.add(node(modifiers()))
-            skipNL()
-            } catch (error: ParseError) {
-            synchronize()
-            }
-        }
-        consume(TokenKind.RCURL, "Expect '}' after block.")
-        
-        nodes.toArray()
-    }
-
-
-    private func body(): Array<Decl> {
-        let nodes = ArrayList<Decl>()
-        
-        while (!check(TokenKind.RCURL) && !isAtEnd()) {
             try {
-            if (let Some(a) <- declaration(modifiers())) {nodes.add(a)}
-            else {
-                throw error(previous(),"Found non-declaration in Struct or Class declaration")
-            }
-            skipNL()
+                if (let Some(a) <- declaration(modifiers())) {
+                    nodes.add(a)
+                    }
+                else {
+                    throw error(peek(),"Found non-declaration in Struct or Class declaration")
+                }
+                
 
             } catch (error: ParseError) {
                 synchronize()
             }
         }
-        consume(TokenKind.RCURL, "Expect '}' after block.")
+        consume(TokenKind.RCURL, "Expect '}' after body.")
         
         nodes.toArray()
     }

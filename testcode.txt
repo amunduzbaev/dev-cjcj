@@ -1,42 +1,9 @@
-st.a
-st.b()
-st().b = 5
-
-(a + b).c()
-
-let b: Int64
-var a: Int64 = 3 + 5 * (2 + 3 / (1 + 5))
-a = 5
-let b = 8
-a + b
-func a(a: UInt8, b: Float32, c: Rune) {
-    error =======
-    return a + b + c
-}
-func b() {}
-func c(): Int64 {}
-func d(a: Unit): UInt8 {}
-b()
-if (a + b == 5 && true || 1 + 2 == 10) {
-    1 + 2 * 3 / 4
-} else if (a + 1) {
-    "else block"
-}
-while (a + b == 5) {
-    1 + 7 * 2 / 3
-    a = 1
-}
-a(b, c, d)
-
 public static open struct MyStruct {
     let a: Int64 = 0
-    return a
     public init (a: Int64) {
-        return 10
-    }
-}
-
+        let b: Int64 = 2
+        return a
+    }}
 private func a(): Int64 {
     a + b
 }
-

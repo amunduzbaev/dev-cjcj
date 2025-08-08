@@ -23,7 +23,8 @@ public abstract class Decl <: Node {
     }
 
     //Constructor for constructors, they have no name
-    init(keyword: Token, modifiers: ArrayList<Modifier>) {
+    init(id: NodeId, keyword: Token, modifiers: ArrayList<Modifier>) {
+        super(id)
         keyword_ = keyword
         modifiers_ = modifiers
     }
@@ -99,13 +100,13 @@ public class VarDecl <: Decl {
 }
 
 public class InitDecl <: Decl {
-    private let block_: Block
+    private let body_: Body
     private let params_: ArrayList<FuncParam>
 
-    public init(id: NodeId, keyword: Token, identifier: Token, block: Block,
+    public init(id: NodeId, keyword: Token, body: Body,
                 modifiers: ArrayList<Modifier>, params: ArrayList<FuncParam>) {
-        super(id, keyword, identifier, modifiers)
-        this.block_ = block
+        super(id, keyword, modifiers)
+        this.body_ = body
         this.params_ = params
     }
 
@@ -120,11 +121,11 @@ public class InitDecl <: Decl {
             }
         }
         printer.append(")")
-        block_.prettyPrint(printer)
+        body_.prettyPrint(printer)
     }
 
-    public prop block: Block {
-        get() { block_ }
+    public prop body: Body {
+        get() { body_ }
     }
 
     public prop params: ArrayList<FuncParam> {
@@ -200,16 +201,16 @@ public class FuncDecl <: Decl {
 public class ClassDecl <: Decl {
     private let body_: Body
 
-    public init(id: NodeId, identifier: Token, block: Block) {
+    public init(id: NodeId, identifier: Token, body: Body) {
         super(id)
-        block_ = block
+        body_ = body
         this.identifier = identifier
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
         printer.append("class ")
         super.prettyPrint(printer)
-        block.prettyPrint(printer)
+        body.prettyPrint(printer)
     }
 
     public prop body: Body {
@@ -218,20 +219,20 @@ public class ClassDecl <: Decl {
 }
 
 public class StructDecl <: Decl {
-    private let block_: Body
+    private let body_: Body
 
     public StructDecl(id: NodeId, keyword: Token, identifier: Token,
-                        modifiers: ArrayList<Modifier>, block: Block) {
+                        modifiers: ArrayList<Modifier>, body: Body) {
         super(id, keyword, identifier, modifiers)
-        block_ = block
+        body_ = body
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
         super.prettyPrint(printer)
-        block.prettyPrint(printer)
+        body.prettyPrint(printer)
     }
 
-    public prop block: Body {
-        get() { block_ }
+    public prop body: Body {
+        get() { body_ }
     }
 }

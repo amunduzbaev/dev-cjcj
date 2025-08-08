@@ -182,28 +182,30 @@ public class Block <: Expr {
 public class Body <: Expr {
     private let decls_: Array<Decl>
 
-    public Body(decls: Array<Decl>) {
-        super()
+    public Body(id: NodeId, decls: Array<Decl>) {
+
+        super(id)
         decls_ = decls
     }
 
-    public override func prettyPrint() {
-        PrettyPrinter.append("{")
+    public override func prettyPrint(printer: PrettyPrinter) {
+        
+        printer.append("{")
         if (!decls.isEmpty()) {
-            PrettyPrinter.indent()
-            PrettyPrinter.append("\n")
-            decls[0].prettyPrint()
+            printer.indent()
+            printer.append("\n")
+            decls[0].prettyPrint(printer)
             decls.iterator()
                 .enumerate()
                 .filter({ v => v[0] > 0})
                 .map({ v => v[1] })
                 .forEach({ 
-                n => PrettyPrinter.append("\n")    
-                    n.prettyPrint()     
+                n => printer.append("\n")    
+                    n.prettyPrint(printer)     
                 })
-            PrettyPrinter.unindent()
+            printer.unindent()
         }
-        PrettyPrinter.append("\n}\n")
+        printer.append("\n}\n")
     }
 
     public prop decls: Array<Decl> {
