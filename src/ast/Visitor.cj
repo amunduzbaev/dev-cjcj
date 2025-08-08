@@ -15,8 +15,6 @@ public abstract class Visitor {
         breakTraverseFlag = true
     }
 
-    protected open func visit(_: Node): Unit { }
-
     protected open func visit(_: Expr): Unit { }
 
     protected open func visit(_: Binary): Unit { }
