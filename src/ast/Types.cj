@@ -54,3 +54,21 @@ public class PrimitiveType <: TypeNode {
         get() { keyword_ }
     }
 }
+
+public class RefType <: TypeNode {
+    private let identifier_: Token
+
+    public init(id: NodeId, typeParameterName: Token, identifier: Token) {
+        super(id, typeParameterName)
+        identifier_ = identifier
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter) {
+        super.prettyPrint(printer)
+        printer.append(": " + identifier.value)
+    }
+
+    public prop identifier: Token {
+        get() { identifier_ }
+    }
+}

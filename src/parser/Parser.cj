@@ -232,11 +232,8 @@ public class Parser {
         }
         var declType: ?TypeNode = None
         if (matches(TokenKind.COLON)) {
-            try {
-                declType = PrimitiveType(NodeIdManager.nextId(),
-                                            name, advance())
-            } catch (_: IllegalArgumentException) {
-            }
+            let keyword = advance()
+            declType = nodeType(NodeIdManager.nextId(), name, keyword)
         }
         consume(TokenKind.LCURL, "Expect '{' before function body.")
         let block: Block = Block(NodeIdManager.nextId(), block())
@@ -247,14 +244,21 @@ public class Parser {
         
     }
 
+    private func nodeType(id: NodeId, name: Token, keyword: Token): TypeNode {
+        try {
+            return PrimitiveType(id, name, keyword)
+        } catch (_: IllegalArgumentException) {
+            return RefType(id, name, keyword)
+        }
+    }
+
     private func funcParameter(): FuncParam {
         let parameterName = consume(TokenKind.IDENTIFIER,
             "Expect parameter name")
         consume(TokenKind.COLON, "Expect ':' after parameter name")
         let keyword = advance()
-        // TODO: Add check for type category.
         FuncParam(NodeIdManager.nextId(),
-            PrimitiveType(NodeIdManager.nextId(), parameterName, keyword))
+            nodeType(NodeIdManager.nextId(), parameterName, keyword))
     }
 
     private func classDeclaration(): ?ClassDecl {
@@ -337,11 +341,12 @@ public class Parser {
         
         skipNL()
         while (!check(TokenKind.RCURL) && !isAtEnd()) {
-            try {nodes.add(node(modifiers()))
-            skipNL()
+            try {
+                nodes.add(node(modifiers()))
             } catch (error: ParseError) {
-            synchronize()
+                synchronize()
             }
+            skipNL()
         }
         consume(TokenKind.RCURL, "Expect '}' after block.")
         
@@ -352,6 +357,7 @@ public class Parser {
     private func body(): Array<Decl> {
         let nodes = ArrayList<Decl>()
         
+        skipNL()
         while (!check(TokenKind.RCURL) && !isAtEnd()) {
             try {
                 skipNL()
@@ -366,6 +372,7 @@ public class Parser {
             } catch (error: ParseError) {
                 synchronize()
             }
+            skipNL()
         }
         consume(TokenKind.RCURL, "Expect '}' after body.")
         
@@ -379,13 +386,7 @@ public class Parser {
 
         var declType: ?TypeNode = None
         if (matches(TokenKind.COLON)) {
-            try {
-                declType = PrimitiveType(
-                    NodeIdManager.nextId(), name, advance()
-                )
-            } catch (_: IllegalArgumentException) {
-                throw error(peek(), "Expected primitive type.")
-            }
+            declType = nodeType(NodeIdManager.nextId(), name, advance())
         }
 
         var initializer: ?Expr = None
