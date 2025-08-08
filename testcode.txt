@@ -1,7 +1,6 @@
 public static struct st {
     private let a: Int64 = 5
-    a + b
-    public open mut func a() {
+    public open mut func a(): ADHJFG {
         return 5
     }
 }
@@ -41,7 +40,6 @@ public static open struct MyStruct {
     return a
 
     public init(a: ABCD) {
-        return 10
     }
 }
 

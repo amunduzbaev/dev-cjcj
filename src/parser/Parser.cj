@@ -341,11 +341,12 @@ public class Parser {
         
         skipNL()
         while (!check(TokenKind.RCURL) && !isAtEnd()) {
-            try {nodes.add(node(modifiers()))
-            skipNL()
+            try {
+                nodes.add(node(modifiers()))
             } catch (error: ParseError) {
-            synchronize()
+                synchronize()
             }
+            skipNL()
         }
         consume(TokenKind.RCURL, "Expect '}' after block.")
         
@@ -356,6 +357,7 @@ public class Parser {
     private func body(): Array<Decl> {
         let nodes = ArrayList<Decl>()
         
+        skipNL()
         while (!check(TokenKind.RCURL) && !isAtEnd()) {
             try {
                 if (let Some(a) <- declaration(modifiers())) {
@@ -369,6 +371,7 @@ public class Parser {
             } catch (error: ParseError) {
                 synchronize()
             }
+            skipNL()
         }
         consume(TokenKind.RCURL, "Expect '}' after body.")
         
