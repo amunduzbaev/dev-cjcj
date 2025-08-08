@@ -103,7 +103,7 @@ public class InitDecl <: Decl {
     private let body_: Body
     private let params_: ArrayList<FuncParam>
 
-    public init(id: NodeId, keyword: Token, body: Body,
+    public InitDecl(id: NodeId, keyword: Token, body: Body,
                 modifiers: ArrayList<Modifier>, params: ArrayList<FuncParam>) {
         super(id, keyword, modifiers)
         this.body_ = body
@@ -121,7 +121,7 @@ public class InitDecl <: Decl {
             }
         }
         printer.append(")")
-        body_.prettyPrint(printer)
+        body.prettyPrint(printer)
     }
 
     public prop body: Body {
@@ -132,6 +132,46 @@ public class InitDecl <: Decl {
         get() { params_ }
     }
 
+
+}
+
+public class MainDecl <: Decl {
+    private let block_: Block
+    private let param_: ?FuncParam
+    private let declType_: ?TypeNode
+    
+    public MainDecl(id: NodeId, block: Block, param: ?FuncParam, declType: ?TypeNode) {
+        super(id)
+        this.block_ = block
+        this.param_ = param
+        this.declType_ = declType
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter) {
+        super.prettyPrint(printer)
+        printer.append("main(")
+        if (let Some(a) <- param) {
+            a.prettyPrint(printer)
+        }
+        printer.append(")")
+
+        if (let Some(dtype) <- declType) {
+            dtype.prettyPrint(printer)
+        }
+        block_.prettyPrint(printer)
+    }
+
+    public prop block: Block {
+        get() { block_ }
+    }
+
+    public prop param: ?FuncParam {
+        get() { param_ }
+    }
+
+    public prop declType: ?TypeNode {
+        get() { declType_ }
+    }
 
 }
 
@@ -201,7 +241,7 @@ public class FuncDecl <: Decl {
 public class ClassDecl <: Decl {
     private let body_: Body
 
-    public init(id: NodeId, identifier: Token, body: Body) {
+    public ClassDecl(id: NodeId, identifier: Token, body: Body) {
         super(id)
         body_ = body
         this.identifier = identifier
@@ -236,3 +276,6 @@ public class StructDecl <: Decl {
         get() { body_ }
     }
 }
+
+
+

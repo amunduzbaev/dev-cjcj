@@ -8,6 +8,7 @@ import cjcj.scanner.TokenKindHelper
 import std.collection.ArrayList
 import std.convert.Parsable
 
+
 /* Current Grammar
 program        → (declaration | classDecl | structDecl)* EOF ;
 
@@ -177,6 +178,9 @@ public class Parser {
             if (matches(TokenKind.INIT)) {
                 return initialiser(modifiers)
             }
+            if (matches(TokenKind.MAIN)) {
+                return mainDeclaration()
+            }
         } catch (error: ParseError) {
             synchronize()
         }
@@ -204,7 +208,6 @@ public class Parser {
         }
         consume(TokenKind.LCURL, "Expect '{' before initialiser" + " body.")
         let body: Body = Body(NodeIdManager.nextId(), body())
-        var declType: ?TypeNode = None
 
         InitDecl(NodeIdManager.nextId(), keyword, body, modifiers, parameters)
 
@@ -277,6 +280,41 @@ public class Parser {
 
         let body: Body = Body(NodeIdManager.nextId(), body())
         StructDecl(NodeIdManager.nextId(), keyword, name, modifiers, body)
+
+    }
+
+    private func mainDeclaration(): MainDecl {
+        var parameter: ?FuncParam = None
+        var parameters: Int64 = 0
+        if (!matches(TokenKind.UNIT_LITERAL)) {
+            consume(TokenKind.LPAREN, "Expect '(' after main.")
+            try{ 
+                if (!check(TokenKind.RPAREN)) {
+                    do {
+                        if (parameters >= 1) {
+                            throw error(peek(), "Can't have more than 1 parameter in main function.")
+                        }
+                        parameters++
+                        parameter = funcParameter()
+
+                    } while(matches(TokenKind.COMMA))
+                }
+            }catch (error: ParseError) {
+                synchronize()
+            }
+            consume(TokenKind.RPAREN, "Expect ') after parameters.")
+        }
+
+        var declType: ?TypeNode = None
+        if (matches(TokenKind.COLON)) {
+            let keyword = advance()
+            declType = nodeType(NodeIdManager.nextId(), keyword, keyword)
+        }
+
+        consume(TokenKind.LCURL, "Expect '{' before main body.")
+        let block: Block = Block (NodeIdManager.nextId(), block())
+
+        MainDecl(NodeIdManager.nextId(), block, parameter, declType)
 
     }
 
@@ -545,7 +583,8 @@ public class Parser {
                 peek().kind == TokenKind.IF ||
                 peek().kind == TokenKind.WHILE ||
                 peek().kind == TokenKind.RETURN ||
-                peek().kind == TokenKind.STRUCT
+                peek().kind == TokenKind.STRUCT ||
+                peek().kind == TokenKind.RPAREN
             ) {
                 return
             }
@@ -579,12 +618,12 @@ public class Parser {
         peek().kind == kind
     }
 
-    private func checkNext(kind: TokenKind): Bool {  //THINK ABOUT EOF, WHAT TO DO IF WE'RE AT THE END OF THE ARRAY
-        if (isAtEnd()) {
-            return false
-        }
-        peekNext().kind == kind
-    }
+    // private func checkNext(kind: TokenKind): Bool { 
+    //     if (isAtEnd()) {
+    //         return false
+    //     }
+    //     peekNext().kind == kind
+    // }
 
     private func advance(): Token {
         if (!isAtEnd()) {
@@ -601,9 +640,9 @@ public class Parser {
         tokens[current]
     }
 
-    private func peekNext(): Token {
-        tokens[current + 1]
-    }
+    // private func peekNext(): Token {
+    //     tokens[current + 1]
+    // }
     
     private func previous(): Token {
         tokens[current - 1]

@@ -37,7 +37,7 @@ a(b, c, d)
 
 public static open struct MyStruct {
     let a:Int64 = 0
-    return a
+    return a // Needs to return an error but keeps going
 
     public init(a: ABCD) {
     }
@@ -45,4 +45,11 @@ public static open struct MyStruct {
 
 private func a(): Int64 {
     a + b
+}
+
+main(args: String, args2: String) : Int64 {
+    return 0
+    private func d(f: Int64) {
+        return 10
+    }
 }

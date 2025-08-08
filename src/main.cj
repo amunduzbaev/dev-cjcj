@@ -51,23 +51,7 @@ public class Cj {
         println(printer.toString())
     }
 
-    static func error(line: Int64, message: String) {
-        report(line, "", message)
-    }
 
-    private static func report(line: Int64, wher: String, message: String) {
-        getStdErr().writeln(
-            "[line " + line.toString() + "] Error" + wher + ": " + message)
-        hadError = true
-    }
-
-    static func error(token: Token, message: String) {
-        if (token.kind == TokenKind.END) {
-            report(Int64(token.pos.line), " at end", message)
-        } else {
-            report(Int64(token.pos.line), " at '" + token.value + "'", message)
-        }
-    }
 }
 
 main (args: Array<String>) {
