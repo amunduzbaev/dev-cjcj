@@ -101,25 +101,33 @@ public class Parser {
 
     public func parse(): ?Array<Node> {
         let nodes: ArrayList<Node> = ArrayList()
-        try {
-            skipNL()
-            while (!isAtEnd()) {
+        
+        skipNL()
+        while (!isAtEnd()) {
+            try {
                 let modifiers: ArrayList<Modifier> = modifiers()
                 // We're calling class and other custom declarations here
                 // because you cannot have a class inside a class.
                 if (matches(TokenKind.CLASS)) {
-                    nodes.add(classDeclaration(modifiers).getOrThrow())
+                    nodes.add(classDeclaration(modifiers))
                 } else if (matches(TokenKind.STRUCT)) {
                     nodes.add(structDeclaration(modifiers))
-                } else {
-                    nodes.add(node(modifiers))
+                } else if (matches(TokenKind.MAIN)) {
+                    nodes.add(mainDeclaration())
+                } else if (let Some(decl) <- declaration(modifiers)) {
+                    nodes.add(decl)
                 }
-                skipNL()
+                else {
+                    throw error(peek(), "Expected declaration in global scope.")
+                }
+
+            } catch (error: ParseError) {
+                synchronize()
             }
-            return nodes.toArray()
-        } catch (error: ParseError) {
-            return None
+            skipNL()
         }
+
+        return nodes.toArray()
     }
 
     private func node(modifiers: ArrayList<Modifier>): Node {
@@ -179,9 +187,7 @@ public class Parser {
             if (matches(TokenKind.INIT)) {
                 return initialiser(modifiers)
             }
-            if (matches(TokenKind.MAIN)) {
-                return mainDeclaration()
-            }
+            
         } catch (error: ParseError) {
             synchronize()
         }
@@ -265,7 +271,7 @@ public class Parser {
             nodeType(NodeIdManager.nextId(), parameterName, keyword))
     }
 
-    private func classDeclaration(modifiers: ArrayList<Modifier>): ?ClassDecl {
+    private func classDeclaration(modifiers: ArrayList<Modifier>): ClassDecl {
         let keyword: Token = previous()
         let name: Token = consume(TokenKind.IDENTIFIER, "Expect class name.")
         let supertypes: ArrayList<TypeNode> = ArrayList()
@@ -302,6 +308,7 @@ public class Parser {
         consume(TokenKind.LCURL, "Expect '{' before struct body.")
 
         let body: Body = Body(NodeIdManager.nextId(), body())
+
         StructDecl(NodeIdManager.nextId(), keyword, name, modifiers, body, supertypes)
 
     }
@@ -340,7 +347,7 @@ public class Parser {
         consume(TokenKind.LCURL, "Expect '{' before main body.")
         let block: Block = Block (NodeIdManager.nextId(), block())
 
-        MainDecl(NodeIdManager.nextId(), block, parameter, declType)
+        return MainDecl(NodeIdManager.nextId(), block, parameter, declType)
 
     }
 
