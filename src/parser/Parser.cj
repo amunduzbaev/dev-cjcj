@@ -191,7 +191,9 @@ public class Parser {
         } catch (error: ParseError) {
             synchronize()
         }
+
         None
+        
     }
 
     private func initialiser(modifiers:ArrayList<Modifier>): InitDecl {
@@ -214,9 +216,9 @@ public class Parser {
             consume(TokenKind.RPAREN, "Expect ') after parameters.")
         }
         consume(TokenKind.LCURL, "Expect '{' before initialiser" + " body.")
-        let body: Body = Body(NodeIdManager.nextId(), body())
+        let block: Block = Block(NodeIdManager.nextId(), block())
 
-        InitDecl(NodeIdManager.nextId(), keyword, body, modifiers, parameters)
+        InitDecl(NodeIdManager.nextId(), keyword, block, modifiers, parameters)
 
         
     }
@@ -513,8 +515,18 @@ public class Parser {
     }
 
     private func factor(): Expr {
-        var expr: Expr = unary()
+        var expr: Expr = exp()
         while (matches(TokenKind.MUL, TokenKind.DIV)) {
+            let oper: Token = previous()
+            let right: Expr = unary()
+            expr = Binary(NodeIdManager.nextId(), expr, oper, right)
+        }
+        expr
+    }
+
+    private func exp(): Expr {
+        var expr: Expr = unary()
+        while (matches(TokenKind.EXP)) {
             let oper: Token = previous()
             let right: Expr = unary()
             expr = Binary(NodeIdManager.nextId(), expr, oper, right)
@@ -584,6 +596,9 @@ public class Parser {
         }
         if (matches(TokenKind.IDENTIFIER)) {
             return RefExpr(NodeIdManager.nextId(), previous())
+        }
+        if (matches(TokenKind.THIS, TokenKind.SUPER)) {
+            return ThisSuperExpr(NodeIdManager.nextId(), previous())
         }
         throw error(peek(), "Expect expression.")
     }

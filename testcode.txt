@@ -1,7 +1,8 @@
-public static struct st {
+public static class MyClass {
     private let a: Int64 = 5
-    public open mut func a(): ADHJFG {
-        return 5
+    
+    init(a: Int64) {
+        this.a = a
     }
 }
 
