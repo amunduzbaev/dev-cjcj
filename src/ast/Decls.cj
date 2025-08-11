@@ -140,7 +140,8 @@ public class MainDecl <: Decl {
     private let param_: ?FuncParam
     private let declType_: ?TypeNode
     
-    public MainDecl(id: NodeId, block: Block, param: ?FuncParam, declType: ?TypeNode) {
+    public MainDecl(id: NodeId, block: Block, param: ?FuncParam, 
+                    declType: ?TypeNode) {
         super(id)
         this.block_ = block
         this.param_ = param
@@ -240,40 +241,72 @@ public class FuncDecl <: Decl {
 
 public class ClassDecl <: Decl {
     private let body_: Body
+    private let superTypes_: ArrayList<TypeNode>
 
-    public ClassDecl(id: NodeId, identifier: Token, body: Body) {
-        super(id)
+
+    public ClassDecl(id: NodeId, keyword: Token, identifier: Token, 
+                    modifiers: ArrayList<Modifier>, body: Body, superTypes: ArrayList<TypeNode>) {
+        super(id, keyword, identifier, modifiers)
         body_ = body
-        this.identifier = identifier
+        superTypes_ = superTypes
+
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
-        printer.append("class ")
         super.prettyPrint(printer)
-        body.prettyPrint(printer)
+
+        if (!superTypes.isEmpty()) {
+            printer.append(" <: ")
+            printer.append(superTypes[0].typeParameterName.value)
+            for (i in 1..superTypes.size) {
+                printer.append(" & ")
+                superTypes[i].prettyPrint(printer)
+            }
+        }
+        body_.prettyPrint(printer)
     }
 
     public prop body: Body {
         get() { body_ }
     }
+
+    public prop superTypes: ArrayList<TypeNode> {
+        get() { superTypes_ }
+    }
+
 }
 
 public class StructDecl <: Decl {
     private let body_: Body
+    private let superTypes_: ArrayList<TypeNode>
 
     public StructDecl(id: NodeId, keyword: Token, identifier: Token,
-                        modifiers: ArrayList<Modifier>, body: Body) {
+                        modifiers: ArrayList<Modifier>, body: Body, superTypes: ArrayList<TypeNode>) {
         super(id, keyword, identifier, modifiers)
         body_ = body
+        superTypes_ = superTypes
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
         super.prettyPrint(printer)
-        body.prettyPrint(printer)
+        
+        if (!superTypes.isEmpty()) {
+            printer.append(" <: ")
+            printer.append(superTypes[0].typeParameterName.value)
+            for (i in 1..superTypes.size) {
+                printer.append(" & ")
+                superTypes[i].prettyPrint(printer)
+            }
+        }
+        body_.prettyPrint(printer)
     }
 
     public prop body: Body {
         get() { body_ }
+    }
+
+    public prop superTypes: ArrayList<TypeNode> {
+        get() { superTypes_ }
     }
 }
 

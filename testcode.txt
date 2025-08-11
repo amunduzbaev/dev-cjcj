@@ -35,7 +35,7 @@ while (a + b == 5) {
 }
 a(b, c, d)
 
-public static open struct MyStruct {
+public static open struct MyStruct <: SuperClass {
     let a:Int64 = 0
     return a // Needs to return an error but keeps going
 

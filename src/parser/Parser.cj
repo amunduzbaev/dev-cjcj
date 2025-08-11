@@ -10,15 +10,14 @@ import std.convert.Parsable
 
 
 /* Current Grammar
-program        → (declaration | classDecl | structDecl)* EOF ;
+program        → (modifier)* (statement | declaration | classDecl | structDecl)* EOF ;
 
 declaration    → varDecl
                | funcDecl
-               | statement ;
 
-classDecl      → "class" IDENTIFIER block ;
+classDecl      → "class" IDENTIFIER body ;
 
-structDecl     → "struct" IDENTIFIER block ;
+structDecl     → "struct" IDENTIFIER body ;
 
 varDecl        → ( "var" | "let" ) IDENTIFIER ( "=" expression )? ( ";" | "\n");
 
@@ -26,15 +25,17 @@ funDecl        → "func" function ;
 
 function       → IDENTIFIER "(" parameters? ")" block ;
 
-parameters     → IDENTIFIER ( "," IDENTIFIER )* ;
+parameters     → IDENTIFIER ": " TYPE ( "," IDENTIFIER ": " TYPE )* ;
 
 statement      → exprStmt
                | ifStmt
                | whileStmt
                | returnStmt
-               | block;
+               | block ;
 
-block          → "{" declaration* "}" ;
+body          → "{" (modifier " " declaration)* "}" ;
+
+block         → "{" statement* "}" ;
 
 returnStmt     → "return" expression? ";" ;
 
@@ -107,7 +108,7 @@ public class Parser {
                 // We're calling class and other custom declarations here
                 // because you cannot have a class inside a class.
                 if (matches(TokenKind.CLASS)) {
-                    nodes.add(classDeclaration().getOrThrow())
+                    nodes.add(classDeclaration(modifiers).getOrThrow())
                 } else if (matches(TokenKind.STRUCT)) {
                     nodes.add(structDeclaration(modifiers))
                 } else {
@@ -264,22 +265,44 @@ public class Parser {
             nodeType(NodeIdManager.nextId(), parameterName, keyword))
     }
 
-    private func classDeclaration(): ?ClassDecl {
+    private func classDeclaration(modifiers: ArrayList<Modifier>): ?ClassDecl {
+        let keyword: Token = previous()
         let name: Token = consume(TokenKind.IDENTIFIER, "Expect class name.")
+        let supertypes: ArrayList<TypeNode> = ArrayList()
+
+        if (matches(TokenKind.UPPERBOUND)) {
+
+            do {
+                let currToken: TokenKind = peek().kind
+                supertypes.add(TypeNode(NodeIdManager.nextId(), consume(currToken, "Expect supertype name")))
+            } while(matches(TokenKind.BITAND))
+        
+        }
         consume(TokenKind.LCURL, "Expect '{' before class body.")
         let body: Body = Body(NodeIdManager.nextId(), body())
 
-        ClassDecl(NodeIdManager.nextId(), name, body)
+        ClassDecl(NodeIdManager.nextId(), keyword, name, modifiers, body, supertypes)
 
     }
 
     private func structDeclaration(modifiers: ArrayList<Modifier>): StructDecl {
         let keyword: Token = previous()
         let name: Token = consume(TokenKind.IDENTIFIER, "Expect struct name.")
+        let supertypes: ArrayList<TypeNode> = ArrayList()
+
+        if (matches(TokenKind.UPPERBOUND)) {
+
+            do {
+                let currToken: TokenKind = peek().kind
+                supertypes.add(TypeNode(NodeIdManager.nextId(), consume(currToken, "Expect supertype name")))
+            } while(matches(TokenKind.BITAND))
+        
+        }
+
         consume(TokenKind.LCURL, "Expect '{' before struct body.")
 
         let body: Body = Body(NodeIdManager.nextId(), body())
-        StructDecl(NodeIdManager.nextId(), keyword, name, modifiers, body)
+        StructDecl(NodeIdManager.nextId(), keyword, name, modifiers, body, supertypes)
 
     }
 
@@ -296,6 +319,9 @@ public class Parser {
                         }
                         parameters++
                         parameter = funcParameter()
+
+                        // For now, discards all other parameters other than the first one
+                        // TEMPORARY FIX, REMEMBER TO MAKE A REAL SOLUTION
 
                     } while(matches(TokenKind.COMMA))
                 }
