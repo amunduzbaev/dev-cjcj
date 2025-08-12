@@ -147,6 +147,25 @@ public class RefExpr <: Expr {
     }
 }
 
+public class ThisSuperExpr <: Expr {
+    private var identifier_: Token
+
+    public ThisSuperExpr(id: NodeId, identifier: Token) {
+        super(id)
+        identifier_ = identifier
+    }
+
+    public prop identifier: Token {
+        get() { identifier_ }
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        printer.append(identifier.value)
+    }
+
+
+}
+
 public class Block <: Expr {
     private let nodes_: Array<Node>
 

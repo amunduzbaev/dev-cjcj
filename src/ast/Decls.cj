@@ -100,13 +100,13 @@ public class VarDecl <: Decl {
 }
 
 public class InitDecl <: Decl {
-    private let body_: Body
+    private let block_: Block
     private let params_: ArrayList<FuncParam>
 
-    public InitDecl(id: NodeId, keyword: Token, body: Body,
+    public InitDecl(id: NodeId, keyword: Token, block: Block,
                 modifiers: ArrayList<Modifier>, params: ArrayList<FuncParam>) {
         super(id, keyword, modifiers)
-        this.body_ = body
+        this.block_ = block
         this.params_ = params
     }
 
@@ -121,11 +121,11 @@ public class InitDecl <: Decl {
             }
         }
         printer.append(")")
-        body.prettyPrint(printer)
+        block.prettyPrint(printer)
     }
 
-    public prop body: Body {
-        get() { body_ }
+    public prop block: Block {
+        get() { block_ }
     }
 
     public prop params: ArrayList<FuncParam> {

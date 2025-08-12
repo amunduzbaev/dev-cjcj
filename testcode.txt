@@ -1,39 +1,24 @@
-public static struct st {
+public static class MyClass {
     private let a: Int64 = 5
-    public open mut func a(): ADHJFG {
-        return 5
+    
+    init(a: Int64) {
+        this.a = a
     }
 }
--5
-
-st.a
-st.b()
-st().b = 5
-
-(a + b).c()
 
 let b: Wow
 var a: Wow = 3 + 5 * (2 + 3 / (1 + 5))
-a = 5
+
 let b = 8
-a + b
+
 func a(a: UInt8, b: Crazy, c: Rune) {
     return a + b + c
 }
+
 func b() {}
 func c(): ABCD {}
 func d(a: Unit): UInt8 {}
-b()
-if (a + b == 5 && true || 1 + 2 == 10) {
-    1 + 2 * 3 / 4
-} else if (a + 1) {
-    "else block"
-}
-while (a + b == 5) {
-    1 + 7 * 2 / 3
-    a = 1
-}
-a(b, c, d)
+
 
 public static open struct MyStruct <: SuperClass {
     let a:Int64 = 0

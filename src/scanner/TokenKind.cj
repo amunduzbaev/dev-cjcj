@@ -272,6 +272,7 @@ public class TokenKindHelper {
         SEALED,
         OPEN,
         INOUT,
-        MUT
+        MUT,
+        CONST
     ]
 }
