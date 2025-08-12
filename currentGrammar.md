@@ -513,4 +513,3 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         : SUB
         | NOT
         ;
-*/

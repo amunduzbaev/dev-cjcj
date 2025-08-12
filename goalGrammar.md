@@ -888,4 +888,3 @@ parenthesizedType
         : SUB
         | NOT
         ;
-*/
