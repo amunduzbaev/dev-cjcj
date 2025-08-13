@@ -58,7 +58,9 @@ public abstract class Decl <: Node {
         if (keyword.kind != TokenKind.ILLEGAL) {
             printer.append(keyword.value + " ")
         }
-        printer.append(identifier.value)
+        if (identifier.kind != TokenKind.ILLEGAL) {
+            printer.append(identifier.value + " ")
+        }
     }
 }
 
@@ -97,42 +99,6 @@ public class VarDecl <: Decl {
         printer.append("${if (initializer.isSome()) {" = "} else {""}}")
         if (let Some(ini) <- initializer) {ini.prettyPrint(printer)}
     }
-}
-
-public class InitDecl <: Decl {
-    private let block_: Block
-    private let params_: ArrayList<FuncParam>
-
-    public InitDecl(id: NodeId, keyword: Token, block: Block,
-                modifiers: ArrayList<Modifier>, params: ArrayList<FuncParam>) {
-        super(id, keyword, modifiers)
-        this.block_ = block
-        this.params_ = params
-    }
-
-    public override func prettyPrint(printer: PrettyPrinter) {
-        super.prettyPrint(printer)
-        printer.append("(")
-        if (!params.isEmpty()) {
-            params[0].prettyPrint(printer)
-            for (i in 1..params.size) {
-                printer.append(", ")
-                params[i].prettyPrint(printer)
-            }
-        }
-        printer.append(")")
-        block.prettyPrint(printer)
-    }
-
-    public prop block: Block {
-        get() { block_ }
-    }
-
-    public prop params: ArrayList<FuncParam> {
-        get() { params_ }
-    }
-
-
 }
 
 public class MainDecl <: Decl {
@@ -179,8 +145,14 @@ public class MainDecl <: Decl {
 public class FuncParam <: Decl {
     private let paramType_: TypeNode
 
+
     public init(id: NodeId, paramType: TypeNode) {
         super(id)
+        paramType_ = paramType
+    }
+
+    public init(id: NodeId, keyword: Token, modifiers: ArrayList<Modifier>, paramType: TypeNode) {
+        super(id, keyword, modifiers)
         paramType_ = paramType
     }
 
@@ -191,6 +163,10 @@ public class FuncParam <: Decl {
 
     public prop paramType: TypeNode {
         get() { paramType_ }
+    }
+
+    public func isMemberParam() {
+        return !modifiers.isEmpty()
     }
 }
 
@@ -207,6 +183,11 @@ public class FuncDecl <: Decl {
         this.block_ = block
         this.params_ = params
         this.declType_ = declType
+    }
+
+    public init(id: NodeId, keyword: Token, block: Block,
+                modifiers: ArrayList<Modifier>, params: ArrayList<FuncParam>) {
+        this(id, keyword, Token(), block, modifiers, params, None)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -307,6 +288,40 @@ public class StructDecl <: Decl {
 
     public prop superTypes: ArrayList<TypeNode> {
         get() { superTypes_ }
+    }
+}
+
+public class PrimaryCtorDecl <: Decl {
+    private let block_: Block
+    private let params_: ArrayList<FuncParam>
+
+    public PrimaryCtorDecl(id: NodeId, identifier: Token, block: Block,
+                modifiers: ArrayList<Modifier>, params: ArrayList<FuncParam>) {
+        super(id, identifier, modifiers)
+        this.block_ = block
+        this.params_ = params
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter) {
+        super.prettyPrint(printer)
+        printer.append("(")
+        if (!params.isEmpty()) {
+            params[0].prettyPrint(printer)
+            for (i in 1..params.size) {
+                printer.append(", ")
+                params[i].prettyPrint(printer)
+            }
+        }
+        printer.append(")")
+        block.prettyPrint(printer)
+    }
+
+    public prop block: Block {
+        get() { block_ }
+    }
+
+    public prop params: ArrayList<FuncParam> {
+        get() { params_ }
     }
 }
 

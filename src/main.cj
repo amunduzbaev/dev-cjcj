@@ -7,7 +7,8 @@ import cjcj.prettyPrinter.PrettyPrinter
 
 import std.env.*
 import std.io.*
-import std.fs.File
+import std.fs.File 
+
 
 public class Cj {
     static var hadError: Bool = false
@@ -38,7 +39,7 @@ public class Cj {
         let scanner = Scanner(source.toRuneArray())
         let tokens = scanner.scanTokens()
 
-        let parser: Parser = Parser(tokens.toArray(), Reporter(getStdErr()))
+        let parser: DeclParser = DeclParser(tokens.toArray(), Reporter(getStdErr()))
         let nodes: ?Array<Node> = parser.parse()
 
         let printer: PrettyPrinter = PrettyPrinter()
