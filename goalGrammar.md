@@ -1,7 +1,11 @@
-# Notes
+# GOAL GRAMMAR
+
+## Notes
+
 Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Chapter_Appendix_A.html?highlight=syntax#symbols) if you need it.
 
-# TRANSLATION UNIT
+## TRANSLATION UNIT
+
     translationUnit
         : topLevelObject* (end+ mainDefinition)? NL* (topLevelObject (end+ topLevelObject?)*)? EOF
         ;
@@ -11,7 +15,9 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         ;
 
 --------------------------------------------------------------------------------
-# TOP-LEVEL DEFINITION
+
+## TOP-LEVEL DEFINITION
+
     topLevelObject
     : classDefinition
     | functionDefinition
@@ -19,7 +25,9 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
     | structDefinition
     ;
 --------------------------------------------------------------------------------
-# CLASS DEFINITION
+
+## CLASS DEFINITION
+
     classDefinition
         : (classModifierList NL*)? CLASS NL* identifier
         (NL* typeParameters NL*)?
@@ -151,7 +159,9 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         | INTERNAL
         ;
 --------------------------------------------------------------------------------
-# INTERFACE DEFINITION
+
+## INTERFACE DEFINITION
+
     interfaceDefinition
         : (interfaceModifierList NL*)? INTERFACE NL* identifier
         (NL* typeParameters NL*)?
@@ -182,7 +192,9 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         | OPEN
         ;
 --------------------------------------------------------------------------------
-# FUNCTION DEFINITION
+
+## FUNCTION DEFINITION
+
     functionDefinition
         :(functionModifierList NL*)? FUNC
         NL* identifier
@@ -255,7 +267,9 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         | CONST
         ;
 --------------------------------------------------------------------------------
-# VARIABLE DEFINITION
+
+## VARIABLE DEFINITION
+
     variableDeclaration
         : variableModifier* NL* (LET | VAR | CONST) NL* patternsMaybeIrrefutable
             ( (NL* COLON NL* type)? (NL* ASSIGN NL* expression) | (NL* COLON NL* type) )
@@ -269,7 +283,8 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         | STATIC
         ;
 
-# ENUM DEFINITION
+## ENUM DEFINITION
+
     enumDefinition
         : (enumModifier NL*)? ENUM NL* identifier (NL* typeParameters NL*)? 
         (NL* UPPERBOUND NL* superInterfaces)? 
@@ -296,7 +311,9 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         | PRIVATE
         ;
 --------------------------------------------------------------------------------
-# STRUCT DEFINITION
+
+## STRUCT DEFINITION
+
     structDefinition
         : (structModifier NL*)? STRUCT NL* identifier (NL* typeParameters NL*)? 
         (NL* UPPERBOUND NL* superInterfaces)?
@@ -381,7 +398,9 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         | PRIVATE
         ;
 --------------------------------------------------------------------------------
-# PROPERTY DEFINITION
+
+## PROPERTY DEFINITION
+
     propertyDefinition
         : propertyModifier* NL* PROP NL* identifier NL* COLON NL* type NL* propertyBody?
         ;
@@ -407,7 +426,9 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         | MUT
         ;
 --------------------------------------------------------------------------------
-# MAIN ENTRY DEFINITION
+
+## MAIN ENTRY DEFINITION
+
     mainDefinition
         : MAIN
         NL* functionParameters
@@ -415,7 +436,9 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         NL* block
         ;
 --------------------------------------------------------------------------------
-# TYPE
+
+## TYPE
+
 type
     : arrowType
     | tupleType
@@ -481,8 +504,11 @@ userType
 parenthesizedType
     : LPAREN NL* type NL* RPAREN
     ;
+
 --------------------------------------------------------------------------------
-# EXPRESSION
+
+## EXPRESSION
+
     expression
         : assignmentExpression
         ;

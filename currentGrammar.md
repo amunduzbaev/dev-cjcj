@@ -1,7 +1,11 @@
-# Notes
+# CURRENT GRAMMAR
+
+## Notes
+
 Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Chapter_Appendix_A.html?highlight=syntax#symbols) if you need it.
 
-# TRANSLATION UNIT
+## TRANSLATION UNIT
+
     translationUnit
         : topLevelObject* (end+ mainDefinition)? NL* (topLevelObject (end+ topLevelObject?)*)? EOF
         ;
@@ -11,105 +15,20 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         ;
 
 --------------------------------------------------------------------------------
-# TOP-LEVEL DEFINITION
+
+## TOP-LEVEL DEFINITION
+
     topLevelObject
-    : classDefinition
-    | functionDefinition
+    : functionDefinition
     | variableDeclaration
-    | structDefinition
     ;
+
 --------------------------------------------------------------------------------
-# CLASS DEFINITION
-    classDefinition
-        : (classModifierList NL*)? CLASS NL* identifier
-        (NL* UPPERBOUND NL* superClass)?
-        NL* classBody
-        ;
 
-    classModifierList
-        : classModifier+
-        ;
+## FUNCTION DEFINITION
 
-    classModifier
-        : PUBLIC
-        | PROTECTED
-        | INTERNAL
-        | PRIVATE
-        | ABSTRACT
-        | OPEN
-        ;
-
-    superClass
-        : classType
-        ;
-
-    classType
-        : identifier
-        ;
-
-    classBody
-        : LCURL end*
-            classMemberDeclaration* NL*
-            classPrimaryInit? NL* 
-            classMemberDeclaration* end* RCURL
-        ;
-
-    classMemberDeclaration
-        : (classInit
-        | staticInit
-        | variableDeclaration
-        | functionDefinition
-        ) end*
-        ;
-
-    classInit
-        : (classNonStaticMemberModifier | CONST NL*)? INIT NL* functionParameters NL* block
-        ;
-
-    staticInit
-        : STATIC INIT LPAREN RPAREN
-        LCURL
-        expressionOrDeclarations?
-        RCURL
-        ;
-
-    classPrimaryInit
-        : (classNonStaticMemberModifier | CONST NL*)?  className NL* LPAREN NL*  
-            classPrimaryInitParamLists 
-        NL* RPAREN NL*
-        LCURL NL*
-            (SUPER callSuffix)? end
-            expressionOrDeclarations?
-        NL* RCURL
-        ;
-
-    className
-        : identifier
-        ;
-
-    classPrimaryInitParamLists
-        : unnamedParameterList (NL* COMMA NL* classUnnamedInitParamList)?
-        | classUnnamedInitParamList
-        ;
-
-    classUnnamedInitParamList
-        : classUnnamedInitParam (NL* COMMA NL* classUnnamedInitParam)*
-        ;
-
-    classUnnamedInitParam
-        : (classNonStaticMemberModifier NL*)? (LET | VAR) NL* identifier NL* COLON NL* type
-        ;
-
-    classNonStaticMemberModifier
-        : PUBLIC
-        | PRIVATE
-        | PROTECTED
-        | INTERNAL
-        ;
---------------------------------------------------------------------------------
-# FUNCTION DEFINITION
     functionDefinition
-        :(functionModifierList NL*)? FUNC
+        :FUNC
          NL* identifier
          NL* functionParameters
         (NL* COLON NL* type)?
@@ -129,106 +48,18 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         : (identifier | WILDCARD) NL* COLON NL* type
         ;
 
-    functionModifierList
-        : (functionModifier NL*)+
-        ;
-
-    functionModifier
-        : PUBLIC
-        | PRIVATE
-        | PROTECTED
-        | INTERNAL
-        | STATIC
-        | OPEN
-        | MUT
-        | CONST
-        ;
 --------------------------------------------------------------------------------
-# VARIABLE DEFINITION
+
+## VARIABLE DEFINITION
+
     variableDeclaration
-        : variableModifier* NL* (LET | VAR | CONST) NL* patternsMaybeIrrefutable
+        : (LET | VAR | CONST) NL* patternsMaybeIrrefutable
             ( (NL* COLON NL* type)? (NL* ASSIGN NL* expression) | (NL* COLON NL* type) )
         ;
-
-    variableModifier
-        : PUBLIC
-        | PRIVATE
-        | PROTECTED
-        | INTERNAL
-        | STATIC
-        ;
 --------------------------------------------------------------------------------
-# STRUCT DEFINITION
-    structDefinition
-        : (structModifier NL*)? STRUCT NL* identifier NL* structBody
-        ;
 
-    structBody
-        : LCURL end*
-            structMemberDeclaration* NL*
-            structPrimaryInit? NL*
-            structMemberDeclaration*
-        end* RCURL
-        ; 
+## MAIN ENTRY DEFINITION
 
-    structMemberDeclaration
-        : (structInit
-        | staticInit
-        | variableDeclaration
-        | functionDefinition
-        ) end*
-        ;
-
-    structInit
-        : (structNonStaticMemberModifier | CONST NL*)? INIT NL* functionParameters NL* block
-        ;
-
-    staticInit
-        : STATIC INIT LPAREN RPAREN
-        LCURL
-        expressionOrDeclarations?
-        RCURL
-        ;
-
-    structPrimaryInit
-        : (structNonStaticMemberModifier | CONST NL*)? structName NL* LPAREN NL* structPrimaryInitParamLists? NL* RPAREN NL*
-        LCURL NL*
-            expressionOrDeclarations?
-        NL* RCURL
-        ;
-
-    structName
-        : identifier
-        ;
-
-    structPrimaryInitParamLists
-        : unnamedParameterList (NL* COMMA NL* structUnnamedInitParamList)?
-        | structUnnamedInitParamList
-        ;
-
-    structUnnamedInitParamList
-        : structUnnamedInitParam (NL* COMMA NL* structUnnamedInitParam)*
-        ;
-
-    structUnnamedInitParam
-        : (structNonStaticMemberModifier NL*)? (LET | VAR) NL* identifier NL* COLON NL* type
-        ;
-
-    structModifier
-        : PUBLIC
-        | PROTECTED
-        | INTERNAL
-        | PRIVATE
-        ;
-
-    structNonStaticMemberModifier
-        : PUBLIC
-        | PROTECTED
-        | INTERNAL
-        | PRIVATE
-        ;
---------------------------------------------------------------------------------
-# MAIN ENTRY DEFINITION
     mainDefinition
         : MAIN
         NL* functionParameters
@@ -236,7 +67,9 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         NL* block
         ;
 --------------------------------------------------------------------------------
-# TYPE
+
+## TYPE
+
     // Recheck when need to add Option.
     type
         : atomicType
@@ -244,8 +77,6 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
 
     atomicType
         : charLangTypes
-        | userType
-        | parenthesizedType
         ;
 
     charLangTypes
@@ -273,50 +104,21 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         | FLOAT64
         ;
 
-    userType
-        : (identifier NL* DOT NL*)* identifier ( NL* typeArguments)?
-        ;
-
-    parenthesizedType
-        : LPAREN NL* type NL* RPAREN
-        ;
 --------------------------------------------------------------------------------
-# EXPRESSION
+
+## EXPRESSION
+
     expression
         : assignmentExpression
         ;
 
     assignmentExpression
-        : leftValueExpressionWithoutWildCard NL* assignmentOperator NL*  logicDisjunctionExpression
-        | leftValueExpression NL* ASSIGN NL* logicDisjunctionExpression
+        : leftValueExpression NL* ASSIGN NL* logicDisjunctionExpression
+        | logicDisjunctionExpression
         ;
 
     leftValueExpression
-        : leftValueExpressionWithoutWildCard
-        | WILDCARD
-        ;
-
-    leftValueExpressionWithoutWildCard
         : identifier
-        | leftAuxExpression NL* assignableSuffix
-        ;
-
-    leftAuxExpression
-        : identifier
-        | type
-        | thisSuperExpression
-        | leftAuxExpression NL* DOT NL* identifier
-        | leftAuxExpression callSuffix
-        | leftAuxExpression indexAccess
-        ;
-
-    assignableSuffix
-        : fieldAccess
-        ;
-
-    fieldAccess
-        : NL* DOT NL* identifier
-        ;
 
     logicDisjunctionExpression
         : logicConjunctionExpression (NL* OR NL* logicConjunctionExpression)*
@@ -355,16 +157,11 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         ;
 
     prefixUnaryExpression
-        : prefixUnaryOperator* incAndDecExpression
-        ;
-
-    incAndDecExpression
-        : postfixExpression (INC | DEC )?
+        : prefixUnaryOperator* postfixExpression
         ;
 
     postfixExpression
         : atomicExpression
-        | postfixExpression NL* DOT NL* identifier
         | postfixExpression callSuffix
         ;
 
@@ -378,9 +175,11 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
 
     atomicExpression
         : literalConstant
-        | unitLiteral
+        | identifier
+        | unitLiteral <!-- It's already in literal constant lol -->
         | ifExpression
         | loopExpression
+        | jumpExpression
         | parenthesizedExpression
         ;
 
@@ -388,7 +187,7 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         : IntegerLiteral
         | FloatLiteral
         | RuneLiteral
-        | ByteLiteral
+        | ByteLiteral <!-- Does this even exist? -->
         | booleanLiteral
         | stringLiteral
         | unitLiteral
@@ -451,10 +250,11 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
     whileExpression
         : WHILE NL* LPAREN NL* expression NL* RPAREN NL* block
         ;
-
-    thisSuperExpression
-        : THIS
-        | SUPER
+    
+    jumpExpression
+        : RETURN (NL* expression)?
+        | CONTINUE
+        | BREAK
         ;
 
     parenthesizedExpression
