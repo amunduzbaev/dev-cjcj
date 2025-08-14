@@ -1,11 +1,23 @@
-public static class MyClass {
-    private let a: Int64 = 5
-    
-    init(a: Int64) {
-        this.a = a
+if (a + b == 5) {
+    while (b && c || d | 5) {
+        2 + 4
+        a = b
+        c = f()()
+        return 6 + 5 * 2 - (10 + 5)
     }
+    while (5 & 2 + 4 * 3 ** (2 / 4)) {
+        return
+    }
+} else if (!h) {
+    a = 10
+} else {
+    return 10
 }
 
+
+
+
+/*
 let b: Wow
 var a: Wow = 3 + 5 * (2 + 3 / (1 + 5))
 
@@ -37,4 +49,4 @@ main(args: String, args2: String) : Int64 {
     private func d(f: Int64) {
         return 10
     }
-}
+} */

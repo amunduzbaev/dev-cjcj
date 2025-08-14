@@ -147,25 +147,6 @@ public class RefExpr <: Expr {
     }
 }
 
-public class ThisSuperExpr <: Expr {
-    private var identifier_: Token
-
-    public ThisSuperExpr(id: NodeId, identifier: Token) {
-        super(id)
-        identifier_ = identifier
-    }
-
-    public prop identifier: Token {
-        get() { identifier_ }
-    }
-
-    public override func prettyPrint(printer: PrettyPrinter): Unit {
-        printer.append(identifier.value)
-    }
-
-
-}
-
 public class Block <: Expr {
     private let nodes_: Array<Node>
 
@@ -195,40 +176,6 @@ public class Block <: Expr {
 
     public prop nodes: Array<Node> {
         get() { nodes_ }
-    }
-}
-
-public class Body <: Expr {
-    private let decls_: Array<Decl>
-
-    public Body(id: NodeId, decls: Array<Decl>) {
-
-        super(id)
-        decls_ = decls
-    }
-
-    public override func prettyPrint(printer: PrettyPrinter) {
-        
-        printer.append("{")
-        if (!decls.isEmpty()) {
-            printer.indent()
-            printer.append("\n")
-            decls[0].prettyPrint(printer)
-            decls.iterator()
-                .enumerate()
-                .filter({ v => v[0] > 0})
-                .map({ v => v[1] })
-                .forEach({ 
-                n => printer.append("\n")    
-                    n.prettyPrint(printer)     
-                })
-            printer.unindent()
-        }
-        printer.append("\n}\n")
-    }
-
-    public prop decls: Array<Decl> {
-        get() { decls_ }
     }
 }
 
@@ -331,50 +278,33 @@ public class CallExpr <: Expr {
 }
 
 public class ReturnExpr <: Expr {
-    private let value_: Expr 
+    private let expr_: ?Expr 
     private let keyword_: Token
 
-    public ReturnExpr(id: NodeId, value: Expr, keyword: Token) {
+    public ReturnExpr(id: NodeId, value: ?Expr, keyword: Token) {
         super(id)
-        value_ = value
+        expr_ = value
         keyword_ = keyword
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
         printer.append(keyword.value + " ")
-        value.prettyPrint(printer)
+        try {
+            expr.prettyPrint(printer)
+        } catch (_) {
+        }
     }
 
-    public prop value: Expr {
-        get() { value_ }
+    public prop expr: Expr {
+        get() {
+            match(expr_) {
+                case Some(v) => v
+                case None => throw Exception("Current return expression has none expr")
+            }
+        }
     }
 
     public prop keyword: Token {
         get() { keyword_ }
     }
-}
-
-public class MemberAccess <: Expr {
-    private let baseExpr_: Expr
-    private let field_: Token
-
-    public MemberAccess(id: NodeId, baseExpr: Expr, field: Token) {
-        super(id)
-        baseExpr_ = baseExpr
-        field_ = field
-    }
-
-    public override func prettyPrint(printer: PrettyPrinter) {
-        baseExpr.prettyPrint(printer)
-        printer.append("." + field.value)
-    }
-
-    public prop baseExpr: Expr {
-        get() { baseExpr_ }
-    }
-
-    public prop field: Token {
-        get() { field_ }
-    }
-
 }
