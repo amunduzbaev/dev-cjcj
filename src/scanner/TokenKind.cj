@@ -276,6 +276,44 @@ public class TokenKindHelper {
         CONST
     ]
 
+    public static let CLASS_MODIFIERS_TOKEN_KIND: Array<TokenKind> = [
+        PUBLIC,
+        PRIVATE,
+        INTERNAL,
+        PROTECTED,
+        ABSTRACT,
+        OPEN
+    ]
+
+    public static let FUNCTION_MODIFIERS_TOKEN_KIND: Array<TokenKind> = [
+        PUBLIC,
+        PRIVATE,
+        PROTECTED,
+        INTERNAL,
+        STATIC,
+        OPEN,
+        MUT,
+        CONST
+    ]
+
+    public static let VAR_MODIFIERS_TOKEN_KIND: Array<TokenKind> = [
+        PUBLIC,
+        PRIVATE,
+        PROTECTED,
+        INTERNAL,
+        STATIC
+    ]
+
+    public static let STRUCT_MODIFIERS_TOKEN_KIND: Array<TokenKind> = [
+        PUBLIC,
+        PRIVATE,
+        PROTECTED,
+        INTERNAL
+    ]
+
+    
+    
+
     public static let ASSIGNMENT_OPERATOR: Array<TokenKind> = [
         TokenKind.ASSIGN
     ]

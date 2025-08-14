@@ -7,9 +7,9 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
 ## TRANSLATION UNIT
 
     translationUnit
-        : topLevelObject* (end+ mainDefinition)? NL* (topLevelObject (end+ topLevelObject?)*)? EOF
+        : end* (topLevelObject (end+ topLevelObject?)*)? 
+        (end+ mainDefinition)? NL* (topLevelObject (end+ topLevelObject?)*)? EOF
         ;
-
     end
         : NL | SEMI
         ;
@@ -20,6 +20,7 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
 
     topLevelObject
     : classDefinition
+    | enumDefinition
     | functionDefinition
     | variableDeclaration
     | structDefinition

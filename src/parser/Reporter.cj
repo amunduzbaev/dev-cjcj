@@ -25,3 +25,15 @@ public class Reporter {
             "[line " + line.toString() + "] Error" + wher + ": " + message)
     }
 }
+
+public
+
+
+
+open 
+
+
+
+class Myclass {
+
+}

@@ -19,34 +19,25 @@ if (a + b == 5) {
 
 /*
 let b: Wow
-var a: Wow = 3 + 5 * (2 + 3 / (1 + 5))
+var a: Wow = 3
 
 let b = 8
 
 func a(a: UInt8, b: Crazy, c: Rune) {
-    return a + b + c
+
 }
 
 func b() {}
 func c(): ABCD {}
 func d(a: Unit): UInt8 {}
 
-
-public static open struct MyStruct <: SuperClass {
-    let a:Int64 = 0
-    return a // Needs to return an error but keeps going
-
-    public init(a: ABCD) {
-    }
-}
-
 private func a(): Int64 {
-    a + b
+    1
 }
 
 main(args: String, args2: String) : Int64 {
-    return 0
+
     private func d(f: Int64) {
-        return 10
+        10
     }
 } */

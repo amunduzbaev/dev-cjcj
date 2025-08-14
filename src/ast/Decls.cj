@@ -58,7 +58,9 @@ public abstract class Decl <: Node {
         if (keyword.kind != TokenKind.ILLEGAL) {
             printer.append(keyword.value + " ")
         }
-        printer.append(identifier.value)
+        if (identifier.kind != TokenKind.ILLEGAL) {
+            printer.append(identifier.value + " ")
+        }
     }
 }
 
@@ -143,8 +145,14 @@ public class MainDecl <: Decl {
 public class FuncParam <: Decl {
     private let paramType_: TypeNode
 
+
     public init(id: NodeId, paramType: TypeNode) {
         super(id)
+        paramType_ = paramType
+    }
+
+    public init(id: NodeId, keyword: Token, modifiers: ArrayList<Modifier>, paramType: TypeNode) {
+        super(id, keyword, modifiers)
         paramType_ = paramType
     }
 
@@ -155,6 +163,10 @@ public class FuncParam <: Decl {
 
     public prop paramType: TypeNode {
         get() { paramType_ }
+    }
+
+    public func isMemberParam() {
+        return keyword.kind != TokenKind.ILLEGAL
     }
 }
 
@@ -171,6 +183,11 @@ public class FuncDecl <: Decl {
         this.block_ = block
         this.params_ = params
         this.declType_ = declType
+    }
+
+    public init(id: NodeId, keyword: Token, block: Block,
+                modifiers: ArrayList<Modifier>, params: ArrayList<FuncParam>) {
+        this(id, keyword, Token(), block, modifiers, params, None)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
