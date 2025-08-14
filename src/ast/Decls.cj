@@ -166,7 +166,7 @@ public class FuncParam <: Decl {
     }
 
     public func isMemberParam() {
-        return !modifiers.isEmpty()
+        return keyword.kind != TokenKind.ILLEGAL
     }
 }
 

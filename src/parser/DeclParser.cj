@@ -37,9 +37,14 @@ public class DeclParser {
         var nodes: ArrayList<Node> = ArrayList()
         
         endStar()
-        if (!isAtEnd() && !(peek().kind == TokenKind.MAIN)) {
+        while (!isAtEnd() && !(peek().kind == TokenKind.MAIN)) {
             do {
-                nodes.add(topLevelObject().getOrThrow())
+                if(let Some(Obj) <- topLevelObject()) {
+                    nodes.add(Obj)
+                }
+                if (!endPlus()) {
+                    error(peek(), "Needs an end of the current TopLevelObject before the next one")
+                }
             } while (!isAtEnd() && endPlus() && !(peek().kind == TokenKind.MAIN))
         }
 
@@ -47,11 +52,15 @@ public class DeclParser {
             nodes.add(mainDefinition())
         }
 
-        if (!isAtEnd() && endPlus()) {
+        while (!isAtEnd() && endPlus()) {
             do {
-                nodes.add(topLevelObject().getOrThrow())
-                endPlus()
-            } while (!isAtEnd() && endPlus() && !(peek().kind == TokenKind.MAIN))
+                if(let Some(Obj) <- topLevelObject()) {
+                    nodes.add(Obj)
+                }
+                if (!endPlus()) {
+                    error(peek(), "Needs an end of the current TopLevelObject before the next one")
+                }
+            } while (!isAtEnd() && endPlus())
         }
 
         return nodes.toArray()
@@ -70,25 +79,26 @@ public class DeclParser {
     }
 
     private func topLevelObject(): ?Node {
-            try {
-                let modifiers: ArrayList<Modifier> = modifiers()
-                skipNL()
+        try {
+            let modifiers: ArrayList<Modifier> = modifiers()
+            skipNL()
 
-                if (matches(TokenKind.CLASS)) {
-                    return classDefinition(modifiers)
-                } else if (matches(TokenKind.FUNC)) {
-                    return functionDefinition(modifiers)
-                } else if (matches(TokenKind.LET, TokenKind.VAR)) {
-                    return variableDeclaration(modifiers)
-                } else if (matches(TokenKind.STRUCT)) {
-                    return structDefinition(modifiers)
-                } else {
-                    throw error(peek(), "Found non-declaration in global scope.")
-                }
-            } catch (error: ParseError) {
-                synchronize()
+            if (matches(TokenKind.CLASS)) {
+                return classDefinition(modifiers)
+            } else if (matches(TokenKind.FUNC)) {
+                return functionDefinition(modifiers)
+            } else if (matches(TokenKind.LET, TokenKind.VAR)) {
+                return variableDeclaration(modifiers)
+            } else if (matches(TokenKind.STRUCT)) {
+                return structDefinition(modifiers)
+            } else {
+                throw error(peek(), "Found non-declaration in global scope.")
             }
-        return None
+        } catch (error: ParseError) {
+            synchronize()
+            return None
+        }
+
     }
 
     private func node(modifiers: ArrayList<Modifier>): Node {
@@ -146,12 +156,12 @@ public class DeclParser {
         let keyword: Token = previous()
         skipNL()
         let name: Token = consume(TokenKind.IDENTIFIER, "Expect function name.")
-        let parameters: ArrayList<FuncParam> = ArrayList()
+        var parameters: ArrayList<FuncParam> = ArrayList()
         skipNL()
         if (!matches(TokenKind.UNIT_LITERAL)) {
             consume(TokenKind.LPAREN, "Expect '(' before function parameters")
             skipNL()
-            let parameters: ArrayList<FuncParam> = unnamedParameterList()
+            parameters = unnamedParameterList()
             skipNL()
             consume(TokenKind.RPAREN, "Expect ')' after function parameters")
         }
@@ -164,7 +174,12 @@ public class DeclParser {
         }
         skipNL()
 
+
+        consume(TokenKind.LCURL, "Expect '{' before main body.")
         let block: Block = block()
+        consume(TokenKind.RCURL, "Expect '}' after block.")
+
+
         FuncDecl(NodeIdManager.nextId(),
                 keyword, name, block, modifiers, parameters, declType)
 
@@ -207,7 +222,7 @@ public class DeclParser {
         skipNL()
 
         let supertypes: ArrayList<TypeNode> = superClass()
-
+        consume(TokenKind.LCURL, "Expect '{' before class body.")
         let body: Body = classBody()
 
         ClassDecl(NodeIdManager.nextId(), keyword, name, modifiers, body, supertypes)
@@ -235,9 +250,6 @@ public class DeclParser {
 
     private func classBody(): Body {
         let classMemberDeclarations: ArrayList<Decl> = ArrayList()
-        let classPrimary: PrimaryCtorDecl
-
-        consume(TokenKind.LCURL, "Expect '{' before class body.")
 
         endStar()
 
@@ -255,14 +267,17 @@ public class DeclParser {
         if(!isAtEnd() && previous().kind != TokenKind.RCURL) {
             skipNL()
 
-            classPrimary = classPrimaryInit(modifierList)
+            classMemberDeclarations.add( classPrimaryInit(modifierList) )
 
             skipNL()
 
             modifierList = modifiers()
+
+            skipNL()
             while(!matches(TokenKind.RCURL)) {
                 try {
                     classMemberDeclarations.add(classMemberDeclaration(modifierList))
+                    endPlus()
                     modifierList = modifiers()
                 } catch (error: ParseError) {
                     synchronize()
@@ -275,7 +290,7 @@ public class DeclParser {
     }
 
     private func classPrimaryInit(modifiers: ArrayList<Modifier>): PrimaryCtorDecl {
-        let parameters: ArrayList<FuncParam> = ArrayList()
+        var parameters: ArrayList<FuncParam> = ArrayList()
         let keyword: Token = previous()
 
         if(!(modifiers.size == 1 && modifiers[0].keyword.kind == TokenKind.CONST)) {
@@ -290,14 +305,16 @@ public class DeclParser {
         if (!matches(TokenKind.UNIT_LITERAL)) {
             consume(TokenKind.LPAREN, "Expect '(' before PrimaryInit parameters")
             skipNL()
-            let parameters: ArrayList<FuncParam> = classPrimaryInitParamLists()
+            parameters.add(all: classPrimaryInitParamLists() )
             skipNL()
             consume(TokenKind.RPAREN, "Expect ')' after PrimaryInit parameters")
         }
 
         skipNL()
 
+        consume(TokenKind.LCURL, "Expect '{' before main body.")
         let block: Block = block()
+        consume(TokenKind.RCURL, "Expect '}' after block.")
 
         return PrimaryCtorDecl(NodeIdManager.nextId(), keyword, block, modifiers, parameters)
     }
@@ -321,7 +338,7 @@ public class DeclParser {
         let params: ArrayList<FuncParam> = ArrayList()
         var mods = modifiers_
         do {
-            params.add(classUnnamedParam(modifiers_))
+            params.add(classUnnamedParam(mods))
             mods = modifiers()
         } while(matches(TokenKind.LET, TokenKind.VAR))
 
@@ -339,6 +356,7 @@ public class DeclParser {
     
 
     private func classMemberDeclaration(modifiers: ArrayList<Modifier>): Decl {
+        let final: Decl
         skipNL()
         var flag: Bool = false
         for (modifier in modifiers) {
@@ -346,17 +364,19 @@ public class DeclParser {
         }
         if (matches(TokenKind.INIT)) {
             if(flag) {
-                return staticInit(modifiers)
+                final = staticInit(modifiers)
             } else {
-                return classInit(modifiers)
+                final = classInit(modifiers)
             }
         } else if (matches(TokenKind.VAR, TokenKind.LET)) {
-            return variableDeclaration(modifiers)
+            final = variableDeclaration(modifiers)
         } else if (matches(TokenKind.FUNC)) {
-            return functionDefinition(modifiers)
+            final = functionDefinition(modifiers)
         } else {
             throw error(peek(), "Expected classMemberDeclaration")
         }
+        endStar()
+        return final
 
     }
 
@@ -378,14 +398,18 @@ public class DeclParser {
 
             consume(TokenKind.LPAREN, "Expect '(' before Init parameters")
             skipNL()
-            let parameters: ArrayList<FuncParam> = classPrimaryInitParamLists()
+            parameters.add(all : classPrimaryInitParamLists() )
             skipNL()
             consume(TokenKind.RPAREN, "Expect ')' after Init parameters")
         }
 
         skipNL()
 
-        let block: Block = block()
+        consume(TokenKind.LCURL, "Expect LCURL before Static Init body")
+
+        let block: Block = Block(NodeIdManager.nextId(), expressionOrDeclarations())
+
+        consume(TokenKind.RCURL, "Expect RCURL after Static Init body")
 
         return FuncDecl(NodeIdManager.nextId(), keyword, block, modifiers, parameters)
     }
@@ -513,6 +537,7 @@ public class DeclParser {
 
         consume(TokenKind.LCURL, "Expect '{' before main body.")
         let block: Block = block()
+        consume(TokenKind.RCURL, "Expect '}' after block.")
 
         return MainDecl(NodeIdManager.nextId(), block, parameter, declType)
 
@@ -530,7 +555,6 @@ public class DeclParser {
             }
             skipNL()
         }
-        consume(TokenKind.RCURL, "Expect '}' after block.")
         
         return Block(NodeIdManager.nextId(), nodes.toArray())
     }
@@ -551,16 +575,13 @@ public class DeclParser {
         if (matches(TokenKind.ASSIGN)) {
             initializer = expression()
         }
-        if (!isAtEnd() && !matches(TokenKind.SEMI, TokenKind.NL)) {
-            consume(TokenKind.SEMI,
-                "Expect ';' or new line after variable declaration.")
-        }
+
         VarDecl(NodeIdManager.nextId(),
             keyword, name, initializer, modifiers, declType)
     }
 
     private func expression(): Expr {
-        consume(TokenKind.INTEGER_LITERAL, "")
+        synchronize()
         Expr(NodeIdManager.nextId())
     }
 
