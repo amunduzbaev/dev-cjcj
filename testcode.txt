@@ -1,10 +1,3 @@
-public class MyClass {
-    private let a: Int64 = 5
-    
-    init(a: Int64) {
-
-    }
-}
 
 let b: Wow
 var a: Wow = 3
@@ -18,15 +11,6 @@ func a(a: UInt8, b: Crazy, c: Rune) {
 func b() {}
 func c(): ABCD {}
 func d(a: Unit): UInt8 {}
-
-
-public static open struct MyStruct <: SuperClass {
-    let a:Int64 = 0
-
-    public init(a: ABCD) {
-
-    }
-}
 
 private func a(): Int64 {
     1
