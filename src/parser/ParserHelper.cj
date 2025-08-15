@@ -18,7 +18,7 @@ class NodeIdManager {
 }
 
 class ParserHelper {
-    var current: Int64
+    private var current: Int64
     private let tokens: Array<Token>
 
     public ParserHelper(tokens: Array<Token>, private let reporter: Reporter) {
@@ -136,5 +136,18 @@ class ParserHelper {
         if (check(kind)) { return advance() }
 
         throw error(peek(), message)
+    }
+
+    /*
+    * Tries to evaluate the function that is passed, if it cannot get
+    * a valid result it'll go back to the token point it was before.
+    */
+    func tryParse<T>(fun: () -> ?T): ?T {
+        let tmp: Int64 = current
+        if (let Some(val) <- fun()) {
+            return val
+        }
+        current = tmp
+        None
     }
 }

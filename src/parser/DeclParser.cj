@@ -270,16 +270,20 @@ internal open class DeclParser {
     }
 
     private func assignmentExpression(): Expr {
-        // TODO: It should not be DeclParser responsibility to change the value
-        // of current.
-        let tmp: Int64 = helper.current
-        if (let Some(value) <- leftValueExpression()) {
-            if (helper.matches(TokenKindHelper.ASSIGNMENT_OPERATOR)) {
-                return AssignExpr(NodeIdManager.nextId(), value, logicConjunctionExpression())
-            }
-            // Going back if I didn't find an assignment.
-            // TODO: Think about a better solution.
-            helper.current = tmp
+        if (let Some(value) <- helper.tryParse({ =>
+                /*
+                * If I don't find the Assignment Operator I need to go back to
+                * include my left value expression to the expression I will
+                * eventually parse.
+                */
+                if (let Some(value) <- leftValueExpression() &&
+                    helper.matches(TokenKindHelper.ASSIGNMENT_OPERATOR))  {
+                    return AssignExpr(NodeIdManager.nextId(), value, logicConjunctionExpression())
+                }
+                None
+            })
+        ) {
+            return value
         }
         logicDisjunctionExpression()
     }
@@ -444,15 +448,17 @@ internal open class DeclParser {
     private func returnExpr(): Expr {
         helper.consume(TokenKind.RETURN, "Expected 'return' for return expression")
         let keyword: Token = helper.previous()
-        let tmp: Int64 = helper.current
-        helper.skipNL()
-        var value: ?Expr = None
-        try {
-            value = expression()
-        } catch (_) {
-            //TODO: it's still printing the error even if we don't want to.
-            println("The previous error is not real"); helper.current = tmp
-        }
+
+        let value = helper.tryParse({ =>
+            helper.skipNL()
+            try {
+                return expression()
+            } catch (_) {
+                //TODO: it's still printing the error even if we don't want to.
+                println("The previous error is not real")
+                return None
+            }
+        })
         ReturnExpr(NodeIdManager.nextId(), value, keyword)
     }
 
