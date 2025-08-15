@@ -14,12 +14,12 @@ public open class Expr <: Node {
     public override open func prettyPrint(_: PrettyPrinter): Unit { }
 }
 
-public class Binary <: Expr {
+public class BinaryExpr <: Expr {
     private let left_: Expr
     private let oper_: Token
     private let right_: Expr
 
-    public Binary(id: NodeId, left: Expr, oper: Token, right: Expr) {
+    public BinaryExpr(id: NodeId, left: Expr, oper: Token, right: Expr) {
         super(id)
         left_ = left
         oper_ = oper
@@ -45,47 +45,47 @@ public class Binary <: Expr {
     }
 }
 
-public class Grouping <: Expr {
-    private let node_: Expr
+public class ParenExpr <: Expr {
+    private let parenthesizedExpr_: Expr
 
-    public Grouping(id: NodeId, node: Expr) {
+    public ParenExpr(id: NodeId, parenthesizedExpr: Expr) {
         super(id)
-        node_ = node
+        parenthesizedExpr_ = parenthesizedExpr
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
         printer.append("(")
-        node.prettyPrint(printer)
+        parenthesizedExpr.prettyPrint(printer)
         printer.append(")")
     }
 
-    public prop node: Expr {
-        get() { node_ }
+    public prop parenthesizedExpr: Expr {
+        get() { parenthesizedExpr_ }
     }
 }
 
-public class Literal <: Expr {
-    private let value_: ToString
+public class LitConstExpr <: Expr {
+    private let literal_: Token
 
-    public Literal(id: NodeId, value: ToString) {
+    public LitConstExpr(id: NodeId, value: Token) {
         super(id)
-        value_ = value
+        literal_ = value
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
-        printer.append(value.toString())
+        printer.append(literal.value)
     }
 
-    public prop value: ToString {
-        get() { value_ }
+    public prop literal: Token {
+        get() { literal_ }
     }
 }
 
-public class Unary <: Expr {
+public class UnaryExpr <: Expr {
     private let oper_: Token
     private let right_: Expr
 
-    public Unary(id: NodeId, oper: Token, right: Expr) {
+    public UnaryExpr(id: NodeId, oper: Token, right: Expr) {
         super(id)
         oper_ = oper
         right_ = right
@@ -105,11 +105,11 @@ public class Unary <: Expr {
     }
 }
 
-public class Assign <: Expr {
+public class AssignExpr <: Expr {
     private let left_: Expr
     private let right_: Expr
 
-    public Assign(id: NodeId, name: Expr, value: Expr) {
+    public AssignExpr(id: NodeId, name: Expr, value: Expr) {
         super(id)
         left_ = name
         right_ = value
@@ -302,6 +302,19 @@ public class ReturnExpr <: Expr {
                 case None => throw Exception("Current return expression has none expr")
             }
         }
+    }
+
+    public prop keyword: Token {
+        get() { keyword_ }
+    }
+}
+
+public class JumpExpr <: Expr {
+    private let keyword_: Token
+
+    public JumpExpr(id: NodeId, keyword: Token) {
+        super(id)
+        keyword_ = keyword
     }
 
     public prop keyword: Token {

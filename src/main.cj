@@ -22,24 +22,11 @@ public class Cj {
         }
     }
 
-    public static func runPrompt() {
-        let stdIn = getStdIn()
-        while (true) {
-            print("> ")
-            if (let Some(line) <- stdIn.readln()) {
-                run(line)
-                hadError = false
-            } else {
-                break
-            }
-        }
-    }
-
     private static func run(source: String) {
         let scanner = Scanner(source.toRuneArray())
         let tokens = scanner.scanTokens()
 
-        let parser: DeclParser = DeclParser(tokens.toArray(), Reporter(getStdErr()))
+        let parser: Parser = Parser(tokens.toArray(), Reporter(getStdErr()))
         let nodes: ?Array<Node> = parser.parse()
 
         let printer: PrettyPrinter = PrettyPrinter()
@@ -56,15 +43,14 @@ public class Cj {
 }
 
 main (args: Array<String>) {
-    // if (args.size > 1) {
-    //     getStdOut().writeln("Usage: cjlox [script]")
-    //     exit(64)
-    // } else if (args.size == 1) {
-    //     println(args[0])
-    //     Cj.runFile(args[0])
-    // } else {
-    //     Cj.runPrompt()
-    // }
-    Cj.runFile("testcode.txt")
-
+    if (args.size > 1) {
+        getStdOut().writeln("Usage: cjcj [script]")
+        exit(64)
+    } else if (args.size == 1) {
+        println(args[0])
+        Cj.runFile(args[0])
+    } else {
+        // This is for debug
+        Cj.runFile("testcode.txt")
+    }
 }

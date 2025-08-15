@@ -8,179 +8,79 @@ import cjcj.scanner.TokenKindHelper
 import std.collection.ArrayList
 import std.convert.Parsable
 
-public class ParseError <: Exception { }
+internal open class DeclParser {
 
-public class NodeIdManager {
-    private static var count: UInt64 = 0
+    private static const MAX_PARAM_NUMBER = 255
 
-    public static func nextId(): NodeId {
-        let id = NodeId(count)
-        count++
-        id
-    }
-}
-
-public class DeclParser {
-
-    private static let MAX_PARAM_NUMBER = 255
-    private let tokens: Array<Token>
-    private let reporter: Reporter
-    private var current: Int64 = 0
-
-
-    public DeclParser(tokens: Array<Token>, reporter: Reporter) {
-        this.tokens = tokens
-        this.reporter = reporter
+    public DeclParser(private let helper: ParserHelper) {
     }
 
-    public func parse(): ?Array<Node> {
-        var nodes: ArrayList<Node> = ArrayList()
-        
-        endStar()
-        while (!isAtEnd() && !(peek().kind == TokenKind.MAIN)) {
-            do {
-                if(let Some(Obj) <- topLevelObject()) {
-                    nodes.add(Obj)
-                }
-                if (!endPlus()) {
-                    error(peek(), "Needs an end of the current TopLevelObject before the next one")
-                }
-            } while (!isAtEnd() && endPlus() && !(peek().kind == TokenKind.MAIN))
+    func topLevelObject(): ?Node {
+        if (helper.matches(TokenKind.FUNC)) {
+            return functionDefinition()
         }
-
-        if(matches(TokenKind.MAIN)) {
-            nodes.add(mainDefinition())
+        if (helper.matches(TokenKind.LET, TokenKind.VAR)) {
+            return variableDeclaration()
         }
-
-        while (!isAtEnd() && endPlus()) {
-            do {
-                if(let Some(Obj) <- topLevelObject()) {
-                    nodes.add(Obj)
-                }
-                if (!endPlus()) {
-                    error(peek(), "Needs an end of the current TopLevelObject before the next one")
-                }
-            } while (!isAtEnd() && endPlus())
-        }
-
-        return nodes.toArray()
+        return None
     }
 
-    private func endStar() {
-        while(matches(TokenKind.NL, TokenKind.SEMI)) {}
-    }
-
-    private func endPlus(): Bool {
-        if(matches(TokenKind.NL, TokenKind.SEMI)) {
-            endStar()
-            return true
-        }
-        return false
-    }
-
-    private func topLevelObject(): ?Node {
+    private func declaration(): ?Decl {
+        helper.skipNL()
         try {
-            let modifiers: ArrayList<Modifier> = modifiers()
-            skipNL()
-
-
-            if (matches(TokenKind.FUNC)) {
-                return functionDefinition(modifiers)
-            } else if (matches(TokenKind.LET, TokenKind.VAR)) {
-                return variableDeclaration(modifiers)
-            } else {
-                throw error(peek(), "Found non-declaration in global scope.")
+            if (helper.matches(TokenKind.LET, TokenKind.VAR)) {
+                return variableDeclaration()
+            }
+            if (helper.matches(TokenKind.FUNC)) {
+                return functionDefinition()
             }
         } catch (error: ParseError) {
-            synchronize()
-            return None
+            helper.synchronize()
         }
-
-    }
-
-    private func node(modifiers: ArrayList<Modifier>): Node {
-        if (let Some(decl) <- declaration(modifiers)) {
-            return decl
-        }
-        return expression()
-    }
-
-    private func declaration(modifiers: ArrayList<Modifier>): ?Decl {
-        skipNL()
-        try {
-            if (matches(TokenKind.LET, TokenKind.VAR)) {
-                return variableDeclaration(modifiers)
-            }
-            if (matches(TokenKind.FUNC)) {
-                return functionDefinition(modifiers)
-            }
-            
-        } catch (error: ParseError) {
-            synchronize()
-        }
-
         None
-        
     }
 
     private func unnamedParameterList(): ArrayList<FuncParam> {
         let parameters: ArrayList<FuncParam> = ArrayList()
-
         do {
-            skipNL()
+            helper.skipNL()
             if (parameters.size >= MAX_PARAM_NUMBER) {
-                throw error(peek(), "Can't have more than " +
+                throw helper.error(helper.peek(), "Can't have more than " +
                     MAX_PARAM_NUMBER.toString() + " parameters.")
             }
-
             parameters.add(unnamedParameter())
-            skipNL()
-        } while(matches(TokenKind.COMMA) && peek().kind == (TokenKind.IDENTIFIER))
-
-        
+            helper.skipNL()
+        } while (helper.matches(TokenKind.COMMA) && helper.check(TokenKind.IDENTIFIER))
         return parameters
     }
 
-
-    private func functionDefinition(modifiers: ArrayList<Modifier>): FuncDecl {
-
-        for (modifier in modifiers) {
-            if (!(TokenKindHelper.FUNCTION_MODIFIERS_TOKEN_KIND.contains(modifier.keyword.kind))) {
-                error(modifier.keyword, "Wrong modifier for class Init definition")
-            }
-        }
-
-        let keyword: Token = previous()
-        skipNL()
-        let name: Token = consume(TokenKind.IDENTIFIER, "Expect function name.")
+    private func functionDefinition(): FuncDecl {
+        let keyword: Token = helper.previous()
+        helper.skipNL()
+        let name: Token = helper.consume(TokenKind.IDENTIFIER, "Expect function name.")
         var parameters: ArrayList<FuncParam> = ArrayList()
-        skipNL()
-        if (!matches(TokenKind.UNIT_LITERAL)) {
-            consume(TokenKind.LPAREN, "Expect '(' before function parameters")
-            skipNL()
+        helper.skipNL()
+        if (!helper.matches(TokenKind.UNIT_LITERAL)) {
+            helper.consume(TokenKind.LPAREN, "Expect '(' before function parameters")
+            helper.skipNL()
             parameters = unnamedParameterList()
-            skipNL()
-            consume(TokenKind.RPAREN, "Expect ')' after function parameters")
+            helper.skipNL()
+            helper.consume(TokenKind.RPAREN, "Expect ')' after function parameters")
         }
         var declType: ?TypeNode = None
-        skipNL()
-        if (matches(TokenKind.COLON)) {
-            skipNL()
-            let keyword = advance()
+        helper.skipNL()
+        if (helper.matches(TokenKind.COLON)) {
+            helper.skipNL()
+            let keyword = helper.advance()
             declType = nodeType(NodeIdManager.nextId(), name, keyword)
         }
-        skipNL()
+        helper.skipNL()
 
-
-        consume(TokenKind.LCURL, "Expect '{' before main body.")
+        helper.consume(TokenKind.LCURL, "Expect '{' before main body.")
         let block: Block = block()
-        consume(TokenKind.RCURL, "Expect '}' after block.")
-
-
-        FuncDecl(NodeIdManager.nextId(),
-                keyword, name, block, modifiers, parameters, declType)
-
-        
+        helper.consume(TokenKind.RCURL, "Expect '}' after block.")
+        FuncDecl(NodeIdManager.nextId(), keyword, name, block, parameters,
+            declType)
     }
 
     private func nodeType(id: NodeId, name: Token, keyword: Token): TypeNode {
@@ -192,28 +92,27 @@ public class DeclParser {
     }
 
     private func unnamedParameter(): FuncParam {
-        if (matches(TokenKind.IDENTIFIER, TokenKind.WILDCARD)) {
-            let parameterName = previous()
-            consume(TokenKind.COLON, "Expect ':' after parameter name")
-            let keyword = advance()
+        if (helper.matches(TokenKind.IDENTIFIER, TokenKind.WILDCARD)) {
+            let parameterName = helper.previous()
+            helper.consume(TokenKind.COLON, "Expect ':' after parameter name")
+            let keyword = helper.advance()
             FuncParam(NodeIdManager.nextId(),
             nodeType(NodeIdManager.nextId(), parameterName, keyword))
         } else {
-            throw error(peek(), "Expected unnamed parameter")
+            throw helper.error(helper.peek(), "Expected unnamed parameter")
         }
     }
 
-
-    private func mainDefinition(): MainDecl {
+    func mainDefinition(): MainDecl {
         var parameter: ?FuncParam = None
         var parameters: Int64 = 0
-        if (!matches(TokenKind.UNIT_LITERAL)) {
-            consume(TokenKind.LPAREN, "Expect '(' after main.")
-            try{ 
-                if (!check(TokenKind.RPAREN)) {
+        if (!helper.matches(TokenKind.UNIT_LITERAL)) {
+            helper.consume(TokenKind.LPAREN, "Expect '(' after main.")
+            try { 
+                if (!helper.check(TokenKind.RPAREN)) {
                     do {
                         if (parameters >= 1) {
-                            throw error(peek(), "Can't have more than 1 parameter in main function.")
+                            throw helper.error(helper.peek(), "Can't have more than 1 parameter in main function.")
                         }
                         parameters++
                         parameter = unnamedParameter()
@@ -221,167 +120,350 @@ public class DeclParser {
                         // For now, discards all other parameters other than the first one
                         // TEMPORARY FIX, REMEMBER TO MAKE A REAL SOLUTION
 
-                    } while(matches(TokenKind.COMMA))
+                    } while(helper.matches(TokenKind.COMMA))
                 }
-            }catch (error: ParseError) {
-                synchronize()
+            } catch (error: ParseError) {
+                helper.synchronize()
             }
-            consume(TokenKind.RPAREN, "Expect ') after parameters.")
+            helper.consume(TokenKind.RPAREN, "Expect ') after parameters.")
         }
 
         var declType: ?TypeNode = None
-        if (matches(TokenKind.COLON)) {
-            let keyword = advance()
+        if (helper.matches(TokenKind.COLON)) {
+            let keyword = helper.advance()
             declType = nodeType(NodeIdManager.nextId(), keyword, keyword)
         }
 
-        consume(TokenKind.LCURL, "Expect '{' before main body.")
+        helper.consume(TokenKind.LCURL, "Expect '{' before main body.")
         let block: Block = block()
-        consume(TokenKind.RCURL, "Expect '}' after block.")
+        helper.consume(TokenKind.RCURL, "Expect '}' after block.")
 
         return MainDecl(NodeIdManager.nextId(), block, parameter, declType)
 
     }
 
-    private func block(): Block {
-        let nodes = ArrayList<Node>()
-        
-        skipNL()
-        while (!check(TokenKind.RCURL) && !isAtEnd()) {
-            try {
-                nodes.add(node(modifiers()))
-            } catch (error: ParseError) {
-                synchronize()
-            }
-            skipNL()
-        }
-        
-        return Block(NodeIdManager.nextId(), nodes.toArray())
-    }
+    private func variableDeclaration(): VarDecl {
+        let keyword: Token = helper.previous()
 
-
-    private func variableDeclaration(modifiers: ArrayList<Modifier>): VarDecl {
-        let keyword: Token = previous()
-
-        skipNL()
-        let name: Token = consume(TokenKind.IDENTIFIER, "Expect variable name.")
+        helper.skipNL()
+        let name: Token = helper.consume(TokenKind.IDENTIFIER, "Expect variable name.")
 
         var declType: ?TypeNode = None
-        if (matches(TokenKind.COLON)) {
-            declType = nodeType(NodeIdManager.nextId(), name, advance())
+        if (helper.matches(TokenKind.COLON)) {
+            declType = nodeType(NodeIdManager.nextId(), name, helper.advance())
         }
 
         var initializer: ?Expr = None
-        if (matches(TokenKind.ASSIGN)) {
+        if (helper.matches(TokenKind.ASSIGN)) {
             initializer = expression()
         }
 
         VarDecl(NodeIdManager.nextId(),
-            keyword, name, initializer, modifiers, declType)
+            keyword, name, initializer, declType)
     }
 
-    private func expression(): Expr {
-        synchronize()
-        Expr(NodeIdManager.nextId())
-    }
-
-    private func consume(kind: TokenKind, message: String): Token {
-        if (check(kind)) { return advance() }
-
-        throw error(peek(), message)
-    }
-
-    private func error(token: Token, message: String): ParseError {
-        reporter.error(token, message)
-        ParseError()
-    }
-
-    /**
-    * When we find an error we don't want to break everything and stop parsing.
-    * So we synchronize, we discard tokens until we find a statement boundary.
-    */
-    private func synchronize(): Unit {
-        advance()
-
-        while (!isAtEnd()) {
-            // Finished a statement
-            if (previous().kind == TokenKind.SEMI || previous().kind == TokenKind.NL) { return }
-
-            if (peek().kind == TokenKind.CLASS ||
-                peek().kind == TokenKind.FUNC ||
-                peek().kind == TokenKind.VAR ||
-                peek().kind == TokenKind.IF ||
-                peek().kind == TokenKind.WHILE ||
-                peek().kind == TokenKind.RETURN ||
-                peek().kind == TokenKind.STRUCT ||
-                peek().kind == TokenKind.RPAREN
-            ) {
-                return
-            }
-            advance()
-        }
-    }
-
-    private func modifiers(): ArrayList<Modifier> {
-        let modifiers: ArrayList<Modifier> = ArrayList()
-        while (matches(TokenKindHelper.MODIFIERS_TOKEN_KIND)) {
-            modifiers.add(Modifier(NodeIdManager.nextId(), previous()))
-        }
-        modifiers
-    }
-
-    private func matches(types: Array<TokenKind>): Bool {
-        for (kind in types) {
-            if (check(kind)) {
-                advance()
-                return true
+    func block(): Block {
+        let nodes = ArrayList<Node>()
+        
+        helper.endStar()
+        while (!helper.check(TokenKind.RCURL) && !helper.isAtEnd()) {
+            try {
+                nodes.add(expressionOrDeclaration())
+                helper.endPlus("Expect NL or SEMI after block component")
+            } catch (error: ParseError) {
+                helper.synchronize()
             }
         }
-        return false
+        Block(NodeIdManager.nextId(), nodes.toArray())
     }
 
-
-    private func check(kind: TokenKind): Bool {
-        if (isAtEnd()) {
-            return false
+    private func expressionOrDeclaration(): Node {
+        if (let Some(decl) <- declaration()) {
+            return decl
         }
-        peek().kind == kind
+        expression()
     }
 
-    // private func checkNext(kind: TokenKind): Bool { 
-    //     if (isAtEnd()) {
-    //         return false
-    //     }
-    //     peekNext().kind == kind
-    // }
 
-    private func advance(): Token {
-        if (!isAtEnd()) {
-            current++
+    private func whileExpr(): Expr {
+        helper.consume(TokenKind.WHILE, "Expected 'while' for while expression.")
+        helper.skipNL()
+        helper.consume(TokenKind.LPAREN, "Expect '(' before condition.")
+        helper.skipNL()
+        let condition: Expr = expression()
+        helper.skipNL()
+        helper.consume(TokenKind.RPAREN, "Expect ')' after condition.")
+        helper.skipNL()
+        helper.consume(TokenKind.LCURL, "Expect '{' before block.")
+        let block: Block = block()
+        helper.consume(TokenKind.RCURL, "Expect '}' after block.")
+        WhileExpr(NodeIdManager.nextId(), condition, block)
+    }
+
+    private func loopExpression(): ?Expr {
+        if (helper.check(TokenKind.WHILE)) {
+            return whileExpr()
         }
-        previous()
+        None
     }
 
-    private func isAtEnd(): Bool {
-        peek().kind == TokenKind.END
-    }
-
-    private func peek(): Token {
-        tokens[current]
-    }
-
-    // private func peekNext(): Token {
-    //     tokens[current + 1]
-    // }
-    
-    private func previous(): Token {
-        tokens[current - 1]
-    }
-
-    private func skipNL(): Unit {
-        if (check(TokenKind.NL)) {
-            advance()
+    private func ifExpression(): Expr {
+        helper.consume(TokenKind.IF, "Expected 'if' for if expression.")
+        helper.skipNL()
+        helper.consume(TokenKind.LPAREN, "Expect '(' before condition.")
+        helper.skipNL()
+        let condition: Expr = expression()
+        helper.skipNL()
+        helper.consume(TokenKind.RPAREN, "Expect ')' after condition.")
+        helper.skipNL()
+        helper.consume(TokenKind.LCURL, "Expect '{' before block.")
+        let ifBlock: Block = block()
+        helper.consume(TokenKind.RCURL, "Expect '}' after block.")
+        
+        helper.skipNL()
+        var elseBranch: ?Expr = None
+        if (helper.matches(TokenKind.ELSE)) {
+            helper.skipNL()
+            if (helper.check(TokenKind.IF)) {
+                elseBranch = ifExpression()
+            } else {
+                helper.consume(TokenKind.LCURL, "Expect '{' before block.")
+                elseBranch = block()
+                helper.consume(TokenKind.RCURL, "Expect '}' after block.")
+            }
         }
+        IfExpr(NodeIdManager.nextId(), condition, ifBlock, elseBranch)
+    }
+
+
+    public func expression(): Expr {
+        assignmentExpression()
+    }
+
+    private func leftValueExpression(): ?Expr {
+        return leftValueExpressionWithoutWildCard()
+    }
+
+    private func leftValueExpressionWithoutWildCard(): ?Expr {
+        return identifier()
+    }
+
+    private func callSuffix(callee: Expr): Expr {
+        let arguments: ArrayList<Argument> = ArrayList()
+        if (helper.matches(TokenKind.LPAREN)) {
+            helper.skipNL()
+            if (!helper.check(TokenKind.RPAREN)) {
+                do {
+                    helper.skipNL()
+                    arguments.add(Argument(NodeIdManager.nextId(),
+                                            expression()))
+                    helper.skipNL()
+                } while (helper.matches(TokenKind.COMMA))
+            }
+
+            helper.consume(TokenKind.RPAREN, "Expect ')' after agruments.")
+        } else {
+            helper.consume(TokenKind.UNIT_LITERAL,
+                "Expect '()' if no parameters are passed")
+        }
+        CallExpr(NodeIdManager.nextId(), callee, arguments)
+    }
+
+    private func assignmentExpression(): Expr {
+        // TODO: It should not be DeclParser responsibility to change the value
+        // of current.
+        let tmp: Int64 = helper.current
+        if (let Some(value) <- leftValueExpression()) {
+            if (helper.matches(TokenKindHelper.ASSIGNMENT_OPERATOR)) {
+                return AssignExpr(NodeIdManager.nextId(), value, logicConjunctionExpression())
+            }
+            // Going back if I didn't find an assignment.
+            // TODO: Think about a better solution.
+            helper.current = tmp
+        }
+        logicDisjunctionExpression()
+    }
+
+    private func identifier(): ?Expr {
+        if (helper.matches(TokenKind.IDENTIFIER)) {
+            return RefExpr(NodeIdManager.nextId(), helper.previous())
+        }
+        None
+    }
+
+    private func logicDisjunctionExpression(): Expr {
+        var expr: Expr = logicConjunctionExpression()
+        while (helper.matches(TokenKind.OR)) {
+            let oper: Token = helper.previous()
+            helper.skipNL()
+            let right: Expr = logicConjunctionExpression()
+            expr = BinaryExpr(NodeIdManager.nextId(), expr, oper, right)
+        }
+        return expr
+    }
+
+    private func logicConjunctionExpression(): Expr {
+        var expr: Expr = bitwiseDisjunctionExpression()
+        while (helper.skipNLCompare(TokenKind.AND)) {
+            let oper: Token = helper.previous()
+            helper.skipNL()
+            let right: Expr = bitwiseDisjunctionExpression()
+            expr = BinaryExpr(NodeIdManager.nextId(), expr, oper, right)
+        }
+        return expr
+    }
+
+    private func bitwiseDisjunctionExpression(): Expr {
+        var expr: Expr = bitwiseConjunctionExpression()
+        while (helper.skipNLCompare(TokenKind.BITOR)) {
+            let oper: Token = helper.previous()
+            helper.skipNL()
+            let right: Expr = bitwiseConjunctionExpression()
+            expr = BinaryExpr(NodeIdManager.nextId(), expr, oper, right)
+        }
+        return expr
+    }
+
+    private func bitwiseConjunctionExpression(): Expr {
+        var expr: Expr = equalityComparisonExpression()
+        while (helper.skipNLCompare(TokenKind.BITAND)) {
+            let oper: Token = helper.previous()
+            helper.skipNL()
+            let right: Expr = equalityComparisonExpression()
+            expr = BinaryExpr(NodeIdManager.nextId(), expr, oper, right)
+        }
+        return expr
+    }
+
+    private func equalityComparisonExpression(): Expr {
+        var expr: Expr = comparisonOrTypeExpression()
+        while (helper.skipNLCompare(TokenKindHelper.EQUALITY_OPERATOR)) {
+            let oper: Token = helper.previous()
+            helper.skipNL()
+            let right: Expr = comparisonOrTypeExpression()
+            expr = BinaryExpr(NodeIdManager.nextId(), expr, oper, right)
+        }
+        return expr
+    }
+
+    private func comparisonOrTypeExpression(): Expr {
+        var expr: Expr = additiveExpression()
+        while (helper.skipNLCompare(TokenKindHelper.COMPARISON_OPERATOR)) {
+            let oper: Token = helper.previous()
+            helper.skipNL()
+            let right: Expr = additiveExpression()
+            expr = BinaryExpr(NodeIdManager.nextId(), expr, oper, right)
+        }
+        return expr
+    }
+
+    private func additiveExpression(): Expr {
+        var expr: Expr = multiplicativeExpression()
+        while (helper.skipNLCompare(TokenKindHelper.ADDITIVE_OPERATOR)) {
+            let oper: Token = helper.previous()
+            helper.skipNL()
+            let right: Expr = multiplicativeExpression()
+            expr = BinaryExpr(NodeIdManager.nextId(), expr, oper, right)
+        }
+        return expr
+    }
+
+    private func multiplicativeExpression(): Expr {
+        var expr: Expr = exponentExpression()
+        while (helper.skipNLCompare(TokenKindHelper.MULTIPLICATIVE_OPERATOR)) {
+            let oper: Token = helper.previous()
+            helper.skipNL()
+            let right: Expr = exponentExpression()
+            expr = BinaryExpr(NodeIdManager.nextId(), expr, oper, right)
+        }
+        expr
+    }
+
+    private func exponentExpression(): Expr {
+        var expr: Expr = prefixUnaryExpression()
+        while (helper.skipNLCompare(TokenKindHelper.EXPONENT_OPERATOR)) {
+            let oper: Token = helper.previous()
+            helper.skipNL()
+            let right: Expr = prefixUnaryExpression()
+            expr = BinaryExpr(NodeIdManager.nextId(), expr, oper, right)
+        }
+        expr
+    }
+
+    private func prefixUnaryExpression(): Expr {
+        // TODO: now an expression like --5 is ok but in the future
+        // we will add the inc and dec operators that will be after this so that
+        // the problem will be solved.
+        if (helper.matches(TokenKindHelper.PREFIX_UNARY_OPERATOR)) {
+            let oper: Token = helper.previous()
+            let right = prefixUnaryExpression()
+            return UnaryExpr(NodeIdManager.nextId(), oper, right)
+        }
+        postfixExpression()
+    }
+
+    private func postfixExpression(): Expr {
+        var expr: Expr = atomicExpression()
+        var changed = true
+        while (changed) {
+            changed = false
+            while (helper.check(TokenKind.LPAREN) || helper.check(TokenKind.UNIT_LITERAL)) {
+                expr = callSuffix(expr)
+                changed = true
+            }
+        }
+        expr
+    }
+
+    private func atomicExpression(): Expr {
+        if (helper.matches(TokenKindHelper.LITERAL_CONSTANT)) {
+            return LitConstExpr(NodeIdManager.nextId(), helper.previous())
+        }
+        if (helper.check(TokenKind.IF)) {
+            return ifExpression()
+        }
+        if (let Some(loop) <- loopExpression()) {
+            return loop
+        }
+        if (let Some(jump) <- jumpExpression()) {
+            return jump
+        }
+        if (let Some(i) <- identifier()) {
+            return i
+        }
+        if (helper.matches(TokenKind.LPAREN)) {
+            helper.skipNL()
+            let expr: Expr = expression()
+            helper.skipNL()
+            helper.consume(TokenKind.RPAREN, "Expected ')' after expression.")
+            return ParenExpr(NodeIdManager.nextId(), expr)
+        }
+        throw helper.error(helper.peek(), "Expect expression.")
+    }
+
+    private func returnExpr(): Expr {
+        helper.consume(TokenKind.RETURN, "Expected 'return' for return expression")
+        let keyword: Token = helper.previous()
+        let tmp: Int64 = helper.current
+        helper.skipNL()
+        var value: ?Expr = None
+        try {
+            value = expression()
+        } catch (_) {
+            //TODO: it's still printing the error even if we don't want to.
+            println("The previous error is not real"); helper.current = tmp
+        }
+        ReturnExpr(NodeIdManager.nextId(), value, keyword)
+    }
+
+
+    private func jumpExpression(): ?Expr {
+        if (helper.check(TokenKind.RETURN)) {
+            return returnExpr()
+        }
+        if (helper.matches(TokenKind.CONTINUE, TokenKind.BREAK)) {
+            return JumpExpr(NodeIdManager.nextId(), helper.previous())
+        }
+        None
     }
 }
-

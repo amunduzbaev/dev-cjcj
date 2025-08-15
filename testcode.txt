@@ -1,43 +1,57 @@
-if (a + b == 5) {
-    while (b && c || d | 5) {
-        2 + 4
-        a = b
-        c = f()()
-        return 6 + 5 * 2 - (10 + 5)
-    }
-    while (5 & 2 + 4 * 3 ** (2 / 4)) {
-        return
-    }
-} else if (!h) {
-    a = 10
-} else {
-    return 10
-}
-
-
-
-
-/*
 let b: Wow
 var a: Wow = 3
 
 let b = 8
 
 func a(a: UInt8, b: Crazy, c: Rune) {
+    if (a + b == 5) {
+        while (b && c || d | 5) {
+            2 + 4
+            a = b
+            c = f()()
+            return 6 + 5 * 2 - (10 + 5)
+        }
+        while (5 & 2 + 4 * 3 ** (2 / 4)) {
+            return
+        }
+    } else if (!h) {
+        a = !!!!!!-!-!-!10
+    } else {
+        f(a, b, 5 + 10 * 467)
+        return 10
+    }
 
+    func b() {
+
+    }
 }
 
 func b() {}
 func c(): ABCD {}
-func d(a: Unit): UInt8 {}
+func d(_: Unit): UInt8 {}
 
-private func a(): Int64 {
+func a(): Int64 {
     1
 }
 
-main(args: String, args2: String) : Int64 {
-
-    private func d(f: Int64) {
+main (args: String, args2: String) : Int64 {
+    let b: Int64 = 5
+    if (a + b == 5) {
+        while (b && c || d | 5) {
+            2 + 4
+            a = b
+            c = f()()
+            return 6 + 5 * 2 - (10 + 5)
+        }
+        while (5 & 2 + 4 * 3 ** (2 / 4)) {
+            return
+        }
+    } else if (!h) {
+        a = 10
+    } else {
+        return 10
+    }
+    func d(f: Int64) {
         10
     }
-} */
+}

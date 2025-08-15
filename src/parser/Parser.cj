@@ -9,23 +9,38 @@ import std.collection.ArrayList
 import std.convert.Parsable
 
 public class Parser {
-    private let tokens: Array<Token>
-    private let reporter: Reporter
-    private let exprParser: ExprParser
+    private let declParser: DeclParser
+    private let parserHelper: ParserHelper
 
-    public Parser(tokens: Array<Token>, reporter: Reporter) {
-        this.tokens = tokens
-        this.reporter = reporter
-        this.exprParser = ExprParser(tokens)
+    public Parser(private let tokens: Array<Token>,
+                    private let reporter: Reporter) {
+        this.parserHelper = ParserHelper(tokens, reporter)
+        this.declParser = DeclParser(parserHelper)
     }
 
     public func parse(): ?Array<Node> {
-        let nodes: ArrayList<Node> = ArrayList()
-        exprParser.skipNL()
-        while (!exprParser.isAtEnd()) {
-            nodes.add(exprParser.expression())
-            exprParser.skipNL()
+        try {
+            var nodes: ArrayList<Node> = ArrayList()
+            parserHelper.endStar()
+
+            while (let Some(Obj) <- declParser.topLevelObject()) {
+                nodes.add(Obj)
+                parserHelper.endPlus("Expected end of TopLevelObject")
+            }
+
+            parserHelper.consume(TokenKind.MAIN, "Expected main declaration")
+            nodes.add(declParser.mainDefinition())
+
+            while (!parserHelper.isAtEnd()) {
+                parserHelper.endPlus("Expected NL or SEMI after declaration")
+                if(let Some(Obj) <- declParser.topLevelObject()) {
+                    nodes.add(Obj)
+                }
+            }
+
+            return nodes.toArray()
+        } catch (_) {
+            return None
         }
-        return nodes.toArray()
     }
 }

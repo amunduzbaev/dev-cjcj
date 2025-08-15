@@ -48,20 +48,3 @@ public class Argument <: Node {
         get() { expr_ }
     }
 }
-
-public class Modifier <: Node {
-    private let keyword_: Token
-
-    public init(id: NodeId, keyword: Token) {
-        super(id)
-        keyword_ = keyword
-    }
-
-    public override func prettyPrint(printer: PrettyPrinter): Unit {
-        printer.append(keyword.value)
-    }
-
-    public prop keyword: Token {
-        get() { keyword_ }
-    }
-}

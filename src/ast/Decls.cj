@@ -11,24 +11,19 @@ import std.collection.ArrayList
 public abstract class Decl <: Node {
     protected var identifier_: Token = Token()
     protected var keyword_: Token = identifier_
-    protected var modifiers_ = ArrayList<Modifier>()
-
     init(id: NodeId) { super(id) }
 
-    init(id: NodeId, keyword: Token, identifier: Token, modifiers: ArrayList<Modifier>) {
+    init(id: NodeId, keyword: Token, identifier: Token) {
         this(id)
         identifier_ = identifier
         keyword_ = keyword
-        modifiers_ = modifiers
     }
 
     //Constructor for constructors, they have no name
-    init(id: NodeId, keyword: Token, modifiers: ArrayList<Modifier>) {
+    init(id: NodeId, keyword: Token) {
         super(id)
         keyword_ = keyword
-        modifiers_ = modifiers
     }
-
 
     // Copy constructor
     init (decl: Decl) {
@@ -47,14 +42,7 @@ public abstract class Decl <: Node {
         set(v) { keyword_ = v }
     }
 
-    public mut open prop modifiers: ArrayList<Modifier> {
-        get() { modifiers_ }
-        set(v) { modifiers_ = v }
-    }
-
     public override open func prettyPrint(printer: PrettyPrinter) {
-        modifiers.iterator()
-            .forEach({ m => m.prettyPrint(printer); printer.append(" ")})
         if (keyword.kind != TokenKind.ILLEGAL) {
             printer.append(keyword.value + " ")
         }
@@ -73,12 +61,12 @@ public class VarDecl <: Decl {
     }
 
     public init(id: NodeId, keyword: Token, identifier: Token, initializer: ?Expr) {
-        this(id, keyword, identifier, initializer, ArrayList<Modifier>(), None)
+        this(id, keyword, identifier, initializer, None)
     }
 
     public init(id: NodeId, keyword: Token, identifier: Token, initializer: ?Expr,
-            modifiers: ArrayList<Modifier>, declType: ?TypeNode) {
-        super(id, keyword, identifier, modifiers)
+            declType: ?TypeNode) {
+        super(id, keyword, identifier)
         initializer_ = initializer
         declType_ = declType
     }
@@ -145,14 +133,13 @@ public class MainDecl <: Decl {
 public class FuncParam <: Decl {
     private let paramType_: TypeNode
 
-
     public init(id: NodeId, paramType: TypeNode) {
         super(id)
         paramType_ = paramType
     }
 
-    public init(id: NodeId, keyword: Token, modifiers: ArrayList<Modifier>, paramType: TypeNode) {
-        super(id, keyword, modifiers)
+    public init(id: NodeId, keyword: Token, paramType: TypeNode) {
+        super(id, keyword)
         paramType_ = paramType
     }
 
@@ -177,17 +164,16 @@ public class FuncDecl <: Decl {
     private let declType_: ?TypeNode
 
     public init(id: NodeId, keyword: Token, identifier: Token, block: Block,
-                modifiers: ArrayList<Modifier>, params: ArrayList<FuncParam>,
-                declType: ?TypeNode) {
-        super(id, keyword, identifier, modifiers)
+                params: ArrayList<FuncParam>, declType: ?TypeNode) {
+        super(id, keyword, identifier)
         this.block_ = block
         this.params_ = params
         this.declType_ = declType
     }
 
     public init(id: NodeId, keyword: Token, block: Block,
-                modifiers: ArrayList<Modifier>, params: ArrayList<FuncParam>) {
-        this(id, keyword, Token(), block, modifiers, params, None)
+                params: ArrayList<FuncParam>) {
+        this(id, keyword, Token(), block, params, None)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
