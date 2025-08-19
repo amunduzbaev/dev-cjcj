@@ -36,6 +36,7 @@ func a(): Int64 {
 
 main (args: String, args2: String) : Int64 {
     let b: Int64 = 5
+    let _ = 7
     if (a + b == 5) {
         while (b && c || d | 5) {
             2 + 4
