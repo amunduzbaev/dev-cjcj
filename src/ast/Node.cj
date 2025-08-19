@@ -59,23 +59,27 @@ public class Argument <: Node {
     }
 }
 
-public class Modifier <: Node {
-    private let keyword_: Token
+public class Program <: Node {
+    private let decls_: ArrayList<Decl>
 
-    public init(id: NodeId, keyword: Token) {
+    public Program(id: NodeId, decls: ArrayList<Decl>) {
         super(id)
-        keyword_ = keyword
+        decls_ = decls
     }
 
     public override func traverse(v: Visitor): Unit {
         v.visit(this)
+        decls.iterator().forEach({ d => d.traverse(v) })
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
-        printer.append(keyword.value)
+        decls.iterator().forEach({
+            d => d.prettyPrint(printer)
+            printer.append("\n")
+        })
     }
 
-    public prop keyword: Token {
-        get() { keyword_ }
+    public prop decls: ArrayList<Decl> {
+        get() { decls_ }
     }
 }

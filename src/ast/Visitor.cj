@@ -15,17 +15,19 @@ public abstract class Visitor {
         breakTraverseFlag = true
     }
 
+    protected open func visit(_: Program): Unit { }
+
     protected open func visit(_: Expr): Unit { }
 
-    protected open func visit(_: Binary): Unit { }
+    protected open func visit(_: BinaryExpr): Unit { }
 
-    protected open func visit(_: Unary): Unit { }
+    protected open func visit(_: UnaryExpr): Unit { }
 
-    protected open func visit(_: Grouping): Unit { }
+    protected open func visit(_: ParenExpr): Unit { }
 
-    protected open func visit(_: Literal): Unit { }
+    protected open func visit(_: LitConstExpr): Unit { }
 
-    protected open func visit(_: Assign): Unit { }
+    protected open func visit(_: AssignExpr): Unit { }
 
     protected open func visit(_: RefExpr): Unit { }
 
@@ -39,25 +41,15 @@ public abstract class Visitor {
 
     protected open func visit(_: ReturnExpr): Unit { }
 
-    protected open func visit(_: MemberAccess): Unit { }
-
     protected open func visit(_: Decl): Unit { }
 
     protected open func visit(_: VarDecl): Unit { }
-
-    protected open func visit(_: InitDecl): Unit { }
 
     protected open func visit(_: FuncParam): Unit { }
 
     protected open func visit(_: FuncDecl): Unit { }
 
-    protected open func visit(_: ClassDecl): Unit { }
-
-    protected open func visit(_: StructDecl): Unit { }
-
     protected open func visit(_: Argument): Unit { }
-
-    protected open func visit(_: Modifier): Unit { }
 
     protected open func visit(_: TypeNode): Unit { }
 

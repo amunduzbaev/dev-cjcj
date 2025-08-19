@@ -1,6 +1,6 @@
 package cjcj
 
-import cjcj.ast.Node
+import cjcj.ast.Program
 import cjcj.parser.*
 import cjcj.scanner.*
 import cjcj.prettyPrinter.PrettyPrinter
@@ -27,19 +27,13 @@ public class Cj {
         let tokens = scanner.scanTokens()
 
         let parser: Parser = Parser(tokens.toArray(), Reporter(getStdErr()))
-        let nodes: ?Array<Node> = parser.parse()
-
+        let program: ?Program = parser.parse()
         let printer: PrettyPrinter = PrettyPrinter()
-        if (let Some(nodes) <- nodes) {
-            for (node in nodes) {
-                node.prettyPrint(printer)
-                printer.append("\n")
-            }
+        if (let Some(p) <- program) {
+            p.prettyPrint(printer)
         }
         println(printer.toString())
     }
-
-
 }
 
 main (args: Array<String>) {

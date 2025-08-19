@@ -18,9 +18,9 @@ public class Parser {
         this.declParser = DeclParser(parserHelper)
     }
 
-    public func parse(): ?Array<Node> {
+    public func parse(): ?Program {
         try {
-            var nodes: ArrayList<Node> = ArrayList()
+            var nodes: ArrayList<Decl> = ArrayList()
             parserHelper.endStar()
 
             while (let Some(Obj) <- declParser.topLevelObject()) {
@@ -38,7 +38,7 @@ public class Parser {
                 }
             }
 
-            return nodes.toArray()
+            return Program(NodeIdManager.nextId(), nodes)
         } catch (_) {
             return None
         }

@@ -35,7 +35,6 @@ public abstract class Decl <: Node {
     public override open func traverse(v: Visitor): Unit {
         v.visit(this)
         if (!v.needBreakTraverse()) { return }
-        modifiers.iterator().forEach({ m => m.traverse(v) })
     }
 
     public mut open prop identifier: Token {
