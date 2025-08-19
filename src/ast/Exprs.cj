@@ -188,7 +188,8 @@ public class IfExpr <: Expr {
         this(id, condition, ifBlock, None)
     }
 
-    public IfExpr(id: NodeId, condition: Expr, ifBlock: Block, elseBranch: ?Expr) {
+    public IfExpr(id: NodeId, condition: Expr, ifBlock: Block,
+                    elseBranch: ?Expr) {
         super(id)
         condition_ = condition
         ifBlock_ = ifBlock
@@ -299,7 +300,8 @@ public class ReturnExpr <: Expr {
         get() {
             match(expr_) {
                 case Some(v) => v
-                case None => throw Exception("Current return expression has none expr")
+                case None => throw Exception(
+                    "Current return expression has none expr")
             }
         }
     }

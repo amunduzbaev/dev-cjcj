@@ -35,8 +35,7 @@ class ParserHelper {
     func skipNLCompare(target: Array<TokenKind>): Bool {
         let tmp: Int64 = current
         skipNL()
-        if (target.iterator().any({ t => check(t) })) {
-            advance()
+        if (target.iterator().any({ t => matches(t) })) {
             return true
         }
         current = tmp

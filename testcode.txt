@@ -13,7 +13,7 @@ func a(a: UInt8, b: Crazy, c: Rune) {
         }
         while (5 & 2 + 4 * 3 ** (2 / 4)) {
             return
-        }
+        } 
     } else if (!h) {
         a = !!!!!!-!-!-!10
     } else {
