@@ -18,12 +18,12 @@ public open class Expr <: Node {
     public override open func prettyPrint(_: PrettyPrinter): Unit { }
 }
 
-public class Binary <: Expr {
+public class BinaryExpr <: Expr {
     private let left_: Expr
     private let oper_: Token
     private let right_: Expr
 
-    public Binary(id: NodeId, left: Expr, oper: Token, right: Expr) {
+    public BinaryExpr(id: NodeId, left: Expr, oper: Token, right: Expr) {
         super(id)
         left_ = left
         oper_ = oper
@@ -56,12 +56,12 @@ public class Binary <: Expr {
     }
 }
 
-public class Grouping <: Expr {
-    private let expr_: Expr
+public class ParenExpr <: Expr {
+    private let parenthesizedExpr_: Expr
 
-    public Grouping(id: NodeId, node: Expr) {
+    public ParenExpr(id: NodeId, parenthesizedExpr: Expr) {
         super(id)
-        expr_ = node
+        parenthesizedExpr_ = parenthesizedExpr
     }
 
     public override func traverse(v: Visitor): Unit {
@@ -72,21 +72,21 @@ public class Grouping <: Expr {
 
     public override func prettyPrint(printer: PrettyPrinter) {
         printer.append("(")
-        expr.prettyPrint(printer)
+        parenthesizedExpr.prettyPrint(printer)
         printer.append(")")
     }
 
-    public prop expr: Expr {
-        get() { expr_ }
+    public prop parenthesizedExpr: Expr {
+        get() { parenthesizedExpr_ }
     }
 }
 
-public class Literal <: Expr {
-    private let value_: ToString
+public class LitConstExpr <: Expr {
+    private let literal_: Token
 
-    public Literal(id: NodeId, value: ToString) {
+    public LitConstExpr(id: NodeId, value: Token) {
         super(id)
-        value_ = value
+        literal_ = value
     }
 
     public override func traverse(v: Visitor): Unit {
@@ -94,19 +94,19 @@ public class Literal <: Expr {
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
-        printer.append(value.toString())
+        printer.append(literal.value)
     }
 
-    public prop value: ToString {
-        get() { value_ }
+    public prop literal: Token {
+        get() { literal_ }
     }
 }
 
-public class Unary <: Expr {
+public class UnaryExpr <: Expr {
     private let oper_: Token
     private let right_: Expr
 
-    public Unary(id: NodeId, oper: Token, right: Expr) {
+    public UnaryExpr(id: NodeId, oper: Token, right: Expr) {
         super(id)
         oper_ = oper
         right_ = right
@@ -132,11 +132,11 @@ public class Unary <: Expr {
     }
 }
 
-public class Assign <: Expr {
+public class AssignExpr <: Expr {
     private let left_: Expr
     private let right_: Expr
 
-    public Assign(id: NodeId, name: Expr, value: Expr) {
+    public AssignExpr(id: NodeId, name: Expr, value: Expr) {
         super(id)
         left_ = name
         right_ = value
@@ -223,46 +223,6 @@ public class Block <: Expr {
     }
 }
 
-public class Body <: Expr {
-    private let decls_: Array<Decl>
-
-    public Body(id: NodeId, decls: Array<Decl>) {
-
-        super(id)
-        decls_ = decls
-    }
-
-    public override func traverse(v: Visitor): Unit {
-        v.visit(this)
-        if (!v.needBreakTraverse()) { return }
-        decls.iterator().forEach({ d => d.traverse(v) })
-    }
-
-    public override func prettyPrint(printer: PrettyPrinter) {
-        
-        printer.append("{")
-        if (!decls.isEmpty()) {
-            printer.indent()
-            printer.append("\n")
-            decls[0].prettyPrint(printer)
-            decls.iterator()
-                .enumerate()
-                .filter({ v => v[0] > 0})
-                .map({ v => v[1] })
-                .forEach({ 
-                n => printer.append("\n")    
-                    n.prettyPrint(printer)     
-                })
-            printer.unindent()
-        }
-        printer.append("\n}\n")
-    }
-
-    public prop decls: Array<Decl> {
-        get() { decls_ }
-    }
-}
-
 public class IfExpr <: Expr {
     private let condition_: Expr
     private let ifBlock_: Block
@@ -272,7 +232,8 @@ public class IfExpr <: Expr {
         this(id, condition, ifBlock, None)
     }
 
-    public IfExpr(id: NodeId, condition: Expr, ifBlock: Block, elseBranch: ?Expr) {
+    public IfExpr(id: NodeId, condition: Expr, ifBlock: Block,
+                    elseBranch: ?Expr) {
         super(id)
         condition_ = condition
         ifBlock_ = ifBlock
@@ -386,12 +347,12 @@ public class CallExpr <: Expr {
 }
 
 public class ReturnExpr <: Expr {
-    private let value_: Expr 
+    private let expr_: ?Expr 
     private let keyword_: Token
 
-    public ReturnExpr(id: NodeId, value: Expr, keyword: Token) {
+    public ReturnExpr(id: NodeId, value: ?Expr, keyword: Token) {
         super(id)
-        value_ = value
+        expr_ = value
         keyword_ = keyword
     }
 
@@ -403,11 +364,20 @@ public class ReturnExpr <: Expr {
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
         printer.append(keyword.value + " ")
-        value.prettyPrint(printer)
+        try {
+            expr.prettyPrint(printer)
+        } catch (_) {
+        }
     }
 
-    public prop value: Expr {
-        get() { value_ }
+    public prop expr: Expr {
+        get() {
+            match(expr_) {
+                case Some(v) => v
+                case None => throw Exception(
+                    "Current return expression has none expr")
+            }
+        }
     }
 
     public prop keyword: Token {
@@ -415,33 +385,15 @@ public class ReturnExpr <: Expr {
     }
 }
 
-public class MemberAccess <: Expr {
-    private let baseExpr_: Expr
-    private let field_: Token
+public class JumpExpr <: Expr {
+    private let keyword_: Token
 
-    public MemberAccess(id: NodeId, baseExpr: Expr, field: Token) {
+    public JumpExpr(id: NodeId, keyword: Token) {
         super(id)
-        baseExpr_ = baseExpr
-        field_ = field
+        keyword_ = keyword
     }
 
-    public override func traverse(v: Visitor): Unit {
-        v.visit(this)
-        if (!v.needBreakTraverse()) { return }
-        baseExpr.traverse(v)
+    public prop keyword: Token {
+        get() { keyword_ }
     }
-
-    public override func prettyPrint(printer: PrettyPrinter) {
-        baseExpr.prettyPrint(printer)
-        printer.append("." + field.value)
-    }
-
-    public prop baseExpr: Expr {
-        get() { baseExpr_ }
-    }
-
-    public prop field: Token {
-        get() { field_ }
-    }
-
 }

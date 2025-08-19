@@ -7,7 +7,8 @@ import cjcj.prettyPrinter.PrettyPrinter
 
 import std.env.*
 import std.io.*
-import std.fs.File
+import std.fs.File 
+
 
 public class Cj {
     static var hadError: Bool = false
@@ -18,19 +19,6 @@ public class Cj {
 
         if (hadError) {
             exit(65)
-        }
-    }
-
-    public static func runPrompt() {
-        let stdIn = getStdIn()
-        while (true) {
-            print("> ")
-            if (let Some(line) <- stdIn.readln()) {
-                run(line)
-                hadError = false
-            } else {
-                break
-            }
         }
     }
 
@@ -51,34 +39,18 @@ public class Cj {
         println(printer.toString())
     }
 
-    static func error(line: Int64, message: String) {
-        report(line, "", message)
-    }
 
-    private static func report(line: Int64, wher: String, message: String) {
-        getStdErr().writeln(
-            "[line " + line.toString() + "] Error" + wher + ": " + message)
-        hadError = true
-    }
-
-    static func error(token: Token, message: String) {
-        if (token.kind == TokenKind.END) {
-            report(Int64(token.pos.line), " at end", message)
-        } else {
-            report(Int64(token.pos.line), " at '" + token.value + "'", message)
-        }
-    }
 }
 
 main (args: Array<String>) {
-    // if (args.size > 1) {
-    //     getStdOut().writeln("Usage: cjlox [script]")
-    //     exit(64)
-    // } else if (args.size == 1) {
-    //     println(args[0])
-    //     Cj.runFile(args[0])
-    // } else {
-    //     Cj.runPrompt()
-    // }
-    Cj.runFile("testcode.txt")
+    if (args.size > 1) {
+        getStdOut().writeln("Usage: cjcj [script]")
+        exit(64)
+    } else if (args.size == 1) {
+        println(args[0])
+        Cj.runFile(args[0])
+    } else {
+        // This is for debug
+        Cj.runFile("testcode.txt")
+    }
 }

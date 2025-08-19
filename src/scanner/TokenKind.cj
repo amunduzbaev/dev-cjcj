@@ -272,6 +272,124 @@ public class TokenKindHelper {
         SEALED,
         OPEN,
         INOUT,
-        MUT
+        MUT,
+        CONST
+    ]
+
+    public static let CLASS_MODIFIERS_TOKEN_KIND: Array<TokenKind> = [
+        PUBLIC,
+        PRIVATE,
+        INTERNAL,
+        PROTECTED,
+        ABSTRACT,
+        OPEN
+    ]
+
+    public static let FUNCTION_MODIFIERS_TOKEN_KIND: Array<TokenKind> = [
+        PUBLIC,
+        PRIVATE,
+        PROTECTED,
+        INTERNAL,
+        STATIC,
+        OPEN,
+        MUT,
+        CONST
+    ]
+
+    public static let VAR_MODIFIERS_TOKEN_KIND: Array<TokenKind> = [
+        PUBLIC,
+        PRIVATE,
+        PROTECTED,
+        INTERNAL,
+        STATIC
+    ]
+
+    public static let STRUCT_MODIFIERS_TOKEN_KIND: Array<TokenKind> = [
+        PUBLIC,
+        PRIVATE,
+        PROTECTED,
+        INTERNAL
+    ]
+
+    
+    
+
+    public static let ASSIGNMENT_OPERATOR: Array<TokenKind> = [
+        TokenKind.ASSIGN
+    ]
+
+    public static let COMPARISON_OPERATOR: Array<TokenKind> = [
+        TokenKind.LT,
+        TokenKind.GT,
+        TokenKind.LE,
+        TokenKind.GE
+    ]
+
+    public static let EQUALITY_OPERATOR: Array<TokenKind> = [
+        TokenKind.NOTEQ,
+        TokenKind.EQUAL
+    ]
+
+    public static let ADDITIVE_OPERATOR: Array<TokenKind> = [
+        TokenKind.ADD,
+        TokenKind.SUB
+    ]
+
+    public static let EXPONENT_OPERATOR: Array<TokenKind> = [
+        TokenKind.EXP
+    ]
+
+    public static let MULTIPLICATIVE_OPERATOR: Array<TokenKind> = [
+        TokenKind.MOD,
+        TokenKind.DIV,
+        TokenKind.MUL
+    ]
+
+    public static let PREFIX_UNARY_OPERATOR: Array<TokenKind> = [
+        TokenKind.SUB,
+        TokenKind.NOT
+    ]
+
+    public static let THIS_SUPER: Array<TokenKind> = [
+        TokenKind.THIS,
+        TokenKind.SUPER
+    ]
+
+    public static let NUMERIC_TYPES: Array<TokenKind> = [
+        TokenKind.INT8,
+        TokenKind.INT16,
+        TokenKind.INT32,
+        TokenKind.INT64,
+        TokenKind.INTNATIVE,
+        TokenKind.UINT8,
+        TokenKind.UINT16,
+        TokenKind.UINT32,
+        TokenKind.UINT64,
+        TokenKind.UINTNATIVE,
+        TokenKind.FLOAT16,
+        TokenKind.FLOAT32,
+        TokenKind.FLOAT64
+    ]
+
+    public static let CHAR_LANG_TYPES: Array<TokenKind> = NUMERIC_TYPES.concat([
+        TokenKind.RUNE,
+        TokenKind.BOOLEAN,
+        TokenKind.NOTHING,
+        TokenKind.UNIT,
+        TokenKind.THISTYPE
+    ])
+
+    public static let LITERAL_CONSTANT: Array<TokenKind> = [
+        TokenKind.BOOL_LITERAL,
+        TokenKind.RUNE_BYTE_LITERAL,
+        TokenKind.INTEGER_LITERAL,
+        TokenKind.STRING_LITERAL,
+        TokenKind.FLOAT_LITERAL,
+        TokenKind.RUNE_LITERAL
+    ]
+
+    public static let END: Array<TokenKind> = [
+        TokenKind.NL,
+        TokenKind.SEMI
     ]
 }

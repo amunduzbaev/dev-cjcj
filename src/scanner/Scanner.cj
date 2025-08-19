@@ -326,11 +326,9 @@ public class Scanner {
             exit(65)
         }
 
-        let value = source[start+2..current-2]
-
-        addToken(TokenKind.COMMENT, value)
-
-
+        // Remove the following comment if you need a comment token.
+        // let value = source[start+2..current-2]
+        // addToken(TokenKind.COMMENT, value)
     }
 
     private func string() {

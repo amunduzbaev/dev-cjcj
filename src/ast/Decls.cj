@@ -11,24 +11,19 @@ import std.collection.ArrayList
 public abstract class Decl <: Node {
     protected var identifier_: Token = Token()
     protected var keyword_: Token = identifier_
-    protected var modifiers_ = ArrayList<Modifier>()
-
     init(id: NodeId) { super(id) }
 
-    init(id: NodeId, keyword: Token, identifier: Token, modifiers: ArrayList<Modifier>) {
+    init(id: NodeId, keyword: Token, identifier: Token) {
         this(id)
         identifier_ = identifier
         keyword_ = keyword
-        modifiers_ = modifiers
     }
 
     //Constructor for constructors, they have no name
-    init(id: NodeId, keyword: Token, modifiers: ArrayList<Modifier>) {
+    init(id: NodeId, keyword: Token) {
         super(id)
         keyword_ = keyword
-        modifiers_ = modifiers
     }
-
 
     // Copy constructor
     init (decl: Decl) {
@@ -53,18 +48,13 @@ public abstract class Decl <: Node {
         set(v) { keyword_ = v }
     }
 
-    public mut open prop modifiers: ArrayList<Modifier> {
-        get() { modifiers_ }
-        set(v) { modifiers_ = v }
-    }
-
     public override open func prettyPrint(printer: PrettyPrinter) {
-        modifiers.iterator()
-            .forEach({ m => m.prettyPrint(printer); printer.append(" ")})
         if (keyword.kind != TokenKind.ILLEGAL) {
             printer.append(keyword.value + " ")
         }
-        printer.append(identifier.value)
+        if (identifier.kind != TokenKind.ILLEGAL) {
+            printer.append(identifier.value + " ")
+        }
     }
 }
 
@@ -77,12 +67,12 @@ public class VarDecl <: Decl {
     }
 
     public init(id: NodeId, keyword: Token, identifier: Token, initializer: ?Expr) {
-        this(id, keyword, identifier, initializer, ArrayList<Modifier>(), None)
+        this(id, keyword, identifier, initializer, None)
     }
 
     public init(id: NodeId, keyword: Token, identifier: Token, initializer: ?Expr,
-            modifiers: ArrayList<Modifier>, declType: ?TypeNode) {
-        super(id, keyword, identifier, modifiers)
+            declType: ?TypeNode) {
+        super(id, keyword, identifier)
         initializer_ = initializer
         declType_ = declType
     }
@@ -114,47 +104,54 @@ public class VarDecl <: Decl {
     }
 }
 
-public class InitDecl <: Decl {
-    private let body_: Body
-    private let params_: ArrayList<FuncParam>
-
-    public init(id: NodeId, keyword: Token, body: Body,
-                modifiers: ArrayList<Modifier>, params: ArrayList<FuncParam>) {
-        super(id, keyword, modifiers)
-        this.body_ = body
-        this.params_ = params
+public class MainDecl <: Decl {
+    private let block_: Block
+    private let param_: ?FuncParam
+    private let declType_: ?TypeNode
+    
+    public MainDecl(id: NodeId, block: Block, param: ?FuncParam, 
+                    declType: ?TypeNode) {
+        super(id)
+        this.block_ = block
+        this.param_ = param
+        this.declType_ = declType
     }
 
     public override func traverse(v: Visitor): Unit {
         v.visit(this)
         if (!v.needBreakTraverse()) { return }
         super.traverse(v)
-        params.iterator().forEach({ p => p.traverse(v) })
-        body.traverse(v)
+        if (let Some(p) <- param) {
+            p.traverse(v)
+        }
+        block.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
         super.prettyPrint(printer)
-        printer.append("(")
-        if (!params.isEmpty()) {
-            params[0].prettyPrint(printer)
-            for (i in 1..params.size) {
-                printer.append(", ")
-                params[i].prettyPrint(printer)
-            }
+        printer.append("main(")
+        if (let Some(a) <- param) {
+            a.prettyPrint(printer)
         }
         printer.append(")")
-        body_.prettyPrint(printer)
+
+        if (let Some(dtype) <- declType) {
+            dtype.prettyPrint(printer)
+        }
+        block_.prettyPrint(printer)
     }
 
-    public prop body: Body {
-        get() { body_ }
+    public prop block: Block {
+        get() { block_ }
     }
 
-    public prop params: ArrayList<FuncParam> {
-        get() { params_ }
+    public prop param: ?FuncParam {
+        get() { param_ }
     }
 
+    public prop declType: ?TypeNode {
+        get() { declType_ }
+    }
 
 }
 
@@ -163,6 +160,11 @@ public class FuncParam <: Decl {
 
     public init(id: NodeId, paramType: TypeNode) {
         super(id)
+        paramType_ = paramType
+    }
+
+    public init(id: NodeId, keyword: Token, paramType: TypeNode) {
+        super(id, keyword)
         paramType_ = paramType
     }
 
@@ -181,6 +183,10 @@ public class FuncParam <: Decl {
     public prop paramType: TypeNode {
         get() { paramType_ }
     }
+
+    public func isMemberParam() {
+        return keyword.kind != TokenKind.ILLEGAL
+    }
 }
 
 public class FuncDecl <: Decl {
@@ -190,12 +196,16 @@ public class FuncDecl <: Decl {
     private let declType_: ?TypeNode
 
     public init(id: NodeId, keyword: Token, identifier: Token, block: Block,
-                modifiers: ArrayList<Modifier>, params: ArrayList<FuncParam>,
-                declType: ?TypeNode) {
-        super(id, keyword, identifier, modifiers)
+                params: ArrayList<FuncParam>, declType: ?TypeNode) {
+        super(id, keyword, identifier)
         this.block_ = block
         this.params_ = params
         this.declType_ = declType
+    }
+
+    public init(id: NodeId, keyword: Token, block: Block,
+                params: ArrayList<FuncParam>) {
+        this(id, keyword, Token(), block, params, None)
     }
 
     public override func traverse(v: Visitor): Unit {
@@ -233,58 +243,5 @@ public class FuncDecl <: Decl {
 
     public prop declType: ?TypeNode {
         get() { declType_ }
-    }
-}
-
-public class ClassDecl <: Decl {
-    private let body_: Body
-
-    public init(id: NodeId, identifier: Token, body: Body) {
-        super(id)
-        body_ = body
-        this.identifier = identifier
-    }
-
-    public override func traverse(v: Visitor): Unit {
-        v.visit(this)
-        if (!v.needBreakTraverse()) { return }
-        super.traverse(v)
-        body.traverse(v)
-    }
-
-    public override func prettyPrint(printer: PrettyPrinter) {
-        printer.append("class ")
-        super.prettyPrint(printer)
-        body.prettyPrint(printer)
-    }
-
-    public prop body: Body {
-        get() { body_ }
-    }
-}
-
-public class StructDecl <: Decl {
-    private let body_: Body
-
-    public StructDecl(id: NodeId, keyword: Token, identifier: Token,
-                        modifiers: ArrayList<Modifier>, body: Body) {
-        super(id, keyword, identifier, modifiers)
-        body_ = body
-    }
-
-    public override func traverse(v: Visitor): Unit {
-        v.visit(this)
-        if (!v.needBreakTraverse()) { return }
-        super.traverse(v)
-        body.traverse(v)
-    }
-
-    public override func prettyPrint(printer: PrettyPrinter) {
-        super.prettyPrint(printer)
-        body.prettyPrint(printer)
-    }
-
-    public prop body: Body {
-        get() { body_ }
     }
 }
