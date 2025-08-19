@@ -67,7 +67,7 @@ public class ParenExpr <: Expr {
     public override func traverse(v: Visitor): Unit {
         v.visit(this)
         if (!v.needBreakTraverse()) { return }
-        expr.traverse(v)
+        parenthesizedExpr.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -359,7 +359,7 @@ public class ReturnExpr <: Expr {
     public override func traverse(v: Visitor): Unit {
         v.visit(this)
         if (!v.needBreakTraverse()) { return }
-        value.traverse(v)
+        expr.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
