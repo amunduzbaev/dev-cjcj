@@ -16,7 +16,7 @@ public open class TypeNode <: Node {
         typeParameterName_ = typeParameterName
     }
 
-    public override open func traverse(v: Visitor): Unit {
+    public override open func traverse<R>(v: Visitor<R>): R  {
         v.visit(this)
     }
 
@@ -32,7 +32,7 @@ public open class TypeNode <: Node {
 
 public class PrimitiveType <: TypeNode {
     // Keyword for constructing a primitive type.
-    private let keyword_: Token
+    private var keyword_: Token
 
     public init(id: NodeId, typeParameterName: Token, keyword: Token) {
         super(id)
@@ -44,7 +44,7 @@ public class PrimitiveType <: TypeNode {
         super.typeParameterName = typeParameterName
     }
 
-    public override func traverse(v: Visitor): Unit {
+    public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 
@@ -58,29 +58,28 @@ public class PrimitiveType <: TypeNode {
             .any({ t => t == keyword.kind })
     }
 
-    public prop keyword: Token {
+    public mut prop keyword: Token {
         get() { keyword_ }
+        set(v) { keyword_ }
     }
 }
 
 public class RefType <: TypeNode {
-    private let identifier_: Token
+    private var identifier_: Token
 
     public init(id: NodeId, typeParameterName: Token, identifier: Token) {
         super(id, typeParameterName)
         identifier_ = identifier
     }
 
-    public override func traverse(v: Visitor): Unit {
-        v.visit(this)
-    }
 
     public override func prettyPrint(printer: PrettyPrinter) {
         super.prettyPrint(printer)
         printer.append(": " + identifier.value)
     }
 
-    public prop identifier: Token {
+    public mut prop identifier: Token {
         get() { identifier_ }
+        set(v) { identifier_ = v }
     }
 }

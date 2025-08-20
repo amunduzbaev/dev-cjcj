@@ -11,7 +11,7 @@ public open class Expr <: Node {
         super(id)
     }
 
-    public override open func traverse(v: Visitor): Unit {
+    public override open func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 
@@ -19,9 +19,9 @@ public open class Expr <: Node {
 }
 
 public class BinaryExpr <: Expr {
-    private let left_: Expr
-    private let oper_: Token
-    private let right_: Expr
+    private var left_: Expr
+    private var oper_: Token
+    private var right_: Expr
 
     public BinaryExpr(id: NodeId, left: Expr, oper: Token, right: Expr) {
         super(id)
@@ -30,11 +30,11 @@ public class BinaryExpr <: Expr {
         right_ = right
     }
 
-    public override func traverse(v: Visitor): Unit {
+    public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        if (!v.needBreakTraverse()) { return }
-        left.traverse(v)
-        right.traverse(v)
+        // if (!v.needBreakTraverse()) { return }
+        // left.traverse(v)
+        // right.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -43,31 +43,34 @@ public class BinaryExpr <: Expr {
         right.prettyPrint(printer)
     }
 
-    public prop left: Expr {
+    public mut prop left: Expr {
         get() { left_ }
+        set(v) { left_ = v }
     }
 
-    public prop oper: Token {
+    public mut prop oper: Token {
         get() { oper_ }
+        set(v) { oper_ = v }
     }
 
-    public prop right: Expr {
+    public mut prop right: Expr {
         get() { right_ }
+        set(v) { right_ = v }
     }
 }
 
 public class ParenExpr <: Expr {
-    private let parenthesizedExpr_: Expr
+    private var parenthesizedExpr_: Expr
 
     public ParenExpr(id: NodeId, parenthesizedExpr: Expr) {
         super(id)
         parenthesizedExpr_ = parenthesizedExpr
     }
 
-    public override func traverse(v: Visitor): Unit {
+    public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        if (!v.needBreakTraverse()) { return }
-        parenthesizedExpr.traverse(v)
+        // if (!v.needBreakTraverse()) { return }
+        // parenthesizedExpr.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -76,20 +79,21 @@ public class ParenExpr <: Expr {
         printer.append(")")
     }
 
-    public prop parenthesizedExpr: Expr {
+    public mut prop parenthesizedExpr: Expr {
         get() { parenthesizedExpr_ }
+        set(v) { parenthesizedExpr_ = v }
     }
 }
 
 public class LitConstExpr <: Expr {
-    private let literal_: Token
+    private var literal_: Token
 
     public LitConstExpr(id: NodeId, value: Token) {
         super(id)
         literal_ = value
     }
 
-    public override func traverse(v: Visitor): Unit {
+    public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 
@@ -97,14 +101,15 @@ public class LitConstExpr <: Expr {
         printer.append(literal.value)
     }
 
-    public prop literal: Token {
+    public mut prop literal: Token {
         get() { literal_ }
+        set(v) { literal_ = v }
     }
 }
 
 public class UnaryExpr <: Expr {
-    private let oper_: Token
-    private let right_: Expr
+    private var oper_: Token
+    private var right_: Expr
 
     public UnaryExpr(id: NodeId, oper: Token, right: Expr) {
         super(id)
@@ -112,10 +117,10 @@ public class UnaryExpr <: Expr {
         right_ = right
     }
 
-    public override func traverse(v: Visitor): Unit {
+    public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        if (!v.needBreakTraverse()) { return }
-        right.traverse(v)
+        // if (!v.needBreakTraverse()) { return }
+        // right.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -123,18 +128,20 @@ public class UnaryExpr <: Expr {
         right.prettyPrint(printer)
     }
 
-    public prop oper: Token {
+    public mut prop oper: Token {
         get() { oper_ }
+        set(v) { oper_ = v }
     }
 
-    public prop right: Expr {
+    public mut prop right: Expr {
         get() { right_ }
+        set(v) { right_ = v }
     }
 }
 
 public class AssignExpr <: Expr {
-    private let left_: Expr
-    private let right_: Expr
+    private var left_: Expr
+    private var right_: Expr
 
     public AssignExpr(id: NodeId, name: Expr, value: Expr) {
         super(id)
@@ -142,11 +149,11 @@ public class AssignExpr <: Expr {
         right_ = value
     }
 
-    public override func traverse(v: Visitor): Unit {
+    public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        if (!v.needBreakTraverse()) { return }
-        left.traverse(v)
-        right.traverse(v)
+        // if (!v.needBreakTraverse()) { return }
+        // left.traverse(v)
+        // right.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -155,12 +162,14 @@ public class AssignExpr <: Expr {
         right.prettyPrint(printer)
     }
 
-    public prop left: Expr {
+    public mut prop left: Expr {
         get() { left_ }
+        set(v) { left_ = v }
     }
 
-    public prop right: Expr {
+    public mut prop right: Expr {
         get() { right_ }
+        set(v) { right_ = v }
     }
 }
 
@@ -172,12 +181,13 @@ public class RefExpr <: Expr {
         identifier_ = identifier
     }
 
-    public override func traverse(v: Visitor): Unit {
+    public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 
-    public prop identifier: Token {
+    public mut prop identifier: Token {
         get() { identifier_ }
+        set(v) { identifier_ = v }
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
@@ -186,17 +196,17 @@ public class RefExpr <: Expr {
 }
 
 public class Block <: Expr {
-    private let nodes_: Array<Node>
+    private var nodes_: Array<Node>
 
     public Block(id: NodeId, statements: Array<Node>) {
         super(id)
         nodes_ = statements
     }
 
-    public override func traverse(v: Visitor): Unit {
+    public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        if (!v.needBreakTraverse()) { return }
-        nodes.iterator().forEach({ n => n.traverse(v) })
+        // if (!v.needBreakTraverse()) { return }
+        // nodes.iterator().forEach({ n => n.traverse(v) })
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -218,15 +228,16 @@ public class Block <: Expr {
         printer.append("\n}\n")
     }
 
-    public prop nodes: Array<Node> {
+    public mut prop nodes: Array<Node> {
         get() { nodes_ }
+        set(v) { nodes_ = v }
     }
 }
 
 public class IfExpr <: Expr {
-    private let condition_: Expr
-    private let ifBlock_: Block
-    private let elseBranch_: ?Expr
+    private var condition_: Expr
+    private var ifBlock_: Block
+    private var elseBranch_: ?Expr
 
     public init(id: NodeId, condition: Expr, ifBlock: Block) {
         this(id, condition, ifBlock, None)
@@ -240,14 +251,14 @@ public class IfExpr <: Expr {
         elseBranch_ = elseBranch
     }
 
-    public override func traverse(v: Visitor): Unit {
+    public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        if (!v.needBreakTraverse()) { return }
-        condition.traverse(v)
-        ifBlock.traverse(v)
-        if (let Some(branch) <- elseBranch) {
-            branch.traverse(v)
-        }
+        // if (!v.needBreakTraverse()) { return }
+        // condition.traverse(v)
+        // ifBlock.traverse(v)
+        // if (let Some(branch) <- elseBranch) {
+        //     branch.traverse(v)
+        // }
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -261,22 +272,25 @@ public class IfExpr <: Expr {
         }
     }
 
-    public prop condition: Expr {
+    public mut prop condition: Expr {
         get() { condition_ }
+        set(v) { condition_ = v }
     }
 
-    public prop ifBlock: Block {
+    public mut prop ifBlock: Block {
         get() { ifBlock_ }
+        set(v) { ifBlock_ = v }
     }
 
-    public prop elseBranch: ?Expr {
+    public mut prop elseBranch: ?Expr {
         get() { elseBranch_ }
+        set(v) { elseBranch_ = v }
     }
 }
 
 public class WhileExpr <: Expr {
-    private let condition_: Expr
-    private let block_: Block
+    private var condition_: Expr
+    private var block_: Block
 
     public WhileExpr(id: NodeId, condition: Expr, block: Block) {
         super(id)
@@ -284,11 +298,11 @@ public class WhileExpr <: Expr {
         block_ = block
     }
 
-    public override func traverse(v: Visitor): Unit {
+    public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        if (!v.needBreakTraverse()) { return }
-        condition.traverse(v)
-        block.traverse(v)
+        // if (!v.needBreakTraverse()) { return }
+        // condition.traverse(v)
+        // block.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -298,18 +312,20 @@ public class WhileExpr <: Expr {
         block.prettyPrint(printer)
     }
 
-    public prop condition: Expr {
+    public mut prop condition: Expr {
         get() { condition_ }
+        set(v) { condition_ = v }
     }
 
-    public prop block: Block {
+    public mut prop block: Block {
         get() { block_ }
+        set(v) { block_ = v }
     }
 }
 
 public class CallExpr <: Expr {
-    private let callee_: Expr
-    private let arguments_: ArrayList<Argument>
+    private var callee_: Expr
+    private var arguments_: ArrayList<Argument>
 
     public CallExpr(id: NodeId, callee: Expr, arguments: ArrayList<Argument>) {
         super(id)
@@ -317,11 +333,11 @@ public class CallExpr <: Expr {
         arguments_ = arguments
     }
 
-    public override func traverse(v: Visitor): Unit {
+    public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        if (!v.needBreakTraverse()) { return }
-        callee.traverse(v)
-        arguments.iterator().forEach({ a => a.traverse(v) })
+        // if (!v.needBreakTraverse()) { return }
+        // callee.traverse(v)
+        // arguments.iterator().forEach({ a => a.traverse(v) })
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
@@ -338,17 +354,19 @@ public class CallExpr <: Expr {
         printer.append(")")
     }
 
-    public prop callee: Expr {
+    public mut prop callee: Expr {
         get() { callee_ }
+        set(v) { callee_ = v }
     }
-    public prop arguments: ArrayList<Argument> {
+    public mut prop arguments: ArrayList<Argument> {
         get() { arguments_ }
+        set(v) { arguments_ = v }
     }
 }
 
 public class ReturnExpr <: Expr {
-    private let expr_: ?Expr 
-    private let keyword_: Token
+    private var expr_: ?Expr 
+    private var keyword_: Token
 
     public ReturnExpr(id: NodeId, value: ?Expr, keyword: Token) {
         super(id)
@@ -356,10 +374,10 @@ public class ReturnExpr <: Expr {
         keyword_ = keyword
     }
 
-    public override func traverse(v: Visitor): Unit {
+    public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        if (!v.needBreakTraverse()) { return }
-        expr.traverse(v)
+        // if (!v.needBreakTraverse()) { return }
+        // expr.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
@@ -370,7 +388,7 @@ public class ReturnExpr <: Expr {
         }
     }
 
-    public prop expr: Expr {
+    public mut prop expr: Expr {
         get() {
             match(expr_) {
                 case Some(v) => v
@@ -378,22 +396,25 @@ public class ReturnExpr <: Expr {
                     "Current return expression has none expr")
             }
         }
+        set(v) { expr_ = v }
     }
 
-    public prop keyword: Token {
+    public mut prop keyword: Token {
         get() { keyword_ }
+        set(v) { keyword_ = v }
     }
 }
 
 public class JumpExpr <: Expr {
-    private let keyword_: Token
+    private var keyword_: Token
 
     public JumpExpr(id: NodeId, keyword: Token) {
         super(id)
         keyword_ = keyword
     }
 
-    public prop keyword: Token {
+    public mut prop keyword: Token {
         get() { keyword_ }
+        set(v) { keyword_ = v }
     }
 }

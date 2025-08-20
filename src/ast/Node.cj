@@ -22,9 +22,11 @@ abstract sealed class Node {
     }
 
     /*
+    * TODO: Change this definition if it's better to let the visitor visit the
+    * subgraph.
     * Visits the subtree of which this node is the root.
     */
-    public func traverse(v: Visitor): Unit
+    public open func traverse<R>(v: Visitor<R>): R
 
     /*
     * Print the node and its children as a piece of Cangjie code.
@@ -37,39 +39,40 @@ abstract sealed class Node {
 }
 
 public class Argument <: Node {
-    private let expr_: Node
+    private var expr_: Node
 
     public Argument(id: NodeId, expr: Node) {
         super(id)
         expr_ = expr
     }
 
-    public override func traverse(v: Visitor): Unit {
+    public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        if (v.needBreakTraverse()) { return }
-        expr.traverse(v)
+        // if (v.needBreakTraverse()) { return }
+        // expr.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
         expr.prettyPrint(printer)
     }
 
-    public prop expr: Node {
+    public mut prop expr: Node {
         get() { expr_ }
+        set(v) { expr_ = v }
     }
 }
 
 public class Program <: Node {
-    private let decls_: ArrayList<Decl>
+    private var decls_: ArrayList<Decl>
 
     public Program(id: NodeId, decls: ArrayList<Decl>) {
         super(id)
         decls_ = decls
     }
 
-    public override func traverse(v: Visitor): Unit {
+    public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        decls.iterator().forEach({ d => d.traverse(v) })
+        // decls.iterator().forEach({ d => d.traverse(v) })
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
@@ -79,7 +82,8 @@ public class Program <: Node {
         })
     }
 
-    public prop decls: ArrayList<Decl> {
+    public mut prop decls: ArrayList<Decl> {
         get() { decls_ }
+        set(v) { decls_ = v }
     }
 }

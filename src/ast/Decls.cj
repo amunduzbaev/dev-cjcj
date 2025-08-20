@@ -32,9 +32,9 @@ public abstract class Decl <: Node {
         this.keyword_ = decl.keyword_
     }
 
-    public override open func traverse(v: Visitor): Unit {
+    public override open func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        if (!v.needBreakTraverse()) { return }
+        // if (!v.needBreakTraverse()) { return }
     }
 
     public mut open prop identifier: Token {
@@ -58,8 +58,8 @@ public abstract class Decl <: Node {
 }
 
 public class VarDecl <: Decl {
-    private let initializer_: ?Expr
-    private let declType_: ?TypeNode
+    private var initializer_: ?Expr
+    private var declType_: ?TypeNode
 
     public init (id: NodeId, keyword: Token, identifier: Token) {
         this(id, keyword, identifier, None)
@@ -76,21 +76,23 @@ public class VarDecl <: Decl {
         declType_ = declType
     }
 
-    public override func traverse(v: Visitor): Unit {
+    public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        if (!v.needBreakTraverse()) { return }
-        super.traverse(v)
-        if (let Some(ini) <- initializer) {
-            ini.traverse(v)
-        }
+        // if (!v.needBreakTraverse()) { return }
+        // super.traverse(v)
+        // if (let Some(ini) <- initializer) {
+        //     ini.traverse(v)
+        // }
     }
 
-    public prop initializer: ?Expr {
+    public mut prop initializer: ?Expr {
         get() { initializer_ }
+        set(v) { initializer_ = v }
     }
 
-    public prop declType: ?TypeNode {
+    public mut prop declType: ?TypeNode {
         get() { declType_ }
+        set(v) { declType_ = v }
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -104,9 +106,9 @@ public class VarDecl <: Decl {
 }
 
 public class MainDecl <: Decl {
-    private let block_: Block
-    private let param_: ?FuncParam
-    private let declType_: ?TypeNode
+    private var block_: Block
+    private var param_: ?FuncParam
+    private var declType_: ?TypeNode
     
     public MainDecl(id: NodeId, block: Block, param: ?FuncParam, 
                     declType: ?TypeNode) {
@@ -116,14 +118,14 @@ public class MainDecl <: Decl {
         this.declType_ = declType
     }
 
-    public override func traverse(v: Visitor): Unit {
+    public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        if (!v.needBreakTraverse()) { return }
-        super.traverse(v)
-        if (let Some(p) <- param) {
-            p.traverse(v)
-        }
-        block.traverse(v)
+        // if (!v.needBreakTraverse()) { return }
+        // super.traverse(v)
+        // if (let Some(p) <- param) {
+        //     p.traverse(v)
+        // }
+        // block.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -140,22 +142,25 @@ public class MainDecl <: Decl {
         block_.prettyPrint(printer)
     }
 
-    public prop block: Block {
+    public mut prop block: Block {
         get() { block_ }
+        set(v) { block_ = v }
     }
 
-    public prop param: ?FuncParam {
+    public mut prop param: ?FuncParam {
         get() { param_ }
+        set(v) { param_ = v }
     }
 
-    public prop declType: ?TypeNode {
+    public mut prop declType: ?TypeNode {
         get() { declType_ }
+        set(v) { declType_ = v }
     }
 
 }
 
 public class FuncParam <: Decl {
-    private let paramType_: TypeNode
+    private var paramType_: TypeNode
 
     public init(id: NodeId, paramType: TypeNode) {
         super(id)
@@ -167,11 +172,11 @@ public class FuncParam <: Decl {
         paramType_ = paramType
     }
 
-    public override func traverse(v: Visitor): Unit {
+    public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        if (!v.needBreakTraverse()) { return }
-        super.traverse(v)
-        paramType.traverse(v)
+        // if (!v.needBreakTraverse()) { return }
+        // super.traverse(v)
+        // paramType.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -179,8 +184,9 @@ public class FuncParam <: Decl {
         paramType.prettyPrint(printer)
     }
 
-    public prop paramType: TypeNode {
+    public mut prop paramType: TypeNode {
         get() { paramType_ }
+        set(v) { paramType_ = v }
     }
 
     public func isMemberParam() {
@@ -189,10 +195,10 @@ public class FuncParam <: Decl {
 }
 
 public class FuncDecl <: Decl {
-    private let block_: Block
-    private let params_: ArrayList<FuncParam>
+    private var block_: Block
+    private var params_: ArrayList<FuncParam>
 
-    private let declType_: ?TypeNode
+    private var declType_: ?TypeNode
 
     public init(id: NodeId, keyword: Token, identifier: Token, block: Block,
                 params: ArrayList<FuncParam>, declType: ?TypeNode) {
@@ -207,12 +213,12 @@ public class FuncDecl <: Decl {
         this(id, keyword, Token(), block, params, None)
     }
 
-    public override func traverse(v: Visitor): Unit {
+    public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        if (!v.needBreakTraverse()) { return }
-        super.traverse(v)
-        params.iterator().forEach({ p => p.traverse(v) })
-        block.traverse(v)
+        // if (!v.needBreakTraverse()) { return }
+        // super.traverse(v)
+        // params.iterator().forEach({ p => p.traverse(v) })
+        // block.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -232,15 +238,18 @@ public class FuncDecl <: Decl {
         block_.prettyPrint(printer)
     }
 
-    public prop block: Block {
+    public mut prop block: Block {
         get() { block_ }
+        set(v) { block_ = v }
     }
 
-    public prop params: ArrayList<FuncParam> {
+    public mut prop params: ArrayList<FuncParam> {
         get() { params_ }
+        set(v) { params_ = v }
     }
 
-    public prop declType: ?TypeNode {
+    public mut prop declType: ?TypeNode {
         get() { declType_ }
+        set(v) { declType_ = v }
     }
 }
