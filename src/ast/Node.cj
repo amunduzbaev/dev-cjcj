@@ -48,3 +48,23 @@ public class Argument <: Node {
         get() { expr_ }
     }
 }
+
+public class Program <: Node {
+    private let decls_: ArrayList<Decl>
+
+    public Program(id: NodeId, decls: ArrayList<Decl>) {
+        super(id)
+        decls_ = decls
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        decls.iterator().forEach({
+            d => d.prettyPrint(printer)
+            printer.append("\n")
+        })
+    }
+
+    public prop decls: ArrayList<Decl> {
+        get() { decls_ }
+    }
+}

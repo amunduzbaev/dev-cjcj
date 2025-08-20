@@ -18,7 +18,7 @@ internal open class DeclParser {
     public DeclParser(private let helper: ParserHelper, private let reporter: Reporter) {
     }
 
-    func topLevelObject(): ?Node {
+    func topLevelObject(): ?Decl {
         if (let Some(funcDef) <- functionDefinition()) {
             return funcDef
         }
