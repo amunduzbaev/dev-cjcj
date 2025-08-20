@@ -15,7 +15,7 @@ internal open class DeclParser {
 
     private static const MAX_PARAM_NUMBER = 255
 
-    public DeclParser(private let helper: ParserHelper) {
+    public DeclParser(private let helper: ParserHelper, private let reporter: Reporter) {
     }
 
     func topLevelObject(): ?Node {
@@ -49,7 +49,7 @@ internal open class DeclParser {
             helper.skipNL()
             if (parameters.size >= MAX_PARAM_NUMBER) {
                 throw helper.error(helper.peek(), "Can't have more than " +
-                    MAX_PARAM_NUMBER.toString() + " parameters.")
+                    MAX_PARAM_NUMBER.toString() + " parameters.", helper.current)
             }
             parameters.add(unnamedParameter())
             helper.skipNL()
@@ -63,15 +63,15 @@ internal open class DeclParser {
         }
         let keyword: Token = helper.previous()
         helper.skipNL()
-        let name: Token = helper.consume(TK.IDENTIFIER, "Expect function name.")
+        let name: Token = helper.consume(TK.IDENTIFIER, "Expect function name.", helper.current)
         var parameters: ArrayList<FuncParam> = ArrayList()
         helper.skipNL()
         if (!helper.matches(TK.UNIT_LITERAL)) {
-            helper.consume(TK.LPAREN, "Expect '(' before function parameters")
+            helper.consume(TK.LPAREN, "Expect '(' before function parameters", helper.current)
             helper.skipNL()
             parameters = unnamedParameterList()
             helper.skipNL()
-            helper.consume(TK.RPAREN, "Expect ')' after function parameters")
+            helper.consume(TK.RPAREN, "Expect ')' after function parameters", helper.current)
         }
         var declType: ?TypeNode = None
         helper.skipNL()
@@ -98,27 +98,29 @@ internal open class DeclParser {
     private func unnamedParameter(): FuncParam {
         if (helper.matches(TK.IDENTIFIER, TK.WILDCARD)) {
             let parameterName = helper.previous()
-            helper.consume(TK.COLON, "Expect ':' after parameter name")
+            helper.consume(TK.COLON, "Expect ':' after parameter name", helper.current)
             let keyword = helper.advance()
             FuncParam(NodeIdManager.nextId(),
                 nodeType(NodeIdManager.nextId(), parameterName, keyword))
         } else {
-            throw helper.error(helper.peek(), "Expected unnamed parameter")
+            throw helper.error(helper.peek(), "Expected unnamed parameter", helper.current)
         }
     }
 
-    func mainDefinition(): MainDecl {
+    func mainDefinition(): ?MainDecl {
+        if (!helper.matches(TK.MAIN)) {
+            return None
+        }
         var parameter: ?FuncParam = None
         var parameters: Int64 = 0
         if (!helper.matches(TK.UNIT_LITERAL)) {
-            helper.consume(TK.LPAREN, "Expect '(' after main.")
+            helper.consume(TK.LPAREN, "Expect '(' after main.", helper.current)
             try { 
                 if (!helper.check(TK.RPAREN)) {
                     do {
                         if (parameters >= 1) {
                             throw helper.error(helper.peek(),
-                                "Can't have more than 1 parameter in main " +
-                                "function.")
+                                "Can't have more than 1 parameter in main function.", helper.current)
                         }
                         parameters++
                         parameter = unnamedParameter()
@@ -132,7 +134,7 @@ internal open class DeclParser {
             } catch (error: ParseError) {
                 helper.synchronize()
             }
-            helper.consume(TK.RPAREN, "Expect ') after parameters.")
+            helper.consume(TK.RPAREN, "Expect ') after parameters.", helper.current)
         }
 
         var declType: ?TypeNode = None
@@ -153,7 +155,7 @@ internal open class DeclParser {
         let keyword: Token = helper.previous()
 
         helper.skipNL()
-        let name: Token = helper.consume(TK.IDENTIFIER, "Expect variable name.")
+        let name: Token = helper.consume(TK.IDENTIFIER, "Expect variable name.", helper.current)
 
         var declType: ?TypeNode = None
         if (helper.matches(TK.COLON)) {
@@ -170,10 +172,10 @@ internal open class DeclParser {
     }
 
     private func block(): Block {
-        helper.consume(TK.LCURL, "Expect '{' before block.")
+        helper.consume(TK.LCURL, "Expect '{' before block.", helper.current)
         let nodes: Array<Node> = expressionOrDeclarations()
         helper.endStar()
-        helper.consume(TK.RCURL, "Expect '}' after block.")
+        helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
         Block(NodeIdManager.nextId(), nodes)
     }
 
@@ -188,13 +190,21 @@ internal open class DeclParser {
     }
 
     private func expressionOrDeclaration(): ?Node {
-        if (let Some(decl) <- declaration()) {
-            return decl
+        try {
+            if (let Some(decl) <- declaration()) {
+                return decl
+            }
+            if (let Some(expr) <- expression()) {
+                return expr
+            } 
+            if (helper.matches(TKH.END) || helper.check(TK.RCURL)) {
+                return None
+            }
+            throw helper.error(helper.peek(), "Expected expression or declaration inside block", helper.current)
+        } catch (e: ParseError) {
+            helper.synchronize()
+            None
         }
-        if (let Some(expr) <- expression()) {
-            return expr
-        }
-        None
     }
 
 
@@ -202,15 +212,17 @@ internal open class DeclParser {
         if (!helper.matches(TK.WHILE)) {
             return None
         }
+
         helper.skipNL()
-        helper.consume(TK.LPAREN, "Expect '(' before condition.")
+        helper.consume(TK.LPAREN, "Expect '(' before condition.", helper.current)
         helper.skipNL()
         let condition: Expr = expectExpression(expression,
             "Expected condition after while.")
         helper.skipNL()
-        helper.consume(TK.RPAREN, "Expect ')' after condition.")
+        helper.consume(TK.RPAREN, "Expect ')' after condition.", helper.current)
         helper.skipNL()
         let block: Block = block()
+
         WhileExpr(NodeIdManager.nextId(), condition, block)
     }
 
@@ -226,12 +238,12 @@ internal open class DeclParser {
             return None
         }
         helper.skipNL()
-        helper.consume(TK.LPAREN, "Expect '(' before condition.")
+        helper.consume(TK.LPAREN, "Expect '(' before condition.", helper.current)
         helper.skipNL()
         let condition: Expr = expectExpression(expression,
             "Expected condition after if.")
         helper.skipNL()
-        helper.consume(TK.RPAREN, "Expect ')' after condition.")
+        helper.consume(TK.RPAREN, "Expect ')' after condition.", helper.current)
         helper.skipNL()
 
         let ifBlock: Block = block()
@@ -280,7 +292,7 @@ internal open class DeclParser {
                     helper.skipNL()
                 } while (helper.matches(TK.COMMA))
             }
-            helper.consume(TK.RPAREN, "Expect ')' after agruments.")
+            helper.consume(TK.RPAREN, "Expect ')' after agruments.", helper.current)
         } else if (!helper.matches(TK.UNIT_LITERAL)) {
             return None
         }
@@ -294,7 +306,7 @@ internal open class DeclParser {
     private func expectExpression<T>(function: () -> ?T, message: String): Expr
             where T <: Expr {
         return function().getOrThrow({ =>
-            helper.error(helper.previous(), message)
+            helper.error(helper.previous(), message, helper.current)
         })
     }
 
@@ -506,7 +518,7 @@ internal open class DeclParser {
             let expr: Expr = expectExpression(expression,
                                                 "Expect expression after '('")
             helper.skipNL()
-            helper.consume(TK.RPAREN, "Expected ')' after expression.")
+            helper.consume(TK.RPAREN, "Expected ')' after expression.", helper.current)
             return ParenExpr(NodeIdManager.nextId(), expr)
         }
         None

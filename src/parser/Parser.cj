@@ -15,7 +15,7 @@ public class Parser {
     public Parser(private let tokens: Array<Token>,
                     private let reporter: Reporter) {
         this.parserHelper = ParserHelper(tokens, reporter)
-        this.declParser = DeclParser(parserHelper)
+        this.declParser = DeclParser(parserHelper, reporter)
     }
 
     public func parse(): ?Array<Node> {
@@ -23,24 +23,45 @@ public class Parser {
             var nodes: ArrayList<Node> = ArrayList()
             parserHelper.endStar()
 
-            while (let Some(Obj) <- declParser.topLevelObject()) {
-                nodes.add(Obj)
-                parserHelper.endPlus("Expected end of TopLevelObject")
-            }
-
-            parserHelper.consume(TokenKind.MAIN, "Expected main declaration")
-            nodes.add(declParser.mainDefinition())
-
-            while (!parserHelper.isAtEnd()) {
-                parserHelper.endPlus("Expected NL or SEMI after declaration")
-                if(let Some(Obj) <- declParser.topLevelObject()) {
+            while (!parserHelper.check(TokenKind.MAIN) && !parserHelper.isAtEnd()) {
+                if (let Some(Obj) <- declParser.topLevelObject()) {
                     nodes.add(Obj)
+                    parserHelper.endPlus("Expected end of TopLevelObject", parserHelper.current)
+                } else {
+                    parserHelper.error(parserHelper.peek(), "Expected TopLevelObject keyword", parserHelper.current)
+                    parserHelper.synchronize()
                 }
-            }
 
+            }
+            if(let Some(Obj) <- declParser.mainDefinition()) {
+                nodes.add(Obj)
+            } else {
+                parserHelper.error(parserHelper.peek(), "Program needs at least 1 main declaration", parserHelper.current)
+            }
+            parserHelper.endPlus("Expected end of main declaration", parserHelper.current)
+            while (!parserHelper.isAtEnd()) {
+                if (let Some(Obj) <- declParser.topLevelObject()) {
+                    nodes.add(Obj)
+                    parserHelper.endPlus("Expected end of TopLevelObject", parserHelper.current)
+                } else if (parserHelper.check(TokenKind.MAIN)){
+                    
+                    parserHelper.error(parserHelper.peek(), "Program can have at most 1 main declaration", parserHelper.current)
+                    nodes.add(declParser.mainDefinition().getOrThrow())
+                    
+                    parserHelper.endPlus("Expected end of main declaration", parserHelper.current)
+                } else {
+                    parserHelper.error(parserHelper.peek(), "Expected TopLevelObject keyword", parserHelper.current)
+                    parserHelper.synchronize()
+                }
+                
+            }
             return nodes.toArray()
         } catch (_) {
             return None
         }
+    }
+
+    public func logErrors() {
+        parserHelper.logErrors()
     }
 }

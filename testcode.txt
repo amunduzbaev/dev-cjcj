@@ -1,3 +1,4 @@
+
 let b: Wow
 var a: Wow = 3
 
@@ -11,7 +12,7 @@ func a(a: UInt8, b: Crazy, c: Rune) {
             c = f()()
             return 6 + 5 * 2 - (10 + 5)
         }
-        while (5 & 2 + 4 * 3 ** (2 / 4)) {
+        while (5 & 2 + 4 * 3 ** (2 / 4) ++) {
             return
         } 
     } else if (!h) {
@@ -34,24 +35,15 @@ func a(): Int64 {
     1
 }
 
-main (args: String, args2: String) : Int64 {
-    let b: Int64 = 5
-    if (a + b == 5) {
-        while (b && c || d | 5) {
-            2 + 4
-            a = b
-            c = f()()
-            return 6 + 5 * 2 - (10 + 5)
-        }
-        while (5 & 2 + 4 * 3 ** (2 / 4)) {
-            return
-        }
-    } else if (!h) {
-        a = 10
-    } else {
-        return 10
-    }
-    func d(f: Int64) {
-        10
-    }
+main() {}
+
+let a: Int64 = 0
+
+func d( d: UInt8) 
+{
+    return 6
+}
+
+main() {
+    is
 }

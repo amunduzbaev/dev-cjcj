@@ -1,0 +1,10 @@
+error: expected expression after '(', found '}'
+  ==> /Users/alielfantroussi/Desktop/Compiler_Huawei/cjcj/src/main.cj:58:1:
+   | 
+58 | }
+   | ^ expected expression here
+   | 
+
+1 error generated, 1 error printed.
+Error: failed to compile package `cjcj`, return code is 1
+Error: cjpm run failed

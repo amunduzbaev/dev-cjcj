@@ -24,9 +24,9 @@ public class Cj {
 
     private static func run(source: String) {
         let scanner = Scanner(source.toRuneArray())
-        let tokens = scanner.scanTokens()
+        let tokens = scanner.scanTokens().toArray()
 
-        let parser: Parser = Parser(tokens.toArray(), Reporter(getStdErr()))
+        let parser: Parser = Parser(tokens, Reporter(getStdErr(), tokens))
         let nodes: ?Array<Node> = parser.parse()
 
         let printer: PrettyPrinter = PrettyPrinter()
@@ -37,6 +37,7 @@ public class Cj {
             }
         }
         println(printer.toString())
+        parser.logErrors()
     }
 
 
