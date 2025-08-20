@@ -11,7 +11,14 @@ import std.collection.ArrayList
 public abstract class Decl <: Node {
     protected var identifier_: Token = Token()
     protected var keyword_: Token = identifier_
-    init(id: NodeId) { super(id) }
+    
+    init() {
+        this(NodeId())
+    }
+
+    init(id: NodeId) {
+        super(id)
+    }
 
     init(id: NodeId, keyword: Token, identifier: Token) {
         this(id)
@@ -32,9 +39,8 @@ public abstract class Decl <: Node {
         this.keyword_ = decl.keyword_
     }
 
-    public override open func traverse<R>(v: Visitor<R>): R {
-        v.visit(this)
-        // if (!v.needBreakTraverse()) { return }
+    public override open func traverse<R>(_: Visitor<R>): R {
+        throw UnsupportedException("Method not implemented")
     }
 
     public mut open prop identifier: Token {
@@ -60,6 +66,10 @@ public abstract class Decl <: Node {
 public class VarDecl <: Decl {
     private var initializer_: ?Expr
     private var declType_: ?TypeNode
+
+    public init() {
+        this(NodeId(), Token(), Token())
+    }
 
     public init (id: NodeId, keyword: Token, identifier: Token) {
         this(id, keyword, identifier, None)
@@ -110,6 +120,10 @@ public class MainDecl <: Decl {
     private var param_: ?FuncParam
     private var declType_: ?TypeNode
     
+    public init() {
+        this(NodeId(), Block(), None, None)
+    }
+
     public MainDecl(id: NodeId, block: Block, param: ?FuncParam, 
                     declType: ?TypeNode) {
         super(id)
@@ -162,6 +176,10 @@ public class MainDecl <: Decl {
 public class FuncParam <: Decl {
     private var paramType_: TypeNode
 
+    public init() {
+        this(NodeId(), TypeNode())
+    }
+
     public init(id: NodeId, paramType: TypeNode) {
         super(id)
         paramType_ = paramType
@@ -197,8 +215,11 @@ public class FuncParam <: Decl {
 public class FuncDecl <: Decl {
     private var block_: Block
     private var params_: ArrayList<FuncParam>
-
     private var declType_: ?TypeNode
+
+    public init() {
+        this(NodeId(), Token(), Token(), Block(), ArrayList(), None)
+    }
 
     public init(id: NodeId, keyword: Token, identifier: Token, block: Block,
                 params: ArrayList<FuncParam>, declType: ?TypeNode) {

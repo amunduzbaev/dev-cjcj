@@ -9,7 +9,13 @@ public open class TypeNode <: Node {
     private var typeParameterName_: Token = Token(TokenKind.ILLEGAL, "",
                                                     Position())
 
-    public init(id: NodeId) { super(id) }
+    public init() {
+        this(NodeId())
+    }
+
+    public init(id: NodeId) {
+        super(id)
+    }
 
     public init(id: NodeId, typeParameterName: Token) {
         this(id)
@@ -33,6 +39,10 @@ public open class TypeNode <: Node {
 public class PrimitiveType <: TypeNode {
     // Keyword for constructing a primitive type.
     private var keyword_: Token
+
+    public init() {
+        this(NodeId(), Token(), Token())
+    }
 
     public init(id: NodeId, typeParameterName: Token, keyword: Token) {
         super(id)
@@ -60,18 +70,21 @@ public class PrimitiveType <: TypeNode {
 
     public mut prop keyword: Token {
         get() { keyword_ }
-        set(v) { keyword_ }
+        set(v) { keyword_ = v }
     }
 }
 
 public class RefType <: TypeNode {
     private var identifier_: Token
 
+    public init() {
+        this(NodeId(), Token(), Token())
+    }
+
     public init(id: NodeId, typeParameterName: Token, identifier: Token) {
         super(id, typeParameterName)
         identifier_ = identifier
     }
-
 
     public override func prettyPrint(printer: PrettyPrinter) {
         super.prettyPrint(printer)

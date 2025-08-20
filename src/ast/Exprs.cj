@@ -7,12 +7,18 @@ import cjcj.scanner.TokenKind
 import std.collection.ArrayList
 
 public open class Expr <: Node {
+
+    // Empty constructor, initialize every attribute to a default value.
+    public init () {
+        super(NodeId())
+    }
+
     public init(id: NodeId) {
         super(id)
     }
 
-    public override open func traverse<R>(v: Visitor<R>): R {
-        v.visit(this)
+    public override open func traverse<R>(_: Visitor<R>): R {
+        throw UnsupportedException("Unimplemented method")
     }
 
     public override open func prettyPrint(_: PrettyPrinter): Unit { }
@@ -22,6 +28,11 @@ public class BinaryExpr <: Expr {
     private var left_: Expr
     private var oper_: Token
     private var right_: Expr
+
+    // Empty constructor, initialize every attribute to a default value.
+    public init() {
+        this(NodeId(), Expr(), Token(), Expr())
+    }
 
     public BinaryExpr(id: NodeId, left: Expr, oper: Token, right: Expr) {
         super(id)
@@ -62,6 +73,11 @@ public class BinaryExpr <: Expr {
 public class ParenExpr <: Expr {
     private var parenthesizedExpr_: Expr
 
+    // Empty constructor, initialize every attribute to a default value.
+    public init() {
+        this(NodeId(), Expr())
+    }
+
     public ParenExpr(id: NodeId, parenthesizedExpr: Expr) {
         super(id)
         parenthesizedExpr_ = parenthesizedExpr
@@ -88,9 +104,14 @@ public class ParenExpr <: Expr {
 public class LitConstExpr <: Expr {
     private var literal_: Token
 
-    public LitConstExpr(id: NodeId, value: Token) {
+    // Empty constructor, initialize every attribute to a default value.
+    public init() {
+        this(NodeId(), Token())
+    }
+
+    public LitConstExpr(id: NodeId, literal: Token) {
         super(id)
-        literal_ = value
+        literal_ = literal
     }
 
     public override func traverse<R>(v: Visitor<R>): R {
@@ -110,6 +131,11 @@ public class LitConstExpr <: Expr {
 public class UnaryExpr <: Expr {
     private var oper_: Token
     private var right_: Expr
+
+    // Empty constructor, initialize every attribute to a default value.
+    public init() {
+        this(NodeId(), Token(), Expr())
+    }
 
     public UnaryExpr(id: NodeId, oper: Token, right: Expr) {
         super(id)
@@ -142,6 +168,11 @@ public class UnaryExpr <: Expr {
 public class AssignExpr <: Expr {
     private var left_: Expr
     private var right_: Expr
+
+    // Empty constructor, initialize every attribute to a default value.
+    public init() {
+        this(NodeId(), Expr(), Expr())
+    }
 
     public AssignExpr(id: NodeId, name: Expr, value: Expr) {
         super(id)
@@ -196,11 +227,16 @@ public class RefExpr <: Expr {
 }
 
 public class Block <: Expr {
-    private var nodes_: Array<Node>
+    private var nodes_: ArrayList<Node>
 
-    public Block(id: NodeId, statements: Array<Node>) {
+    // Empty constructor, initialize every attribute to a default value.
+    public init() {
+        this(NodeId(), ArrayList<Node>())
+    }
+
+    public Block(id: NodeId, nodes: ArrayList<Node>) {
         super(id)
-        nodes_ = statements
+        nodes_ = nodes
     }
 
     public override func traverse<R>(v: Visitor<R>): R {
@@ -228,7 +264,7 @@ public class Block <: Expr {
         printer.append("\n}\n")
     }
 
-    public mut prop nodes: Array<Node> {
+    public mut prop nodes: ArrayList<Node> {
         get() { nodes_ }
         set(v) { nodes_ = v }
     }
@@ -238,6 +274,11 @@ public class IfExpr <: Expr {
     private var condition_: Expr
     private var ifBlock_: Block
     private var elseBranch_: ?Expr
+
+    // Empty constructor, initialize every attribute to a default value.
+    public init() {
+        this(NodeId(), Expr(), Block(), None)
+    }
 
     public init(id: NodeId, condition: Expr, ifBlock: Block) {
         this(id, condition, ifBlock, None)
@@ -292,6 +333,11 @@ public class WhileExpr <: Expr {
     private var condition_: Expr
     private var block_: Block
 
+    // Empty constructor, initialize every attribute to a default value.
+    public init() {
+        this(NodeId(), Expr(), Block())
+    }
+
     public WhileExpr(id: NodeId, condition: Expr, block: Block) {
         super(id)
         condition_ = condition
@@ -326,6 +372,11 @@ public class WhileExpr <: Expr {
 public class CallExpr <: Expr {
     private var callee_: Expr
     private var arguments_: ArrayList<Argument>
+
+    // Empty constructor, initialize every attribute to a default value.
+    public init() {
+        this(NodeId(), Expr(), ArrayList())
+    }
 
     public CallExpr(id: NodeId, callee: Expr, arguments: ArrayList<Argument>) {
         super(id)
@@ -368,6 +419,11 @@ public class ReturnExpr <: Expr {
     private var expr_: ?Expr 
     private var keyword_: Token
 
+    // Empty constructor, initialize every attribute to a default value.
+    public init() {
+        this(NodeId(), None, Token())
+    }
+
     public ReturnExpr(id: NodeId, value: ?Expr, keyword: Token) {
         super(id)
         expr_ = value
@@ -382,20 +438,13 @@ public class ReturnExpr <: Expr {
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
         printer.append(keyword.value + " ")
-        try {
-            expr.prettyPrint(printer)
-        } catch (_) {
+        if (let Some(e) <- expr) {
+            e.prettyPrint(printer)
         }
     }
 
-    public mut prop expr: Expr {
-        get() {
-            match(expr_) {
-                case Some(v) => v
-                case None => throw Exception(
-                    "Current return expression has none expr")
-            }
-        }
+    public mut prop expr: ?Expr {
+        get() { expr }
         set(v) { expr_ = v }
     }
 
@@ -407,6 +456,11 @@ public class ReturnExpr <: Expr {
 
 public class JumpExpr <: Expr {
     private var keyword_: Token
+
+    // Empty constructor, initialize every attribute to a default value.
+    public init() {
+        this(NodeId(), Token())
+    }
 
     public JumpExpr(id: NodeId, keyword: Token) {
         super(id)

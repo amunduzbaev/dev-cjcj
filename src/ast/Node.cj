@@ -9,13 +9,18 @@ import std.collection.ArrayList
 public struct NodeId {
     public let id: UInt64
 
+    // Default initializer with a default ID.
+    public init() {
+        this(0)
+    }
+
     public NodeId(id: UInt64) {
         this.id = id
     }
 }
 
-abstract sealed class Node {
-    private let id_: NodeId
+public abstract class Node {
+    private var id_: NodeId
 
     public Node(id: NodeId) {
         id_ = id
@@ -26,15 +31,16 @@ abstract sealed class Node {
     * subgraph.
     * Visits the subtree of which this node is the root.
     */
-    public open func traverse<R>(v: Visitor<R>): R
+    public func traverse<R>(v: Visitor<R>): R
 
     /*
     * Print the node and its children as a piece of Cangjie code.
     */
     public func prettyPrint(printer: PrettyPrinter): Unit
 
-    public prop id: NodeId {
+    public mut prop id: NodeId {
         get() { id_ }
+        set(v) { id_ = v }
     }
 }
 
