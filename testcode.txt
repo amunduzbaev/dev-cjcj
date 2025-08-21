@@ -12,7 +12,8 @@ func a(a: UInt8, b: Crazy, c: Rune) {
             c = f()()
             return 6 + 5 * 2 - (10 + 5)
         }
-        while (5 & 2 + 4 * 3 ** (2 / 4) ++) {
+        while (5 & 2 + 4 * 3 ** (2 / 4)) {
+            is
             return
         } 
     } else if (!h) {

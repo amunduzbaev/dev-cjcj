@@ -70,7 +70,9 @@ Failed to parse program.
 
 private struct Error {
 
-    Error(private let line: Int64, private let index: Int64, private let wher: String, private let message: String, private let suffixPrefix: (String, String)) {}
+    Error(private let line: Int64, private let index: Int64, 
+        private let wher: String, private let message: String, 
+        private let suffixPrefix: (String, String)) {}
 
     public func report(): String {
         let lineStr: String = line.toString()

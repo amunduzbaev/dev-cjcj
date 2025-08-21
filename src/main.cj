@@ -27,7 +27,6 @@ public class Cj {
         let tokens = scanner.scanTokens().toArray()
 
         let parser: Parser = Parser(tokens, Reporter(getStdErr(), tokens))
-        let nodes: ?Array<Node> = parser.parse()
 
         let program: ?Program = parser.parse()
         let printer: PrettyPrinter = PrettyPrinter()

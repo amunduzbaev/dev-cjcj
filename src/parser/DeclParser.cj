@@ -48,7 +48,7 @@ internal open class DeclParser {
         do {
             helper.skipNL()
             if (parameters.size >= MAX_PARAM_NUMBER) {
-                throw helper.error(helper.peek(), "Can't have more than " +
+                throw helper.error(helper.previous(), "Can't have more than " +
                     MAX_PARAM_NUMBER.toString() + " parameters.", helper.current)
             }
             parameters.add(unnamedParameter())
@@ -103,7 +103,7 @@ internal open class DeclParser {
             FuncParam(NodeIdManager.nextId(),
                 nodeType(NodeIdManager.nextId(), parameterName, keyword))
         } else {
-            throw helper.error(helper.peek(), "Expected unnamed parameter", helper.current)
+            throw helper.error(helper.previous(), "Expected unnamed parameter, found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'", helper.current)
         }
     }
 
@@ -200,10 +200,10 @@ internal open class DeclParser {
             if (helper.matches(TKH.END) || helper.check(TK.RCURL)) {
                 return None
             }
-            throw helper.error(helper.peek(), "Expected expression or declaration inside block", helper.current)
+            throw helper.error(helper.peek(), "Expected expression or declaration inside block, found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'", helper.current)
         } catch (e: ParseError) {
-            helper.synchronize()
-            None
+            helper.advance()
+            Expr(NodeIdManager.nextId())
         }
     }
 
@@ -216,8 +216,15 @@ internal open class DeclParser {
         helper.skipNL()
         helper.consume(TK.LPAREN, "Expect '(' before condition.", helper.current)
         helper.skipNL()
-        let condition: Expr = expectExpression(expression,
+        var condition: Expr
+        try {
+            condition = expectExpression(expression,
             "Expected condition after while.")
+        } catch (e: ParseError){
+            helper.synchronize()
+            condition = Expr(NodeIdManager.nextId())
+        }
+
         helper.skipNL()
         helper.consume(TK.RPAREN, "Expect ')' after condition.", helper.current)
         helper.skipNL()
@@ -306,7 +313,7 @@ internal open class DeclParser {
     private func expectExpression<T>(function: () -> ?T, message: String): Expr
             where T <: Expr {
         return function().getOrThrow({ =>
-            helper.error(helper.previous(), message, helper.current)
+            helper.error(helper.peek(), message, helper.current)
         })
     }
 
@@ -464,7 +471,7 @@ internal open class DeclParser {
                 let oper: Token = helper.previous()
                 helper.skipNL()
                 let right: Expr = expectExpression(prefixUnaryExpression,
-                    "Expect prefixUnaryExpression after '**'")
+                    "Expect prefixUnaryExpression after '**', found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'")
                 expr = BinaryExpr(NodeIdManager.nextId(), expr, oper, right)
             }
             return expr
@@ -479,7 +486,7 @@ internal open class DeclParser {
         if (helper.matches(TKH.PREFIX_UNARY_OPERATOR)) {
             let oper: Token = helper.previous()
             let right: Expr = expectExpression(prefixUnaryExpression,
-                "Expected postfixExpression after ${oper.value}")
+                "Expected postfixExpression after ${oper.value}, found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'")
             return UnaryExpr(NodeIdManager.nextId(), oper, right)
         }
         postfixExpression()

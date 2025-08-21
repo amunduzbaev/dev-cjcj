@@ -127,8 +127,11 @@ public class Scanner {
             case ':' => addToken(TokenKind.COLON)
             case '#' => addToken(TokenKind.HASH)
             case '?' => addToken(TokenKind.QUEST)
-            case '_' => addToken(TokenKind.WILDCARD)
-
+            case '_' => if(isAlpha(peekNext())) {
+                            identifier()
+                        } else {
+                            addToken(TokenKind.WILDCARD)
+                        }
             case 'r' => if(matches(r'\'')) {
                             addToken(TokenKind.RUNE_LITERAL, advance())
                             if(peek() != r'\'') {
