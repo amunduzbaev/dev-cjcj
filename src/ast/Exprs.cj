@@ -7,8 +7,6 @@ import cjcj.scanner.TokenKind
 import std.collection.ArrayList
 
 public open class Expr <: Node {
-
-    // Empty constructor, initialize every attribute to a default value.
     public init () {
         super(NodeId())
     }
@@ -29,7 +27,6 @@ public class BinaryExpr <: Expr {
     private var oper_: Token
     private var right_: Node
 
-    // Empty constructor, initialize every attribute to a default value.
     public init() {
         this(NodeId(), Expr(), Token(), Expr())
     }
@@ -43,9 +40,6 @@ public class BinaryExpr <: Expr {
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        // if (!v.needBreakTraverse()) { return }
-        // left.traverse(v)
-        // right.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -73,7 +67,6 @@ public class BinaryExpr <: Expr {
 public class ParenExpr <: Expr {
     private var parenthesizedExpr_: Expr
 
-    // Empty constructor, initialize every attribute to a default value.
     public init() {
         this(NodeId(), Expr())
     }
@@ -85,8 +78,6 @@ public class ParenExpr <: Expr {
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        // if (!v.needBreakTraverse()) { return }
-        // parenthesizedExpr.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -104,7 +95,6 @@ public class ParenExpr <: Expr {
 public class LitConstExpr <: Expr {
     private var literal_: Token
 
-    // Empty constructor, initialize every attribute to a default value.
     public init() {
         this(NodeId(), Token())
     }
@@ -132,7 +122,6 @@ public class UnaryExpr <: Expr {
     private var oper_: Token
     private var right_: Expr
 
-    // Empty constructor, initialize every attribute to a default value.
     public init() {
         this(NodeId(), Token(), Expr())
     }
@@ -145,8 +134,6 @@ public class UnaryExpr <: Expr {
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        // if (!v.needBreakTraverse()) { return }
-        // right.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -169,7 +156,6 @@ public class AssignExpr <: Expr {
     private var left_: Node
     private var right_: Expr
 
-    // Empty constructor, initialize every attribute to a default value.
     public init() {
         this(NodeId(), Expr(), Expr())
     }
@@ -182,9 +168,6 @@ public class AssignExpr <: Expr {
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        // if (!v.needBreakTraverse()) { return }
-        // left.traverse(v)
-        // right.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -229,7 +212,6 @@ public class RefExpr <: Expr {
 public class Block <: Expr {
     private var nodes_: ArrayList<Node>
 
-    // Empty constructor, initialize every attribute to a default value.
     public init() {
         this(NodeId(), ArrayList<Node>())
     }
@@ -241,8 +223,6 @@ public class Block <: Expr {
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        // if (!v.needBreakTraverse()) { return }
-        // nodes.iterator().forEach({ n => n.traverse(v) })
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -275,7 +255,6 @@ public class IfExpr <: Expr {
     private var ifBlock_: Block
     private var elseBranch_: ?Expr
 
-    // Empty constructor, initialize every attribute to a default value.
     public init() {
         this(NodeId(), Expr(), Block(), None)
     }
@@ -294,12 +273,6 @@ public class IfExpr <: Expr {
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        // if (!v.needBreakTraverse()) { return }
-        // condition.traverse(v)
-        // ifBlock.traverse(v)
-        // if (let Some(branch) <- elseBranch) {
-        //     branch.traverse(v)
-        // }
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -333,7 +306,6 @@ public class WhileExpr <: Expr {
     private var condition_: Expr
     private var block_: Block
 
-    // Empty constructor, initialize every attribute to a default value.
     public init() {
         this(NodeId(), Expr(), Block())
     }
@@ -346,9 +318,6 @@ public class WhileExpr <: Expr {
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        // if (!v.needBreakTraverse()) { return }
-        // condition.traverse(v)
-        // block.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -373,7 +342,6 @@ public class CallExpr <: Expr {
     private var callee_: Expr
     private var arguments_: ArrayList<Argument>
 
-    // Empty constructor, initialize every attribute to a default value.
     public init() {
         this(NodeId(), Expr(), ArrayList())
     }
@@ -386,9 +354,6 @@ public class CallExpr <: Expr {
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        // if (!v.needBreakTraverse()) { return }
-        // callee.traverse(v)
-        // arguments.iterator().forEach({ a => a.traverse(v) })
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
@@ -419,7 +384,6 @@ public class ReturnExpr <: Expr {
     private var expr_: ?Expr 
     private var keyword_: Token
 
-    // Empty constructor, initialize every attribute to a default value.
     public init() {
         this(NodeId(), None, Token())
     }
@@ -432,8 +396,6 @@ public class ReturnExpr <: Expr {
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        // if (!v.needBreakTraverse()) { return }
-        // expr.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
@@ -457,7 +419,6 @@ public class ReturnExpr <: Expr {
 public class JumpExpr <: Expr {
     private var keyword_: Token
 
-    // Empty constructor, initialize every attribute to a default value.
     public init() {
         this(NodeId(), Token())
     }

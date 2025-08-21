@@ -27,9 +27,8 @@ public abstract class Node {
     }
 
     /*
-    * TODO: Change this definition if it's better to let the visitor visit the
-    * subgraph.
-    * Visits the subtree of which this node is the root.
+    TODO: Change this implementation to all classes if it's better to let the
+    nodes traverse their subgraph on their own.
     */
     public func traverse<R>(v: Visitor<R>): R
 
@@ -54,8 +53,6 @@ public class Argument <: Node {
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        // if (v.needBreakTraverse()) { return }
-        // expr.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
@@ -78,7 +75,6 @@ public class Program <: Node {
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        // decls.iterator().forEach({ d => d.traverse(v) })
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {

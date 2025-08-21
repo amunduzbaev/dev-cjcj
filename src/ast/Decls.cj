@@ -88,11 +88,6 @@ public class VarDecl <: Decl {
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        // if (!v.needBreakTraverse()) { return }
-        // super.traverse(v)
-        // if (let Some(ini) <- initializer) {
-        //     ini.traverse(v)
-        // }
     }
 
     public mut prop initializer: ?Expr {
@@ -134,12 +129,6 @@ public class MainDecl <: Decl {
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        // if (!v.needBreakTraverse()) { return }
-        // super.traverse(v)
-        // if (let Some(p) <- param) {
-        //     p.traverse(v)
-        // }
-        // block.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -192,9 +181,6 @@ public class FuncParam <: Decl {
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        // if (!v.needBreakTraverse()) { return }
-        // super.traverse(v)
-        // paramType.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -236,10 +222,6 @@ public class FuncDecl <: Decl {
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-        // if (!v.needBreakTraverse()) { return }
-        // super.traverse(v)
-        // params.iterator().forEach({ p => p.traverse(v) })
-        // block.traverse(v)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {

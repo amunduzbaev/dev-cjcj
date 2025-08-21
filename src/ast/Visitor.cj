@@ -1,19 +1,6 @@
 package cjcj.ast
 
 public abstract class Visitor<R> {
-    private var breakTraverseFlag = false
-
-    protected func needBreakTraverse(): Bool {
-        if (breakTraverseFlag) {
-            breakTraverseFlag = false
-            return true
-        }
-        return false
-    }
-
-    public func breakTraverse(): Unit {
-        breakTraverseFlag = true
-    }
 
     protected open func visit(_: Program): R
 

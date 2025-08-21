@@ -27,7 +27,6 @@ public open class TypeNode <: Node {
     }
 
     public override open func prettyPrint(_: PrettyPrinter): Unit {
-        // PrettyPrinter.append(typeParameterName.value)
     }
 
     public mut prop typeParameterName: Token {
