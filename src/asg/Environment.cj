@@ -6,12 +6,18 @@ import cjcj.parser.ParseError
 import std.collection.Map
 import std.collection.HashMap
 
+/*
+* Defines an Environment in which every identifier has a reference object to
+* refer to. Each environment knows who was before him and is able to provide
+* identifiers' references by going up the cactus. (From every environment
+* there's only one way to the root)
+*/
 class Environment {
-    let enclosing: ?Environment
+    private let enclosing_: ?Environment
     private let values: Map<String, ?Reference> = HashMap()
 
     init(enclosing: ?Environment) {
-        this.enclosing = enclosing
+        enclosing_ = enclosing
     }
 
     init() {
@@ -28,13 +34,11 @@ class Environment {
         }
 
         // Go up the environments until something is found or an exception is
-        // thrown. (Recursion is clean but slow needs optimization)
+        // thrown. (Recursion is clean but slow this may need optimization)
         if (enclosing.isSome()) {
             return enclosing.getOrThrow().get(identifier)
         }
 
-        // Temporary usage of parseError that will change to a more specific
-        // error in the future.
         println("Undefined variable '" + identifier.value + "'.")
         throw ParseError()
     }
@@ -60,24 +64,11 @@ class Environment {
         }
     }
 
+    public prop enclosing: ?Environment {
+        get() { enclosing_ }
+    }
+
     public prop isGlobal: Bool {
         get() { return enclosing.isNone() }
     }
-
-    // func getAt(distance: Int64, identifier: Token): Reference {
-    //     ancestor(distance).get(identifier)
-    // }
-
-    // func assignAt(distance: Int64, identifier: Token, value: Reference): Unit {
-    //     ancestor(distance).values.add(identifier.value, value)
-    // }
-
-    // func ancestor(distance: Int64): Environment {
-    //     var environment: Environment = this
-    //     for (i in 0..distance) {
-    //         environment = environment.enclosing.getOrThrow({ =>
-    //             UnsupportedException("Wrong ancestor distance given.")})
-    //     }
-    //     environment
-    // }
 }

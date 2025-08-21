@@ -13,9 +13,6 @@ import std.collection.Map
 import std.collection.HashMap
 import std.deriving.Derive
 
-// Temporary import
-import cjcj.prettyPrinter.PrettyPrinter
-
 @Derive[Equatable]
 private enum ScopeType {
     NIL | BLOCK | BODY

@@ -17,7 +17,7 @@ import std.collection.ArrayList
 * Reference nodes represent variable references inside the ASG, they are still
 * nodes but with specific data needed from the ASG.
 */
-open class Reference <: Node {
+abstract sealed class Reference <: Node {
     /*
     TODO: the identifier will become an expression and in general all the
     * references will be checked by hashing the toString of the expression that
