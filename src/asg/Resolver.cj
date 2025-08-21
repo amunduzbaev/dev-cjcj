@@ -23,6 +23,10 @@ private enum ScopeType {
 * only one declaration that is the MainDecl. Every variable and function
 * reference will be bound to the node of the initialization.
 * The reference and call nodes will be different from the AST for this reason.
+*
+* Note: I'm using a few getOrThrow() functions without custom errors and without
+* catching them because it's impossible that the as didn't work except if
+* there's a bug in the as operator itself.
 */
 public class Resolver <: Visitor<Node> {
     private var currentEnvironment: Environment = Environment()
@@ -30,12 +34,10 @@ public class Resolver <: Visitor<Node> {
 
     /*
     * Resolves all of the function and variable references and returns the new
-    * Program node that is the ASG.
+    * Program node that is the ASG root.
     */
     public func resolve(program: Program): Program {
-        return (program.traverse(this) as Program).getOrThrow({ =>
-            UnsupportedException("The return of the visit of the program has" +
-                " not returned a Program. This should never happen.")})
+        return (program.traverse(this) as Program).getOrThrow()
     }
 
     public override func visit(program: Program): Node {
@@ -44,10 +46,6 @@ public class Resolver <: Visitor<Node> {
             decls.add((d.traverse(this) as Decl).getOrThrow())
         })
         Program(NodeIdManager.nextId(), decls)
-    }
-
-    public override func visit(expr: Expr): Node {
-        expr.traverse(this)
     }
 
     public override func visit(binaryExpr: BinaryExpr): Node {
@@ -79,7 +77,7 @@ public class Resolver <: Visitor<Node> {
         if (let Some(l) <- (assignExpr.left.traverse(this) as Reference)) {
             left = l
         } else {
-            println("No identifier on the left of an assignment")
+            println("No identifier on the left part of an assignment")
             throw ParseError()
         }
         let value: Expr = (assignExpr.right.traverse(this) as Expr).getOrThrow()
@@ -157,16 +155,13 @@ public class Resolver <: Visitor<Node> {
                     case None => None
                 }, returnExpr.keyword)
         }
-        throw UnsupportedException("Return statement not inside a function")
-    }
-
-    public override func visit(decl: Decl): Node {
-        decl.traverse(this)
+        println("Return statement not inside a function")
+        throw ParseError()
     }
 
     public override func visit(varDecl: VarDecl): Node {
         // Call the initializer first because there could be reference to
-        // previous variables with the same identifier
+        // previous variables with the same identifier.
         var initializer: ?Expr = None
         if (let Some(initzer) <- varDecl.initializer) {
             initializer = initzer.traverse(this) as Expr
@@ -221,8 +216,7 @@ public class Resolver <: Visitor<Node> {
             newMain.declType = dt.traverse(this) as TypeNode
         }
         if (let Some(p) <- mainDecl.param) {
-            newMain.param = p
-            p.traverse(this)
+            newMain.param = (p.traverse(this) as FuncParam).getOrThrow()
         }
         newMain.block = (mainDecl.block.traverse(this) as Block).getOrThrow()
         newMain.id = NodeIdManager.nextId()

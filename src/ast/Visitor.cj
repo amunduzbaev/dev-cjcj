@@ -4,8 +4,6 @@ public abstract class Visitor<R> {
 
     protected open func visit(_: Program): R
 
-    protected open func visit(_: Expr): R
-
     protected open func visit(_: BinaryExpr): R
 
     protected open func visit(_: UnaryExpr): R
@@ -27,8 +25,6 @@ public abstract class Visitor<R> {
     protected open func visit(_: CallExpr): R
 
     protected open func visit(_: ReturnExpr): R
-
-    protected open func visit(_: Decl): R
 
     protected open func visit(_: VarDecl): R
 
