@@ -1,4 +1,5 @@
 func h(a: Int64, c: Int64, bo: Bo): Int64 {
+    a + c
     return 10
 }
 
@@ -8,11 +9,12 @@ main (args: String): Unit {
         1 + 4
     }
     a(0)
+    h(0, 1, "hello")
     let b = 10
     b + b
     let j: Int64
     let custom : Custom
     let raa = 0
     let c: Unit
-    let args = 5
+    // let args = 5
 }

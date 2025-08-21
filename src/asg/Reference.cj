@@ -69,34 +69,29 @@ class VariableReference <: Reference {
 class FuncReference <: Reference {
     private let environment_: Environment
     private let params_: ArrayList<FuncParam>
-    private var arguments_: ?ArrayList<Argument>
 
     public FuncReference(id: NodeId, identifier: Token, declType: ?TypeNode,
-        value: Block, environment: Environment, params: ArrayList<FuncParam>,
-        arguments: ?ArrayList<Argument>) {
+        value: Block, environment: Environment, params: ArrayList<FuncParam>) {
         super(id, identifier, declType, value)
         environment_ = environment
         params_ = params
-        arguments_ = arguments
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
-        if (let Some(args) <- arguments) {
-            super.prettyPrint(printer)
-            printer.append("(")
-            if (!args.isEmpty()) {
-                args[0].prettyPrint(printer)
-                args.iterator()
-                    .enumerate()
-                    .filter({ a => a[0] > 0})
-                    .map({ a => a[1] })
-                    .forEach({a => printer.append(", ");a.prettyPrint(printer)})
-            }
-            printer.append(")")
-            return
+        super.prettyPrint(printer)
+        printer.append("(")
+        if (!params.isEmpty()) {
+            environment.get(params[0].name).value.prettyPrint(printer)
+            params.iterator()
+                .enumerate()
+                .filter({ a => a[0] > 0})
+                .map({ a => a[1] })
+                .forEach({a =>
+                    printer.append(", ")
+                    environment.get(a.name).value.prettyPrint(printer)
+                })
         }
-        throw UnsupportedException("Called a function reference pretty print " +
-            "without having a function call, should have been impossible!")
+        printer.append(")")
     }
 
     public prop environment: Environment {
@@ -105,10 +100,5 @@ class FuncReference <: Reference {
 
     public prop params: ArrayList<FuncParam> {
         get() { params_ }
-    }
-
-    public mut prop arguments: ?ArrayList<Argument> {
-        get() { arguments_ }
-        set(v) { arguments_ = v}
     }
 }

@@ -109,7 +109,11 @@ public class LitConstExpr <: Expr {
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
-        printer.append(literal.value)
+        match(literal.kind) {
+            case TokenKind.STRING_LITERAL =>
+                printer.append("\"" + literal.value + "\"")
+            case _ => printer.append(literal.value)
+        }
     }
 
     public mut prop literal: Token {

@@ -193,6 +193,10 @@ public class FuncParam <: Decl {
         set(v) { paramType_ = v }
     }
 
+    public prop name: Token {
+        get() { paramType.typeParameterName }
+    }
+
     public func isMemberParam() {
         return keyword.kind != TokenKind.ILLEGAL
     }

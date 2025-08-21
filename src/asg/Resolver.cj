@@ -30,7 +30,13 @@ private enum ScopeType {
 */
 public class Resolver <: Visitor<Node> {
     private var currentEnvironment: Environment = Environment()
-    private var currentScope: ScopeType = ScopeType.NIL
+    private var lastKilledEnvironment: ?Environment = None
+    private var currentScopeType: ScopeType = ScopeType.NIL
+    
+    // Contains the references that are waiting for the next scope to begin
+    // before getting declared. An example is function parameters, they need to
+    // be declared inside the block and we need a way to tell him.
+    private let waitingDeclarations: ArrayStack<Reference> = ArrayStack()
 
     /*
     * Resolves all of the function and variable references and returns the new
@@ -96,13 +102,17 @@ public class Resolver <: Visitor<Node> {
 
     public override func visit(block: Block): Node {
         beginScope()
-        let precScope: ScopeType = currentScope
-        currentScope = ScopeType.BLOCK
+        let precScopeType: ScopeType = currentScopeType
+        currentScopeType = ScopeType.BLOCK
 
+        while (let Some(last) <- waitingDeclarations.remove()) {
+            declare(last.identifier)
+            assign(last.identifier, last)
+        }
         let nodes: ArrayList<Node> = ArrayList()
         block.nodes.iterator().forEach({ n => nodes.add(n.traverse(this)) })
 
-        currentScope = precScope
+        currentScopeType = precScopeType
         endScope()
         Block(NodeIdManager.nextId(), nodes)
     }
@@ -143,12 +153,19 @@ public class Resolver <: Visitor<Node> {
         callExpr.arguments.iterator().forEach({ a => arguments.add(
             (a.traverse(this) as Argument).getOrThrow()
         )})
-        ref.arguments = arguments
+        if (arguments.size != ref.params.size) {
+            println("Invalid number of parameters, found ${arguments.size} " +
+                "expected ${ref.params.size}")
+            throw ParseError()
+        }
+        // Change the value of the parameters in the function environment.
+        arguments.iterator().enumerate().forEach({ a =>
+            ref.environment.get(ref.params[a[0]].name).value = a[1].expr})
         ref
     }
 
     public override func visit(returnExpr: ReturnExpr): Node {
-        if (currentScope == ScopeType.BLOCK) {
+        if (currentScopeType == ScopeType.BLOCK) {
             return ReturnExpr(NodeIdManager.nextId(),
                 match(returnExpr.expr) {
                     case Some(expr) => expr.traverse(this) as Expr
@@ -195,15 +212,23 @@ public class Resolver <: Visitor<Node> {
         }
         
         let params: ArrayList<FuncParam> = ArrayList()
-        funcDecl.params.iterator().forEach({ p =>
-            params.add((p.traverse(this) as FuncParam).getOrThrow())})
+        funcDecl.params.iterator()
+            .map({ p => (p.traverse(this) as FuncParam).getOrThrow()})
+            .forEach({ p =>
+                params.add(p)
+                // Add an empty variable reference that will be changed in the
+                // function call.
+                waitingDeclarations.add(VariableReference(
+                    NodeIdManager.nextId(),
+                    p.name,
+                    p.paramType, Expr()))})
         
         let block: Block = (funcDecl.block.traverse(this) as Block).getOrThrow()
         
         declare(funcDecl.identifier)
         assign(funcDecl.identifier, FuncReference(NodeIdManager.nextId(),
-            funcDecl.identifier, declType, block, currentEnvironment, params,
-            None))
+            funcDecl.identifier, declType, block,
+            lastKilledEnvironment.getOrThrow(), params))
         
         FuncDecl(NodeIdManager.nextId(), funcDecl.keyword, funcDecl.identifier,
             block, params, declType)
@@ -215,8 +240,13 @@ public class Resolver <: Visitor<Node> {
         if (let Some(dt) <- mainDecl.declType) {
             newMain.declType = dt.traverse(this) as TypeNode
         }
-        if (let Some(p) <- mainDecl.param) {
-            newMain.param = (p.traverse(this) as FuncParam).getOrThrow()
+        if (let Some(p) <- mainDecl.param &&
+            let Some(np) <- (p.traverse(this) as FuncParam)) {
+            newMain.param = np
+            waitingDeclarations.add(VariableReference(
+                NodeIdManager.nextId(),
+                np.name,
+                np.paramType, Expr()))
         }
         newMain.block = (mainDecl.block.traverse(this) as Block).getOrThrow()
         newMain.id = NodeIdManager.nextId()
@@ -243,9 +273,11 @@ public class Resolver <: Visitor<Node> {
 
     private func beginScope(): Unit {
         currentEnvironment = Environment(currentEnvironment)
+        lastKilledEnvironment = None
     }
 
     private func endScope(): Unit {
+        lastKilledEnvironment = currentEnvironment
         currentEnvironment = currentEnvironment.enclosing.getOrThrow({ =>
             UnsupportedException("Trying to close the global scope") })
     }
