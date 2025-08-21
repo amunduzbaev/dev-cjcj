@@ -1,6 +1,6 @@
 package cjcj.ast
 
-public abstract class Visitor {
+public abstract class Visitor<R> {
     private var breakTraverseFlag = false
 
     protected func needBreakTraverse(): Bool {
@@ -15,45 +15,47 @@ public abstract class Visitor {
         breakTraverseFlag = true
     }
 
-    protected open func visit(_: Program): Unit { }
+    protected open func visit(_: Program): R
 
-    protected open func visit(_: Expr): Unit { }
+    protected open func visit(_: Expr): R
 
-    protected open func visit(_: BinaryExpr): Unit { }
+    protected open func visit(_: BinaryExpr): R
 
-    protected open func visit(_: UnaryExpr): Unit { }
+    protected open func visit(_: UnaryExpr): R
 
-    protected open func visit(_: ParenExpr): Unit { }
+    protected open func visit(_: ParenExpr): R
 
-    protected open func visit(_: LitConstExpr): Unit { }
+    protected open func visit(_: LitConstExpr): R
 
-    protected open func visit(_: AssignExpr): Unit { }
+    protected open func visit(_: AssignExpr): R
 
-    protected open func visit(_: RefExpr): Unit { }
+    protected open func visit(_: RefExpr): R
 
-    protected open func visit(_: Block): Unit { }
+    protected open func visit(_: Block): R
 
-    protected open func visit(_: IfExpr): Unit { }
+    protected open func visit(_: IfExpr): R
 
-    protected open func visit(_: WhileExpr): Unit { }
+    protected open func visit(_: WhileExpr): R
 
-    protected open func visit(_: CallExpr): Unit { }
+    protected open func visit(_: CallExpr): R
 
-    protected open func visit(_: ReturnExpr): Unit { }
+    protected open func visit(_: ReturnExpr): R
 
-    protected open func visit(_: Decl): Unit { }
+    protected open func visit(_: Decl): R
 
-    protected open func visit(_: VarDecl): Unit { }
+    protected open func visit(_: VarDecl): R
 
-    protected open func visit(_: FuncParam): Unit { }
+    protected open func visit(_: FuncParam): R
 
-    protected open func visit(_: FuncDecl): Unit { }
+    protected open func visit(_: FuncDecl): R
 
-    protected open func visit(_: Argument): Unit { }
+    protected open func visit(_: MainDecl): R
 
-    protected open func visit(_: TypeNode): Unit { }
+    protected open func visit(_: Argument): R
 
-    protected open func visit(_: PrimitiveType): Unit { }
+    protected open func visit(_: TypeNode): R
 
-    protected open func visit(_: RefType): Unit { }
+    protected open func visit(_: PrimitiveType): R
+
+    protected open func visit(_: RefType): R
 }

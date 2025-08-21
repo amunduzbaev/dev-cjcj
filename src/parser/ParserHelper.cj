@@ -5,10 +5,11 @@ import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import cjcj.scanner.TokenKindHelper
 
-class ParseError <: Exception { }
+public class ParseError <: Exception { }
 
-class NodeIdManager {
-    private static var count: UInt64 = 0
+public class NodeIdManager {
+    // The ID 0 is a default invalid value.
+    private static var count: UInt64 = 1
 
     public static func nextId(): NodeId {
         let id = NodeId(count)

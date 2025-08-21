@@ -1,6 +1,8 @@
 package cjcj
 
+import cjcj.asg.Resolver
 import cjcj.ast.Program
+import cjcj.ast.Node
 import cjcj.parser.*
 import cjcj.scanner.*
 import cjcj.prettyPrinter.PrettyPrinter
@@ -29,10 +31,12 @@ public class Cj {
         let parser: Parser = Parser(tokens.toArray(), Reporter(getStdErr()))
         let program: ?Program = parser.parse()
         let printer: PrettyPrinter = PrettyPrinter()
+        let asg: Program
         if (let Some(p) <- program) {
-            p.prettyPrint(printer)
+            asg = Resolver().resolve(p)
+            asg.prettyPrint(printer)
+            println(printer.toString())
         }
-        println(printer.toString())
     }
 }
 

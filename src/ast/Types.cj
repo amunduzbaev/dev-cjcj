@@ -64,7 +64,7 @@ public class PrimitiveType <: TypeNode {
     }
 
     private func isPrimitive(keyword: Token): Bool {
-        TokenKindHelper.PRIMITIVE_TYPE_TOKEN_KIND.iterator()
+        TokenKindHelper.CHAR_LANG_TYPES.iterator()
             .any({ t => t == keyword.kind })
     }
 
@@ -84,6 +84,10 @@ public class RefType <: TypeNode {
     public init(id: NodeId, typeParameterName: Token, identifier: Token) {
         super(id, typeParameterName)
         identifier_ = identifier
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {

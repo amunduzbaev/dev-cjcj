@@ -311,9 +311,6 @@ public class TokenKindHelper {
         INTERNAL
     ]
 
-    
-    
-
     public static let ASSIGNMENT_OPERATOR: Array<TokenKind> = [
         TokenKind.ASSIGN
     ]

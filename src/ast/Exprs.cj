@@ -25,16 +25,16 @@ public open class Expr <: Node {
 }
 
 public class BinaryExpr <: Expr {
-    private var left_: Expr
+    private var left_: Node
     private var oper_: Token
-    private var right_: Expr
+    private var right_: Node
 
     // Empty constructor, initialize every attribute to a default value.
     public init() {
         this(NodeId(), Expr(), Token(), Expr())
     }
 
-    public BinaryExpr(id: NodeId, left: Expr, oper: Token, right: Expr) {
+    public BinaryExpr(id: NodeId, left: Node, oper: Token, right: Node) {
         super(id)
         left_ = left
         oper_ = oper
@@ -54,7 +54,7 @@ public class BinaryExpr <: Expr {
         right.prettyPrint(printer)
     }
 
-    public mut prop left: Expr {
+    public mut prop left: Node {
         get() { left_ }
         set(v) { left_ = v }
     }
@@ -64,7 +64,7 @@ public class BinaryExpr <: Expr {
         set(v) { oper_ = v }
     }
 
-    public mut prop right: Expr {
+    public mut prop right: Node {
         get() { right_ }
         set(v) { right_ = v }
     }
@@ -166,7 +166,7 @@ public class UnaryExpr <: Expr {
 }
 
 public class AssignExpr <: Expr {
-    private var left_: Expr
+    private var left_: Node
     private var right_: Expr
 
     // Empty constructor, initialize every attribute to a default value.
@@ -174,7 +174,7 @@ public class AssignExpr <: Expr {
         this(NodeId(), Expr(), Expr())
     }
 
-    public AssignExpr(id: NodeId, name: Expr, value: Expr) {
+    public AssignExpr(id: NodeId, name: Node, value: Expr) {
         super(id)
         left_ = name
         right_ = value
@@ -193,7 +193,7 @@ public class AssignExpr <: Expr {
         right.prettyPrint(printer)
     }
 
-    public mut prop left: Expr {
+    public mut prop left: Node {
         get() { left_ }
         set(v) { left_ = v }
     }
@@ -444,7 +444,7 @@ public class ReturnExpr <: Expr {
     }
 
     public mut prop expr: ?Expr {
-        get() { expr }
+        get() { expr_ }
         set(v) { expr_ = v }
     }
 
