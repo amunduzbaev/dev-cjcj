@@ -134,8 +134,8 @@ public class Scanner {
                         }
             case 'r' => if(matches(r'\'')) {
                             addToken(TokenKind.RUNE_LITERAL, advance())
-                            if(peek() != r'\'') {
-                                println("Line: ${line} , Unterminated rune literal.")
+                            if(!matches(r'\'')) {
+                                println("Line: ${line} , Unterminated byte rune literal.")
                                 exit(65)
                             }
                         }else{
@@ -144,7 +144,7 @@ public class Scanner {
 
             case 'b' => if(matches(r'\'')) {
                             addToken(TokenKind.RUNE_BYTE_LITERAL, advance())
-                            if(peek() != r'\'') {
+                            if(!matches(r'\'')) {
                                 println("Line: ${line} , Unterminated byte rune literal.")
                                 exit(65)
                             }

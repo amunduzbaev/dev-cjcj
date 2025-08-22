@@ -5,7 +5,8 @@ import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import cjcj.scanner.TokenKindHelper
 
-class ParseError <: Exception { }
+class ParseError <: FinalError { }
+open class FinalError <: Exception { }
 
 class NodeIdManager {
     private static var count: UInt64 = 0
@@ -114,6 +115,19 @@ class ParserHelper {
         }
     }
 
+    func synchronizeParenthesis(start: Token, current: Int64): Unit {
+        var counter: Int64 = 1
+        while (!isAtEnd() && counter > 0) {
+            // Finished a statement
+            if (peek().kind == TokenKind.LPAREN) { counter++}
+            if (peek().kind == TokenKind.RPAREN) { counter--}
+            advance()
+        }
+        if(isAtEnd()) {
+            throw errorFinal(start, "unclosed delimiter: '('", current)
+        }
+    }
+
     func endStar(): Unit {
         while(matches(TokenKindHelper.END)) { }
     }
@@ -121,14 +135,22 @@ class ParserHelper {
     func endPlus(message: String, index: Int64): Unit {
         if (isAtEnd() || matches(TokenKindHelper.END)) {
             endStar()
+        } else if (TokenKindHelper.TOP.iterator().any({tk => check(tk)})){
+            error(peek(), "Newline forgotten at new TopLevelObject declaration", index)
         } else {
-            throw error(previous(), message, index)
+            error(peek(), "Expected newline after top level declaration, found '${peek().value}'", index)
+            synchronize()
         }
     }
 
     func error(token: Token, message: String, index: Int64): ParseError {
         reporter.error(token, message, index)
         ParseError()
+    }
+
+    func errorFinal(token: Token, message: String, index: Int64): FinalError {
+        reporter.error(token, message, index)
+        FinalError()
     }
 
     func consumeError(token: Token, index: Int64, expected: TokenKind, found: String) {

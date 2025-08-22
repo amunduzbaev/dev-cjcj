@@ -24,8 +24,8 @@ public class Parser {
             parserHelper.endStar()
 
             while (!parserHelper.check(TokenKind.MAIN) && !parserHelper.isAtEnd()) {
-                if (let Some(Obj) <- declParser.topLevelObject()) {
-                    nodes.add(Obj)
+                if (let Some(obj) <- declParser.topLevelObject()) {
+                    nodes.add(obj)
                     parserHelper.endPlus("Expected end of TopLevelObject", parserHelper.current)
                 } else {
                     parserHelper.error(parserHelper.peek(), "Expected TopLevelObject keyword", parserHelper.current)
@@ -33,15 +33,15 @@ public class Parser {
                 }
 
             }
-            if(let Some(Obj) <- declParser.mainDefinition()) {
-                nodes.add(Obj)
+            if(let Some(obj) <- declParser.mainDefinition()) {
+                nodes.add(obj)
             } else {
                 parserHelper.error(parserHelper.peek(), "Program needs at least 1 main declaration", parserHelper.current)
             }
             parserHelper.endPlus("Expected end of main declaration", parserHelper.current)
             while (!parserHelper.isAtEnd()) {
-                if (let Some(Obj) <- declParser.topLevelObject()) {
-                    nodes.add(Obj)
+                if (let Some(obj) <- declParser.topLevelObject()) {
+                    nodes.add(obj)
                     parserHelper.endPlus("Expected end of TopLevelObject", parserHelper.current)
                 } else if (parserHelper.check(TokenKind.MAIN)){
                     
@@ -57,6 +57,7 @@ public class Parser {
             }
             return Program(NodeIdManager.nextId(), nodes)
         } catch (_) {
+            println("MASSIVE FAIL, TOPLEVEL REACHED, current token = ${parserHelper.current}")
             return None
         }
     }

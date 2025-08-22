@@ -202,7 +202,7 @@ internal open class DeclParser {
             }
             throw helper.error(helper.peek(), "Expected expression or declaration inside block, found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'", helper.current)
         } catch (e: ParseError) {
-            helper.advance()
+            helper.synchronize()
             Expr(NodeIdManager.nextId())
         }
     }
@@ -215,18 +215,18 @@ internal open class DeclParser {
 
         helper.skipNL()
         helper.consume(TK.LPAREN, "Expect '(' before condition.", helper.current)
+        let start: (Token,Int64) = (helper.previous(), helper.current-1)
         helper.skipNL()
         var condition: Expr
         try {
             condition = expectExpression(expression,
             "Expected condition after while.")
+            helper.skipNL()
+            helper.consume(TK.RPAREN, "Expect ')' after condition.", helper.current)
         } catch (e: ParseError){
-            helper.synchronize()
+            helper.synchronizeParenthesis(start[0], start[1])
             condition = Expr(NodeIdManager.nextId())
         }
-
-        helper.skipNL()
-        helper.consume(TK.RPAREN, "Expect ')' after condition.", helper.current)
         helper.skipNL()
         let block: Block = block()
 
@@ -246,11 +246,18 @@ internal open class DeclParser {
         }
         helper.skipNL()
         helper.consume(TK.LPAREN, "Expect '(' before condition.", helper.current)
+        let start: (Token,Int64) = (helper.previous(), helper.current-1)
         helper.skipNL()
-        let condition: Expr = expectExpression(expression,
-            "Expected condition after if.")
-        helper.skipNL()
-        helper.consume(TK.RPAREN, "Expect ')' after condition.", helper.current)
+        var condition: Expr
+        try {
+            condition = expectExpression(expression,
+            "Expected condition after while.")
+            helper.skipNL()
+            helper.consume(TK.RPAREN, "Expect ')' after condition.", helper.current)
+        } catch (e: ParseError){
+            helper.synchronizeParenthesis(start[0], start[1])
+            condition = Expr(NodeIdManager.nextId())
+        }
         helper.skipNL()
 
         let ifBlock: Block = block()
@@ -269,7 +276,12 @@ internal open class DeclParser {
 
 
     public func expression(): ?Expr {
-        assignmentExpression()
+        try {
+                return assignmentExpression()
+            } catch (e: Exception) {
+                helper.synchronize()
+                return Expr(NodeIdManager.nextId())
+            }
     }
 
     private func leftValueExpression(): ?Expr {
@@ -292,7 +304,7 @@ internal open class DeclParser {
                             NodeIdManager.nextId(),
                             expectExpression(
                                 expression,
-                                "Expect expression inside call suffix."
+                                "Expected expression inside call suffix."
                             )
                         )
                     )
@@ -351,7 +363,7 @@ internal open class DeclParser {
                 let oper: Token = helper.previous()
                 helper.skipNL()
                 let right: Expr = expectExpression(logicConjunctionExpression,
-                    "Expect logicConjunctionExpression after '${oper.value}'")
+                    "Expected logicConjunctionExpression after '${oper.value}'")
                 expr = BinaryExpr(NodeIdManager.nextId(), expr, oper, right)
             }
             return expr
@@ -471,7 +483,7 @@ internal open class DeclParser {
                 let oper: Token = helper.previous()
                 helper.skipNL()
                 let right: Expr = expectExpression(prefixUnaryExpression,
-                    "Expect prefixUnaryExpression after '**', found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'")
+                    "Expected a prefixUnaryExpression after '**', found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'")
                 expr = BinaryExpr(NodeIdManager.nextId(), expr, oper, right)
             }
             return expr
@@ -486,7 +498,7 @@ internal open class DeclParser {
         if (helper.matches(TKH.PREFIX_UNARY_OPERATOR)) {
             let oper: Token = helper.previous()
             let right: Expr = expectExpression(prefixUnaryExpression,
-                "Expected postfixExpression after ${oper.value}, found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'")
+                "Expected a postfixExpression after ${oper.value}, found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'")
             return UnaryExpr(NodeIdManager.nextId(), oper, right)
         }
         postfixExpression()

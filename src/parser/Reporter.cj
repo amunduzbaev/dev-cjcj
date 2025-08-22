@@ -30,7 +30,7 @@ public class Reporter {
             }
         }
         //remove the first two characters of the line because it's a NL '\n'
-        return (prefix[2..], suffix)
+        return (prefix.trimStart("\\n"), suffix)
     }
 
     func error(token: Token, message: String, index: Int64) {
@@ -66,6 +66,10 @@ Failed to parse program.
         }
     }
 
+    static public func redify(str: String) {
+        return "\u{001b}[31m${str}\u{001b}[0m"
+    }
+
 }
 
 private struct Error {
@@ -81,14 +85,10 @@ private struct Error {
 \u{001b}[31m
 error\u{001b}[0m: ${message}
 ${spaces} |
-${lineStr} | ${suffixPrefix[0]}${redify(wher)} ${suffixPrefix[1]}
+${lineStr} | ${suffixPrefix[0]}${Reporter.redify(wher)} ${suffixPrefix[1]}
 ${spaces} | ${" " * suffixPrefix[0].size}^
             """
             
 
     }
 }
-
-private func redify(str: String) {
-        return "\u{001b}[31m${str}\u{001b}[0m"
-    }
