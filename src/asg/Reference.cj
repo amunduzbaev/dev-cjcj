@@ -17,7 +17,7 @@ import std.collection.ArrayList
 * Reference nodes represent variable references inside the ASG, they are still
 * nodes but with specific data needed from the ASG.
 */
-abstract sealed class Reference <: Node {
+public open class Reference <: Node {
     /*
     TODO: the identifier will become an expression and in general all the
     * references will be checked by hashing the toString of the expression that
@@ -29,9 +29,9 @@ abstract sealed class Reference <: Node {
     private let declType_: ?TypeNode
     // private let effectiveType
 
-    private var value_: Node
+    private var value_: ?Node
 
-    public Reference(id: NodeId, identifier: Token, declType: ?TypeNode, value: Node) {
+    public Reference(id: NodeId, identifier: Token, declType: ?TypeNode, value: ?Node) {
         super(id)
         identifier_ = identifier
         declType_ = declType
@@ -55,7 +55,10 @@ abstract sealed class Reference <: Node {
     }
 
     public mut prop value: Node {
-        get() { value_ }
+        get() { match(value_) {
+            case Some(v) => v
+            case _ => throw UnsupportedException("Uninitialised value")
+        } }
         set(v) { value_ = v}
     }
 }

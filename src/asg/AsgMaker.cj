@@ -19,19 +19,24 @@ private enum ScopeType {
 }
 
 /*
-* Resolves a program and retrieves the ASG root. The ASG root will have
-* only one declaration that is the MainDecl. Every variable and function
+* Resolves a Program and retrieves the ASG root. Every variable and function
 * reference will be bound to the node of the initialization.
 * The reference and call nodes will be different from the AST for this reason.
+*
+* At the moment the ASG references must be changed while traversing. So every
+* time you traverse a node that is declaring a va
 *
 * Note: I'm using a few getOrThrow() functions without custom errors and without
 * catching them because it's impossible that the as didn't work except if
 * there's a bug in the as operator itself.
 */
-public class Resolver <: Visitor<Node> {
+public class AsgMaker <: Visitor<Node> {
     private var currentEnvironment: Environment = Environment()
     private var lastKilledEnvironment: ?Environment = None
     private var currentScopeType: ScopeType = ScopeType.NIL
+
+    // Maybe we want to return a non mutable copy instead of the reference.
+    public let declToReference: Map<NodeId, Reference> = HashMap()
     
     // Contains the references that are waiting for the next scope to begin
     // before getting declared. An example is function parameters, they need to
@@ -87,17 +92,15 @@ public class Resolver <: Visitor<Node> {
             throw ParseError()
         }
         let value: Expr = (assignExpr.right.traverse(this) as Expr).getOrThrow()
-        let ref: Reference = currentEnvironment.get(left.identifier)
+        let ref: Reference = get(left.identifier)
         ref.value = value
         AssignExpr(NodeIdManager.nextId(), left, value)
     }
 
     public override func visit(refExpr: RefExpr): Node {
-        // TODO: fix this, in this way you would not be able to assign a
-        // function.
-        (currentEnvironment.get(refExpr.identifier) as VariableReference)
-            .getOrThrow({ => println("Variable reference is not a variable")
-                ParseError()})
+        (get(refExpr.identifier) as VariableReference) .getOrThrow({ =>
+            println("Variable reference is not a variable")
+            ParseError()})
     }
 
     public override func visit(block: Block): Node {
@@ -144,9 +147,9 @@ public class Resolver <: Visitor<Node> {
             println("Cannot call a function without an identifier!!")
             throw ParseError()
         }
-        let ref: FuncReference = (
-                currentEnvironment.get(identifier) as FuncReference
-            ).getOrThrow({ => println("${identifier} is not a function")
+        let ref: FuncReference = (get(identifier) as FuncReference)
+            .getOrThrow({ =>
+                println("${identifier} is not a function")
                 ParseError()})
 
         let arguments: ArrayList<Argument> = ArrayList()
@@ -188,6 +191,7 @@ public class Resolver <: Visitor<Node> {
             declType = dt.traverse(this) as TypeNode
         }
         declare(varDecl.identifier)
+        
         if (let Some(initzer) <- initializer) {
             assign(varDecl.identifier,
                 VariableReference(NodeIdManager.nextId(), varDecl.identifier,
@@ -196,7 +200,11 @@ public class Resolver <: Visitor<Node> {
             println("No explicit type without initializer")
             throw ParseError()
         }
-        VarDecl(NodeIdManager.nextId(), varDecl.keyword, varDecl.identifier, 
+        let nodeId: NodeId = NodeIdManager.nextId()
+
+        // Map the declaration to the reference
+        declToReference.add(nodeId, get(varDecl.identifier))
+        VarDecl(nodeId, varDecl.keyword, varDecl.identifier, 
             initializer, declType)
     }
 
@@ -226,11 +234,16 @@ public class Resolver <: Visitor<Node> {
         let block: Block = (funcDecl.block.traverse(this) as Block).getOrThrow()
         
         declare(funcDecl.identifier)
-        assign(funcDecl.identifier, FuncReference(NodeIdManager.nextId(),
+        let reference: FuncReference = FuncReference(NodeIdManager.nextId(),
             funcDecl.identifier, declType, block,
-            lastKilledEnvironment.getOrThrow(), params))
+            lastKilledEnvironment.getOrThrow(), params)
+        assign(funcDecl.identifier, reference)
         
-        FuncDecl(NodeIdManager.nextId(), funcDecl.keyword, funcDecl.identifier,
+        let nodeId: NodeId = NodeIdManager.nextId()
+
+        // Map the reference to the node.
+        declToReference.add(nodeId, reference)
+        FuncDecl(nodeId, funcDecl.keyword, funcDecl.identifier,
             block, params, declType)
     }
 
@@ -288,5 +301,9 @@ public class Resolver <: Visitor<Node> {
 
     private func assign(identifier: Token, value: Reference): Unit {
         currentEnvironment.assign(identifier, value)
+    }
+
+    private func get(identifier: Token): Reference {
+        currentEnvironment.get(identifier)
     }
 }

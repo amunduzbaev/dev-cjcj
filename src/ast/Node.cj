@@ -5,17 +5,23 @@ import cjcj.scanner.TokenKind
 import cjcj.scanner.Token
 
 import std.collection.ArrayList
+import std.deriving.Derive
 
-public struct NodeId {
-    public let id: UInt64
+@Derive[Equatable]
+public struct NodeId <: Hashable {
+    public let id: Int64
 
     // Default initializer with a default ID.
     public init() {
         this(0)
     }
 
-    public NodeId(id: UInt64) {
+    public NodeId(id: Int64) {
         this.id = id
+    }
+
+    public func hashCode(): Int64 {
+        return id
     }
 }
 

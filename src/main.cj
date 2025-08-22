@@ -1,6 +1,6 @@
 package cjcj
 
-import cjcj.asg.Resolver
+import cjcj.asg.AsgMaker
 import cjcj.ast.Program
 import cjcj.ast.Node
 import cjcj.parser.*
@@ -31,11 +31,16 @@ public class Cj {
         let parser: Parser = Parser(tokens.toArray(), Reporter(getStdErr()))
         let program: ?Program = parser.parse()
         let printer: PrettyPrinter = PrettyPrinter()
+        let asgMaker = AsgMaker()
         let asg: Program
         if (let Some(p) <- program) {
-            asg = Resolver().resolve(p)
+            asg = asgMaker.resolve(p)
             asg.prettyPrint(printer)
             println(printer.toString())
+        }
+        for (bo in asgMaker.declToReference) {
+            println(bo[0].id)
+            println(bo[1].identifier)
         }
     }
 }

@@ -1,5 +1,6 @@
 package cjcj.asg
 
+import cjcj.parser.NodeIdManager
 import cjcj.scanner.Token
 import cjcj.parser.ParseError
 
@@ -57,7 +58,9 @@ class Environment {
     }
 
     func declare(identifier: Token): Unit {
-        if (values.addIfAbsent(identifier.value, None).isSome()) {
+        if (values.addIfAbsent(identifier.value,
+            Reference(NodeIdManager.nextId(), identifier, None, None)).isSome())
+        {
             println("Cannot redefine a variable with the same name in the " +
                 "same scope")
             throw ParseError()

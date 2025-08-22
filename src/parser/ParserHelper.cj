@@ -9,7 +9,7 @@ public class ParseError <: Exception { }
 
 public class NodeIdManager {
     // The ID 0 is a default invalid value.
-    private static var count: UInt64 = 1
+    private static var count: Int64 = 1
 
     public static func nextId(): NodeId {
         let id = NodeId(count)
