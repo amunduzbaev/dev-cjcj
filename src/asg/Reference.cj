@@ -52,8 +52,16 @@ public open class Reference <: Node {
 }
 
 class VariableReference <: Reference {
-    public VariableReference(id: NodeId, identifier: Token, declType: ?TypeNode) {
+    private let keyword_: Token
+
+    public VariableReference(id: NodeId, identifier: Token, declType: ?TypeNode,
+        keyword: Token) {
         super(id, identifier, declType)
+        keyword_ = keyword
+    }
+
+    public prop keyword: Token {
+        get() { keyword_ }
     }
 }
 
@@ -70,19 +78,6 @@ class FuncReference <: Reference {
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
         super.prettyPrint(printer)
-        printer.append("(")
-        // if (!params.isEmpty()) {
-        //     environment.get(params[0].name).value.prettyPrint(printer)
-        //     params.iterator()
-        //         .enumerate()
-        //         .filter({ a => a[0] > 0})
-        //         .map({ a => a[1] })
-        //         .forEach({a =>
-        //             printer.append(", ")
-        //             environment.get(a.name).value.prettyPrint(printer)
-        //         })
-        // }
-        printer.append(")")
     }
 
     public prop environment: Environment {

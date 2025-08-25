@@ -343,14 +343,14 @@ public class WhileExpr <: Expr {
 }
 
 public class CallExpr <: Expr {
-    private var callee_: Expr
+    private var callee_: Node
     private var arguments_: ArrayList<Argument>
 
     public init() {
         this(NodeId(), Expr(), ArrayList())
     }
 
-    public CallExpr(id: NodeId, callee: Expr, arguments: ArrayList<Argument>) {
+    public CallExpr(id: NodeId, callee: Node, arguments: ArrayList<Argument>) {
         super(id)
         callee_ = callee
         arguments_ = arguments
@@ -374,7 +374,7 @@ public class CallExpr <: Expr {
         printer.append(")")
     }
 
-    public mut prop callee: Expr {
+    public mut prop callee: Node {
         get() { callee_ }
         set(v) { callee_ = v }
     }

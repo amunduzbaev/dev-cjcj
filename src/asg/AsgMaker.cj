@@ -2,11 +2,13 @@ package cjcj.asg
 
 import cjcj.ast.*
 import cjcj.scanner.Token
+import cjcj.scanner.TokenKind
 import cjcj.parser.NodeIdManager
 import cjcj.parser.ParseError
 
 import std.env.getStdOut
 
+import std.ast.Position
 import std.collection.ArrayList
 import std.collection.ArrayStack
 import std.collection.Map
@@ -96,8 +98,8 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(refExpr: RefExpr): Node {
-        (get(refExpr.identifier) as VariableReference) .getOrThrow({ =>
-            println("Variable reference is not a variable")
+        (get(refExpr.identifier) as Reference) .getOrThrow({ =>
+            println("Referencing to something that has not been declared.")
             ParseError()})
     }
 
@@ -135,16 +137,10 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(callExpr: CallExpr): Node {
-        let identifier: Token
-
-        // TODO: change this because it won't work with member access. See
-        // todo at Reference.cj
-        if (let Some(refExpr) <- (callExpr.callee as RefExpr)) {
-            identifier = refExpr.identifier
-        } else {
-            println("Cannot call a function without an identifier!!")
-            throw ParseError()
-        }
+        let callee: Reference = (callExpr.callee.traverse(this) as Reference)
+            .getOrThrow({ => println("Calling a function without a reference.")
+                            ParseError() })
+        let identifier: Token = callee.identifier
         let ref: FuncReference = (get(identifier) as FuncReference)
             .getOrThrow({ =>
                 println("${identifier} is not a function")
@@ -159,7 +155,7 @@ public class AsgMaker <: Visitor<Node> {
                 "expected ${ref.params.size}")
             throw ParseError()
         }
-        ref
+        CallExpr(NodeIdManager.nextId(), callee, arguments)
     }
 
     public override func visit(returnExpr: ReturnExpr): Node {
@@ -190,7 +186,7 @@ public class AsgMaker <: Visitor<Node> {
         if (let Some(initzer) <- initializer) {
             assign(varDecl.identifier,
                 VariableReference(NodeIdManager.nextId(), varDecl.identifier,
-                    declType))
+                    declType, varDecl.keyword))
         } else if (declType.isNone()) {
             println("No explicit type without initializer")
             throw ParseError()
@@ -222,7 +218,9 @@ public class AsgMaker <: Visitor<Node> {
                 // Add an empty variable reference that will be changed in the
                 // function call.
                 waitingDeclarations.add(VariableReference(
-                    NodeIdManager.nextId(), p.name, p.paramType))})
+                    NodeIdManager.nextId(), p.name, p.paramType,
+                    Token(TokenKind.LET, "", p.name.pos)))
+            })
         
         let block: Block = (funcDecl.block.traverse(this) as Block).getOrThrow()
         
@@ -250,7 +248,8 @@ public class AsgMaker <: Visitor<Node> {
             let Some(np) <- (p.traverse(this) as FuncParam)) {
             newMain.param = np
             waitingDeclarations.add(VariableReference(
-                NodeIdManager.nextId(), np.name, np.paramType))
+                NodeIdManager.nextId(), np.name, np.paramType,
+                Token(TokenKind.LET, "", np.name.pos)))
         }
         newMain.block = (mainDecl.block.traverse(this) as Block).getOrThrow()
         newMain.id = NodeIdManager.nextId()
