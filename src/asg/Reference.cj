@@ -10,6 +10,8 @@ import cjcj.ast.NodeId
 import cjcj.ast.Visitor
 import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.scanner.Token
+import cjcj.scanner.TokenKind
+import cjcj.parser.ParseError
 
 import std.collection.ArrayList
 
@@ -54,7 +56,7 @@ public open class Reference <: Node {
 class VariableReference <: Reference {
     private let keyword_: Token
 
-    public VariableReference(id: NodeId, identifier: Token, declType: ?TypeNode,
+    public init(id: NodeId, identifier: Token, declType: ?TypeNode,
         keyword: Token) {
         super(id, identifier, declType)
         keyword_ = keyword

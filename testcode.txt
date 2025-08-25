@@ -8,6 +8,8 @@ main (args: String): Unit {
         let a = 5
         1 + 4
     }
+    let m: Int64
+    m + 5
 
     let b = 10
     if (5 + 6 * 4 < 20) {
@@ -30,6 +32,9 @@ main (args: String): Unit {
     let j: Int64
     let custom : Custom
     let raa = 0
-    let c: Unit
+    j = 10
+    j = 10
+    let c: Uni
+
     // let args = 5
 }

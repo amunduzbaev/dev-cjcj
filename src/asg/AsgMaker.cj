@@ -15,6 +15,10 @@ import std.collection.Map
 import std.collection.HashMap
 import std.deriving.Derive
 
+/*
+* Needed to know if I can do some operations inside the current scope, for
+* example a return expression.
+*/
 @Derive[Equatable]
 private enum ScopeType {
     NIL | BLOCK | BODY
@@ -25,9 +29,6 @@ private enum ScopeType {
 * reference will be bound to the node of the initialization.
 * The reference and call nodes will be different from the AST for this reason.
 *
-* At the moment the ASG references must be changed while traversing. So every
-* time you traverse a node that is declaring a va
-*
 * Note: I'm using a few getOrThrow() functions without custom errors and without
 * catching them because it's impossible that the as didn't work except if
 * there's a bug in the as operator itself.
@@ -36,13 +37,12 @@ public class AsgMaker <: Visitor<Node> {
     private var currentEnvironment: Environment = Environment()
     private var lastKilledEnvironment: ?Environment = None
     private var currentScopeType: ScopeType = ScopeType.NIL
-
-    // Maybe we want to return a non mutable copy instead of the reference.
-    public let declToReference: Map<NodeId, Reference> = HashMap()
     
-    // Contains the references that are waiting for the next scope to begin
-    // before getting declared. An example is function parameters, they need to
-    // be declared inside the block and we need a way to tell him.
+    /*
+    * Contains the references that are waiting for the next scope to begin
+    * before getting declared. An example is function parameters, they need to
+    * be declared inside the block and we need a way to tell him.
+    */
     private let waitingDeclarations: ArrayStack<Reference> = ArrayStack()
 
     /*
@@ -84,13 +84,13 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(assignExpr: AssignExpr): Node {
-        // At the moment on the left there can only be an identifier, thats why
-        // I'm checking only the RefExpr
         let left: Reference
         if (let Some(l) <- (assignExpr.left.traverse(this) as Reference)) {
             left = l
         } else {
-            println("No identifier on the left part of an assignment")
+            // TODO: This probably can never happen because it's an error caught
+            // while parsing so we can probably remove it.
+            println("No reference on the left part of an assignment")
             throw ParseError()
         }
         let right: Expr = (assignExpr.right.traverse(this) as Expr).getOrThrow()
@@ -98,9 +98,7 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(refExpr: RefExpr): Node {
-        (get(refExpr.identifier) as Reference) .getOrThrow({ =>
-            println("Referencing to something that has not been declared.")
-            ParseError()})
+        get(refExpr.identifier)
     }
 
     public override func visit(block: Block): Node {
@@ -109,8 +107,7 @@ public class AsgMaker <: Visitor<Node> {
         currentScopeType = ScopeType.BLOCK
 
         while (let Some(last) <- waitingDeclarations.remove()) {
-            declare(last.identifier)
-            assign(last.identifier, last)
+            declare(last.identifier, last)
         }
         let nodes: ArrayList<Node> = ArrayList()
         block.nodes.iterator().forEach({ n => nodes.add(n.traverse(this)) })
@@ -137,22 +134,18 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(callExpr: CallExpr): Node {
-        let callee: Reference = (callExpr.callee.traverse(this) as Reference)
-            .getOrThrow({ => println("Calling a function without a reference.")
-                            ParseError() })
-        let identifier: Token = callee.identifier
-        let ref: FuncReference = (get(identifier) as FuncReference)
-            .getOrThrow({ =>
-                println("${identifier} is not a function")
-                ParseError()})
+        let callee: FuncReference =
+            (callExpr.callee.traverse(this) as FuncReference)
+                .getOrThrow({ => println("Not calling a function.")
+                ParseError() })
 
         let arguments: ArrayList<Argument> = ArrayList()
         callExpr.arguments.iterator().forEach({ a => arguments.add(
             (a.traverse(this) as Argument).getOrThrow()
         )})
-        if (arguments.size != ref.params.size) {
+        if (arguments.size != callee.params.size) {
             println("Invalid number of parameters, found ${arguments.size} " +
-                "expected ${ref.params.size}")
+                "expected ${callee.params.size}")
             throw ParseError()
         }
         CallExpr(NodeIdManager.nextId(), callee, arguments)
@@ -177,26 +170,31 @@ public class AsgMaker <: Visitor<Node> {
         if (let Some(initzer) <- varDecl.initializer) {
             initializer = initzer.traverse(this) as Expr
         }
+
         var declType: ?TypeNode = None
         if (let Some(dt) <- varDecl.declType) {
             declType = dt.traverse(this) as TypeNode
         }
-        declare(varDecl.identifier)
-        
+
+        let ref: VariableReference
         if (let Some(initzer) <- initializer) {
-            assign(varDecl.identifier,
-                VariableReference(NodeIdManager.nextId(), varDecl.identifier,
-                    declType, varDecl.keyword))
+            ref = VariableReference(NodeIdManager.nextId(), varDecl.identifier,
+                declType, varDecl.keyword)
         } else if (declType.isNone()) {
             println("No explicit type without initializer")
             throw ParseError()
+        } else {
+            ref = VariableReference(NodeIdManager.nextId(), varDecl.identifier,
+                declType, varDecl.keyword)
         }
+        declare(varDecl.identifier, ref)
+
         let nodeId: NodeId = NodeIdManager.nextId()
 
-        // Map the declaration to the reference
-        declToReference.add(nodeId, get(varDecl.identifier))
-        VarDecl(nodeId, varDecl.keyword, varDecl.identifier, 
-            initializer, declType)
+        // TODO: Make this return an AssignExpr if there's an initializer
+        // because variable declaration are not a thing in ASG.
+        VarDecl(nodeId, varDecl.keyword, varDecl.identifier, initializer,
+            declType)
     }
 
     public override func visit(funcParam: FuncParam): Node {
@@ -215,25 +213,21 @@ public class AsgMaker <: Visitor<Node> {
             .map({ p => (p.traverse(this) as FuncParam).getOrThrow()})
             .forEach({ p =>
                 params.add(p)
-                // Add an empty variable reference that will be changed in the
-                // function call.
                 waitingDeclarations.add(VariableReference(
                     NodeIdManager.nextId(), p.name, p.paramType,
+                    // Using the LET keyword because parameters are not mutable.
                     Token(TokenKind.LET, "", p.name.pos)))
             })
         
         let block: Block = (funcDecl.block.traverse(this) as Block).getOrThrow()
         
-        declare(funcDecl.identifier)
         let reference: FuncReference = FuncReference(NodeIdManager.nextId(),
             funcDecl.identifier, declType,
             lastKilledEnvironment.getOrThrow(), params)
-        assign(funcDecl.identifier, reference)
+        declare(funcDecl.identifier, reference)
         
         let nodeId: NodeId = NodeIdManager.nextId()
 
-        // Map the reference to the node.
-        declToReference.add(nodeId, reference)
         FuncDecl(nodeId, funcDecl.keyword, funcDecl.identifier,
             block, params, declType)
     }
@@ -285,12 +279,8 @@ public class AsgMaker <: Visitor<Node> {
             UnsupportedException("Trying to close the global scope") })
     }
 
-    private func declare(identifier: Token): Unit {
-        currentEnvironment.declare(identifier)
-    }
-
-    private func assign(identifier: Token, value: Reference): Unit {
-        currentEnvironment.assign(identifier, value)
+    private func declare(identifier: Token, value: Reference): Unit {
+        currentEnvironment.declare(identifier, value)
     }
 
     private func get(identifier: Token): Reference {

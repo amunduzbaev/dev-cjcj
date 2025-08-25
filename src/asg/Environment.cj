@@ -2,6 +2,7 @@ package cjcj.asg
 
 import cjcj.parser.NodeIdManager
 import cjcj.scanner.Token
+import cjcj.scanner.TokenKind
 import cjcj.parser.ParseError
 
 import std.collection.Map
@@ -15,7 +16,7 @@ import std.collection.HashMap
 */
 class Environment {
     private let enclosing_: ?Environment
-    private let values: Map<String, ?Reference> = HashMap()
+    private let references: Map<String, Reference> = HashMap()
 
     init(enclosing: ?Environment) {
         enclosing_ = enclosing
@@ -26,12 +27,8 @@ class Environment {
     }
 
     func get(identifier: Token): Reference {
-        if (let Some(value) <- values.get(identifier.value)) {
-            match (value) {
-                case Some(v) => return v
-                case None => println("Cannot read uninitialised variable")
-                    throw ParseError()
-            }
+        if (let Some(value) <- references.get(identifier.value)) {
+            return value
         }
 
         // Go up the environments until something is found or an exception is
@@ -44,23 +41,8 @@ class Environment {
         throw ParseError()
     }
 
-    func assign(identifier: Token, value: Reference): Unit {
-        if (values.contains(identifier.value)) {
-            values.add(identifier.value, value)
-            return
-        }
-
-        if (enclosing.isSome()) {
-            return enclosing.getOrThrow().assign(identifier, value)
-        }
-        println("Undefined variable '" + identifier.value + "'.")
-        throw ParseError()
-    }
-
-    func declare(identifier: Token): Unit {
-        if (values.addIfAbsent(identifier.value,
-            Reference(NodeIdManager.nextId(), identifier, None)).isSome())
-        {
+    func declare(identifier: Token, value: Reference): Unit {
+        if (references.addIfAbsent(identifier.value, value).isSome()) {
             println("Cannot redefine a variable with the same name in the " +
                 "same scope")
             throw ParseError()
