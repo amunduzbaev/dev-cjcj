@@ -38,10 +38,6 @@ public class Cj {
             asg.prettyPrint(printer)
             println(printer.toString())
         }
-        for (bo in asgMaker.declToReference) {
-            println(bo[0].id)
-            println(bo[1].identifier)
-        }
     }
 }
 

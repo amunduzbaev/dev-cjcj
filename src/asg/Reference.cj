@@ -14,8 +14,8 @@ import cjcj.scanner.Token
 import std.collection.ArrayList
 
 /*
-* Reference nodes represent variable references inside the ASG, they are still
-* nodes but with specific data needed from the ASG.
+* Reference nodes represent references to variables, functions, . . . inside the
+* ASG.
 */
 public open class Reference <: Node {
     /*
@@ -27,15 +27,11 @@ public open class Reference <: Node {
     */
     private let identifier_: Token
     private let declType_: ?TypeNode
-    // private let effectiveType
 
-    private var value_: ?Node
-
-    public Reference(id: NodeId, identifier: Token, declType: ?TypeNode, value: ?Node) {
+    public Reference(id: NodeId, identifier: Token, declType: ?TypeNode) {
         super(id)
         identifier_ = identifier
         declType_ = declType
-        value_ = value
     }
 
     public override open func prettyPrint(printer: PrettyPrinter): Unit {
@@ -53,19 +49,11 @@ public open class Reference <: Node {
     public prop declType: ?TypeNode {
         get() { declType_ }
     }
-
-    public mut prop value: Node {
-        get() { match(value_) {
-            case Some(v) => v
-            case _ => throw UnsupportedException("Uninitialised value")
-        } }
-        set(v) { value_ = v}
-    }
 }
 
 class VariableReference <: Reference {
-    public VariableReference(id: NodeId, identifier: Token, declType: ?TypeNode, value: Expr) {
-        super(id, identifier, declType, value)
+    public VariableReference(id: NodeId, identifier: Token, declType: ?TypeNode) {
+        super(id, identifier, declType)
     }
 }
 
@@ -74,8 +62,8 @@ class FuncReference <: Reference {
     private let params_: ArrayList<FuncParam>
 
     public FuncReference(id: NodeId, identifier: Token, declType: ?TypeNode,
-        value: Block, environment: Environment, params: ArrayList<FuncParam>) {
-        super(id, identifier, declType, value)
+        environment: Environment, params: ArrayList<FuncParam>) {
+        super(id, identifier, declType)
         environment_ = environment
         params_ = params
     }
@@ -83,17 +71,17 @@ class FuncReference <: Reference {
     public override func prettyPrint(printer: PrettyPrinter): Unit {
         super.prettyPrint(printer)
         printer.append("(")
-        if (!params.isEmpty()) {
-            environment.get(params[0].name).value.prettyPrint(printer)
-            params.iterator()
-                .enumerate()
-                .filter({ a => a[0] > 0})
-                .map({ a => a[1] })
-                .forEach({a =>
-                    printer.append(", ")
-                    environment.get(a.name).value.prettyPrint(printer)
-                })
-        }
+        // if (!params.isEmpty()) {
+        //     environment.get(params[0].name).value.prettyPrint(printer)
+        //     params.iterator()
+        //         .enumerate()
+        //         .filter({ a => a[0] > 0})
+        //         .map({ a => a[1] })
+        //         .forEach({a =>
+        //             printer.append(", ")
+        //             environment.get(a.name).value.prettyPrint(printer)
+        //         })
+        // }
         printer.append(")")
     }
 

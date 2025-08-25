@@ -59,7 +59,7 @@ class Environment {
 
     func declare(identifier: Token): Unit {
         if (values.addIfAbsent(identifier.value,
-            Reference(NodeIdManager.nextId(), identifier, None, None)).isSome())
+            Reference(NodeIdManager.nextId(), identifier, None)).isSome())
         {
             println("Cannot redefine a variable with the same name in the " +
                 "same scope")

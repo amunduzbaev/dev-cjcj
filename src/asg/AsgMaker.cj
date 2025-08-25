@@ -91,10 +91,8 @@ public class AsgMaker <: Visitor<Node> {
             println("No identifier on the left part of an assignment")
             throw ParseError()
         }
-        let value: Expr = (assignExpr.right.traverse(this) as Expr).getOrThrow()
-        let ref: Reference = get(left.identifier)
-        ref.value = value
-        AssignExpr(NodeIdManager.nextId(), left, value)
+        let right: Expr = (assignExpr.right.traverse(this) as Expr).getOrThrow()
+        AssignExpr(NodeIdManager.nextId(), left, right)
     }
 
     public override func visit(refExpr: RefExpr): Node {
@@ -161,9 +159,6 @@ public class AsgMaker <: Visitor<Node> {
                 "expected ${ref.params.size}")
             throw ParseError()
         }
-        // Change the value of the parameters in the function environment.
-        arguments.iterator().enumerate().forEach({ a =>
-            ref.environment.get(ref.params[a[0]].name).value = a[1].expr})
         ref
     }
 
@@ -195,7 +190,7 @@ public class AsgMaker <: Visitor<Node> {
         if (let Some(initzer) <- initializer) {
             assign(varDecl.identifier,
                 VariableReference(NodeIdManager.nextId(), varDecl.identifier,
-                    declType, initzer))
+                    declType))
         } else if (declType.isNone()) {
             println("No explicit type without initializer")
             throw ParseError()
@@ -227,15 +222,13 @@ public class AsgMaker <: Visitor<Node> {
                 // Add an empty variable reference that will be changed in the
                 // function call.
                 waitingDeclarations.add(VariableReference(
-                    NodeIdManager.nextId(),
-                    p.name,
-                    p.paramType, Expr()))})
+                    NodeIdManager.nextId(), p.name, p.paramType))})
         
         let block: Block = (funcDecl.block.traverse(this) as Block).getOrThrow()
         
         declare(funcDecl.identifier)
         let reference: FuncReference = FuncReference(NodeIdManager.nextId(),
-            funcDecl.identifier, declType, block,
+            funcDecl.identifier, declType,
             lastKilledEnvironment.getOrThrow(), params)
         assign(funcDecl.identifier, reference)
         
@@ -257,9 +250,7 @@ public class AsgMaker <: Visitor<Node> {
             let Some(np) <- (p.traverse(this) as FuncParam)) {
             newMain.param = np
             waitingDeclarations.add(VariableReference(
-                NodeIdManager.nextId(),
-                np.name,
-                np.paramType, Expr()))
+                NodeIdManager.nextId(), np.name, np.paramType))
         }
         newMain.block = (mainDecl.block.traverse(this) as Block).getOrThrow()
         newMain.id = NodeIdManager.nextId()
