@@ -141,7 +141,7 @@ class ParserHelper {
         reporter.logErrors()
     }
 
-    func consume(kind: TokenKind, message: String, index: Int64): Token {
+    func consume(kind: TokenKind, _: String, index: Int64): Token {
         if (check(kind)) { return advance() }
 
         throw consumeError(peek(), index, kind, peek().value)
