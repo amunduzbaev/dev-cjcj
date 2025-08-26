@@ -173,20 +173,20 @@ internal open class DeclParser {
 
     private func block(): Block {
         helper.consume(TK.LCURL, "Expect '{' before block.", helper.current)
-        let nodes: Array<Node> = expressionOrDeclarations()
+        let nodes: ArrayList<Node> = expressionOrDeclarations()
         helper.endStar()
         helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
         Block(NodeIdManager.nextId(), nodes)
     }
 
-    private func expressionOrDeclarations(): Array<Node> {
+    private func expressionOrDeclarations(): ArrayList<Node> {
         let expressionOrDeclarations: ArrayList<Node> = ArrayList()
         helper.endStar()
         while (!helper.isAtEnd() &&
                 let Some(exprOrDecl) <- expressionOrDeclaration()) {
             expressionOrDeclarations.add(exprOrDecl)
         }
-        expressionOrDeclarations.toArray()
+        expressionOrDeclarations
     }
 
     private func expressionOrDeclaration(): ?Node {

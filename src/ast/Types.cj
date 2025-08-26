@@ -9,15 +9,24 @@ public open class TypeNode <: Node {
     private var typeParameterName_: Token = Token(TokenKind.ILLEGAL, "",
                                                     Position())
 
-    public init(id: NodeId) { super(id) }
+    public init() {
+        this(NodeId())
+    }
+
+    public init(id: NodeId) {
+        super(id)
+    }
 
     public init(id: NodeId, typeParameterName: Token) {
         this(id)
         typeParameterName_ = typeParameterName
     }
 
+    public override open func traverse<R>(v: Visitor<R>): R  {
+        v.visit(this)
+    }
+
     public override open func prettyPrint(_: PrettyPrinter): Unit {
-        // PrettyPrinter.append(typeParameterName.value)
     }
 
     public mut prop typeParameterName: Token {
@@ -28,7 +37,11 @@ public open class TypeNode <: Node {
 
 public class PrimitiveType <: TypeNode {
     // Keyword for constructing a primitive type.
-    private let keyword_: Token
+    private var keyword_: Token
+
+    public init() {
+        this(NodeId(), Token(), Token())
+    }
 
     public init(id: NodeId, typeParameterName: Token, keyword: Token) {
         super(id)
@@ -40,27 +53,40 @@ public class PrimitiveType <: TypeNode {
         super.typeParameterName = typeParameterName
     }
 
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
     public override func prettyPrint(printer: PrettyPrinter) {
         super.prettyPrint(printer)
         printer.append(": " + keyword.value)
     }
 
     private func isPrimitive(keyword: Token): Bool {
-        TokenKindHelper.PRIMITIVE_TYPE_TOKEN_KIND.iterator()
+        TokenKindHelper.CHAR_LANG_TYPES.iterator()
             .any({ t => t == keyword.kind })
     }
 
-    public prop keyword: Token {
+    public mut prop keyword: Token {
         get() { keyword_ }
+        set(v) { keyword_ = v }
     }
 }
 
 public class RefType <: TypeNode {
-    private let identifier_: Token
+    private var identifier_: Token
+
+    public init() {
+        this(NodeId(), Token(), Token())
+    }
 
     public init(id: NodeId, typeParameterName: Token, identifier: Token) {
         super(id, typeParameterName)
         identifier_ = identifier
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -68,7 +94,8 @@ public class RefType <: TypeNode {
         printer.append(": " + identifier.value)
     }
 
-    public prop identifier: Token {
+    public mut prop identifier: Token {
         get() { identifier_ }
+        set(v) { identifier_ = v }
     }
 }

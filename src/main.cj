@@ -1,5 +1,6 @@
 package cjcj
 
+import cjcj.asg.AsgMaker
 import cjcj.ast.Program
 import cjcj.parser.*
 import cjcj.scanner.*
@@ -26,18 +27,18 @@ public class Cj {
         let scanner = Scanner(source.toRuneArray())
         let tokens = scanner.scanTokens().toArray()
 
-        let parser: Parser = Parser(tokens, Reporter(getStdErr(), tokens))
-
+        let parser: Parser = Parser(tokens.toArray(), Reporter(getStdErr()))
         let program: ?Program = parser.parse()
         let printer: PrettyPrinter = PrettyPrinter()
+        let asgMaker = AsgMaker()
+        let asg: Program
         if (let Some(p) <- program) {
-            p.prettyPrint(printer)
+            parser.logErrors()
+            asg = asgMaker.resolve(p)
+            asg.prettyPrint(printer)
+            println(printer.toString())
         }
-        println(printer.toString())
-        parser.logErrors()
     }
-
-
 }
 
 main (args: Array<String>) {

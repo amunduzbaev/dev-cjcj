@@ -1,50 +1,40 @@
+func h(a: Int64, c: Int64, bo: Bo): Int64 {
+    a + c
+    return 10
+}
 
-let b: Wow
-var a: Wow = 3
+main (args: String): Unit {
+    func a(first: Int64): Custom {
+        let a = 5
+        1 + 4
+    }
+    let m: Int64
+    m + 5
 
-let b = 8
-
-func a(a: UInt8, b: Crazy, c: Rune) {
-    if (a + b == 5) {
-        while (b && c || d | 5) {
-            2 + 4
-            a = b
-            c = f()()
-            return 6 + 5 * 2 - (10 + 5)
+    let b = 10
+    if (5 + 6 * 4 < 20) {
+        while (true) {
+            func a(i: A, b: B) {
+                i + b
+                return i + 10 * b / 2
+            }
         }
-        while (5 & 2 + 4 * 3 ** (2 / 4)) {
-            is
-            return
-        } 
-    } else if (!h) {
-        a = !!!!!!-!-!-!10
+        return 1
+    } else if (10 & 2 == 5) {
+        let a = 10
+        return a + b
     } else {
-        f(a, b, 5 + 10 * 467)
-        return 10
+        return b + 10 * 4
     }
+    a(0)
+    h(0, 1, "hello")
+    b + b
+    let j: Int64
+    let custom : Custom
+    let raa = 0
+    j = 10
+    j = 10
+    let c: Uni
 
-    func b() {
-
-    }
-}
-
-func b() {}
-func c(): ABCD {}
-func d(_: Unit): UInt8 {}
-
-func a(): Int64 {
-    1
-}
-
-main() {}
-
-let a: Int64 = 0
-
-func d( d: UInt8) 
-{
-    return 6
-}
-
-main() {
-    is
+    // let args = 5
 }

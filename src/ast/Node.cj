@@ -5,56 +5,82 @@ import cjcj.scanner.TokenKind
 import cjcj.scanner.Token
 
 import std.collection.ArrayList
+import std.deriving.Derive
 
-public struct NodeId {
-    public let id: UInt64
+@Derive[Equatable]
+public struct NodeId <: Hashable {
+    public let id: Int64
 
-    public NodeId(id: UInt64) {
+    // Default initializer with a default ID.
+    public init() {
+        this(0)
+    }
+
+    public NodeId(id: Int64) {
         this.id = id
+    }
+
+    public func hashCode(): Int64 {
+        return id
     }
 }
 
-abstract sealed class Node {
-    private let id_: NodeId
+public abstract class Node {
+    private var id_: NodeId
 
     public Node(id: NodeId) {
         id_ = id
     }
-    // public func traverse(v: Visitor): Unit
+
+    /*
+    TODO: Change this implementation to all classes if it's better to let the
+    nodes traverse their subgraph on their own.
+    */
+    public func traverse<R>(v: Visitor<R>): R
 
     /*
     * Print the node and its children as a piece of Cangjie code.
     */
     public func prettyPrint(printer: PrettyPrinter): Unit
 
-    public prop id: NodeId {
+    public mut prop id: NodeId {
         get() { id_ }
+        set(v) { id_ = v }
     }
 }
 
 public class Argument <: Node {
-    private let expr_: Node
+    private var expr_: Node
 
     public Argument(id: NodeId, expr: Node) {
         super(id)
         expr_ = expr
     }
 
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
     public override func prettyPrint(printer: PrettyPrinter): Unit {
         expr.prettyPrint(printer)
     }
 
-    public prop expr: Node {
+    public mut prop expr: Node {
         get() { expr_ }
+        set(v) { expr_ = v }
     }
 }
 
 public class Program <: Node {
-    private let decls_: ArrayList<Decl>
+    private var decls_: ArrayList<Decl>
 
     public Program(id: NodeId, decls: ArrayList<Decl>) {
         super(id)
         decls_ = decls
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
@@ -64,7 +90,8 @@ public class Program <: Node {
         })
     }
 
-    public prop decls: ArrayList<Decl> {
+    public mut prop decls: ArrayList<Decl> {
         get() { decls_ }
+        set(v) { decls_ = v }
     }
 }
