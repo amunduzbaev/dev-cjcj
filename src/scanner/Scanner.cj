@@ -133,21 +133,22 @@ public class Scanner {
                             addToken(TokenKind.WILDCARD)
                         }
             case 'r' => if(matches(r'\'')) {
-                            addToken(TokenKind.RUNE_LITERAL, advance())
+                            advance()
                             if(!matches(r'\'')) {
                                 println("Line: ${line} , Unterminated byte rune literal.")
-                                exit(65)
+                                
                             }
+                            addToken(TokenKind.RUNE_LITERAL)
                         }else{
                             identifier()
                         }
 
             case 'b' => if(matches(r'\'')) {
-                            addToken(TokenKind.RUNE_BYTE_LITERAL, advance())
+                            advance()
                             if(!matches(r'\'')) {
                                 println("Line: ${line} , Unterminated byte rune literal.")
-                                exit(65)
                             }
+                            addToken(TokenKind.RUNE_BYTE_LITERAL, advance())
                         }else{
                             identifier()
                         }

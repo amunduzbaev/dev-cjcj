@@ -1,6 +1,10 @@
-let a: Int64 = 3 ++ 2
+let a: Int64 = 3 + 3
+
+func a(a: Int64) {
+    println(a(9, 10, r'9'))
+    println("Hello")
+}
 
 main() {
-    println(a(9, 10, r'9'))
-    is
+    return 0
 }

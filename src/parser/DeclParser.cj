@@ -11,6 +11,7 @@ import std.convert.Parsable
 private type TK = TokenKind
 private type TKH = TokenKindHelper
 
+
 internal open class DeclParser {
 
     private static const MAX_PARAM_NUMBER = 255
@@ -45,15 +46,26 @@ internal open class DeclParser {
 
     private func unnamedParameterList(): ArrayList<FuncParam> {
         let parameters: ArrayList<FuncParam> = ArrayList()
-        do {
-            helper.skipNL()
-            if (parameters.size >= MAX_PARAM_NUMBER) {
-                throw helper.error(helper.previous(), "Can't have more than " +
-                    MAX_PARAM_NUMBER.toString() + " parameters.", helper.current)
-            }
-            parameters.add(unnamedParameter())
-            helper.skipNL()
-        } while (helper.matches(TK.COMMA) && helper.check(TK.IDENTIFIER))
+        let start: (Token,Int64) = (helper.previous(), helper.current-1)
+        if(helper.check(TK.IDENTIFIER)) {
+            do {
+                if (helper.check(TK.IDENTIFIER)) {
+                    helper.skipNL()
+                    if (parameters.size >= MAX_PARAM_NUMBER) {
+                        throw helper.error(helper.previous(), "Can't have more than " +
+                            MAX_PARAM_NUMBER.toString() + " parameters.", helper.current)
+                    }
+                    try {
+                        parameters.add(unnamedParameter())
+                    } catch(e: FinalError) {
+                        helper.synchronizeBlockParenthesis(start[0], start[1])
+                    }
+                    helper.skipNL()
+                } else {
+                    helper.error(helper.previous(), "Expected parameter name after comma", helper.current-1)
+                }
+            } while (helper.matches(TK.COMMA))
+        }
         return parameters
     }
 
@@ -66,13 +78,25 @@ internal open class DeclParser {
         let name: Token = helper.consume(TK.IDENTIFIER, "Expect function name.", helper.current)
         var parameters: ArrayList<FuncParam> = ArrayList()
         helper.skipNL()
-        if (!helper.matches(TK.UNIT_LITERAL)) {
-            helper.consume(TK.LPAREN, "Expect '(' before function parameters", helper.current)
-            helper.skipNL()
-            parameters = unnamedParameterList()
-            helper.skipNL()
-            helper.consume(TK.RPAREN, "Expect ')' after function parameters", helper.current)
-        }
+            if (!helper.matches(TK.UNIT_LITERAL)) {
+                helper.consume(TK.LPAREN, "Expect '(' before function parameters", helper.current)
+                let start: (Token,Int64) = (helper.previous(), helper.current-1)
+                helper.skipNL()
+                try {
+                    parameters = unnamedParameterList()
+                    helper.skipNL()
+                    helper.consume(TK.RPAREN, "Expect ')' after function parameters", helper.current)
+                } catch(e: ParseError) {
+                    helper.synchronizeBlockParenthesis(start[0],start[1])
+                } catch(e: ConsumeError) {
+                    if (helper.check(TK.LCURL)) {
+                        helper.error(start[0], "unclosed delimiter: '('", start[1])
+                    } else {
+                        helper.synchronizeBlockParenthesis(start[0],start[1])
+                    }
+                }
+            }
+        
         var declType: ?TypeNode = None
         helper.skipNL()
         if (helper.matches(TK.COLON)) {
@@ -103,7 +127,9 @@ internal open class DeclParser {
             FuncParam(NodeIdManager.nextId(),
                 nodeType(NodeIdManager.nextId(), parameterName, keyword))
         } else {
-            throw helper.error(helper.previous(), "Expected unnamed parameter, found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'", helper.current)
+            throw helper.error(helper.peek(), 
+            "Expected unnamed parameter, found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'", 
+            helper.current)
         }
     }
 
@@ -200,7 +226,9 @@ internal open class DeclParser {
             if (helper.matches(TKH.END) || helper.check(TK.RCURL)) {
                 return None
             }
-            throw helper.error(helper.peek(), "Expected expression or declaration inside block, found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'", helper.current)
+            throw helper.error(helper.peek(), 
+            "Expected expression or declaration inside block, found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'",
+            helper.current)
         } catch (e: ParseError) {
             helper.synchronize()
             Expr(NodeIdManager.nextId())
@@ -224,7 +252,7 @@ internal open class DeclParser {
             helper.skipNL()
             helper.consume(TK.RPAREN, "Expect ')' after condition.", helper.current)
         } catch (e: ParseError){
-            helper.synchronizeParenthesis(start[0], start[1])
+            helper.synchronizeBlockParenthesis(start[0], start[1])
             condition = Expr(NodeIdManager.nextId())
         }
         helper.skipNL()
@@ -255,7 +283,7 @@ internal open class DeclParser {
             helper.skipNL()
             helper.consume(TK.RPAREN, "Expect ')' after condition.", helper.current)
         } catch (e: ParseError){
-            helper.synchronizeParenthesis(start[0], start[1])
+            helper.synchronizeBlockParenthesis(start[0], start[1])
             condition = Expr(NodeIdManager.nextId())
         }
         helper.skipNL()
@@ -294,24 +322,33 @@ internal open class DeclParser {
 
     private func callSuffix(callee: Expr): ?Expr {
         let arguments: ArrayList<Argument> = ArrayList()
-        if (helper.matches(TK.LPAREN)) {
-            helper.skipNL()
-            if (!helper.check(TK.RPAREN)) {
-                do {
-                    helper.skipNL()
-                    arguments.add(
-                        Argument(
-                            NodeIdManager.nextId(),
-                            expectExpression(
-                                expression,
-                                "Expected expression inside call suffix."
+            if (helper.matches(TK.LPAREN)) {
+                let start: (Token,Int64) = (helper.previous(), helper.current-1)
+                try {
+                helper.skipNL()
+                if (!helper.check(TK.RPAREN)) {
+                    do {
+                        helper.skipNL()
+                        arguments.add(
+                            Argument(
+                                NodeIdManager.nextId(),
+                                expectExpression(
+                                    expression,
+                                    "Expected expression inside call suffix."
+                                )
                             )
                         )
-                    )
-                    helper.skipNL()
-                } while (helper.matches(TK.COMMA))
+                        helper.skipNL()
+                    } while (helper.matches(TK.COMMA))
+                }
+                helper.consume(TK.RPAREN, "Expect ')' after arguments.", helper.current)
+            } catch (e: ParseError) {
+                helper.synchronizeCallParenthesis(start[0], start[1])
+            } catch (e: ConsumeError) {
+                reporter.pop()
+                helper.error(start[0], "unclosed delimiter: '('", start[1])
             }
-            helper.consume(TK.RPAREN, "Expect ')' after agruments.", helper.current)
+            
         } else if (!helper.matches(TK.UNIT_LITERAL)) {
             return None
         }
@@ -483,7 +520,7 @@ internal open class DeclParser {
                 let oper: Token = helper.previous()
                 helper.skipNL()
                 let right: Expr = expectExpression(prefixUnaryExpression,
-                    "Expected a prefixUnaryExpression after '**', found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'")
+                "Expected a prefixUnaryExpression after '**', found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'")
                 expr = BinaryExpr(NodeIdManager.nextId(), expr, oper, right)
             }
             return expr
@@ -498,7 +535,7 @@ internal open class DeclParser {
         if (helper.matches(TKH.PREFIX_UNARY_OPERATOR)) {
             let oper: Token = helper.previous()
             let right: Expr = expectExpression(prefixUnaryExpression,
-                "Expected a postfixExpression after ${oper.value}, found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'")
+            "Expected a postfixExpression after ${oper.value}, found '\u{001b}[31m${helper.peek().value}\u{001b}[0m'")
             return UnaryExpr(NodeIdManager.nextId(), oper, right)
         }
         postfixExpression()
@@ -535,7 +572,7 @@ internal open class DeclParser {
         if (helper.matches(TK.LPAREN)) {
             helper.skipNL()
             let expr: Expr = expectExpression(expression,
-                                                "Expect expression after '('")
+                "Expect expression after '('")
             helper.skipNL()
             helper.consume(TK.RPAREN, "Expected ')' after expression.", helper.current)
             return ParenExpr(NodeIdManager.nextId(), expr)

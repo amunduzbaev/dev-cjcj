@@ -5,6 +5,7 @@ import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import cjcj.scanner.TokenKindHelper
 
+class ConsumeError <: FinalError { }
 class ParseError <: FinalError { }
 open class FinalError <: Exception { }
 
@@ -115,18 +116,47 @@ class ParserHelper {
         }
     }
 
-    func synchronizeParenthesis(start: Token, current: Int64): Unit {
+    func synchronizeBlockParenthesis(start: Token, current: Int64): ?FinalError {
         var counter: Int64 = 1
-        while (!isAtEnd() && counter > 0) {
+        if(!check(TokenKind.LCURL) && !check(TokenKind.COMMA)) {
+            do {
+                if (peek().kind == TokenKind.LPAREN) { counter++}
+                if (peek().kind == TokenKind.RPAREN) { counter--}
+                advance()
+                
+            } while (!isAtEnd()
+            && counter > 0
+            && !check(TokenKind.LCURL)
+            && !check(TokenKind.COMMA))
+        } else {
+            reporter.pop()
+        }
+        if(isAtEnd()) {
+            errorFinal(start, "2unclosed delimiter: '('", current)
+        } else if (check(TokenKind.LCURL) && counter > 0){
+            error(start, "1unclosed delimiter: '('", current)
+        } else if (check(TokenKind.COMMA)){
+            error(tokens[this.current-1], "Malformed parameter", this.current-1)
+        } else {
+            None
+        }
+    }
+
+    func synchronizeCallParenthesis(start: Token, current: Int64): Unit {
+        var counter: Int64 = 1
+        while (!isAtEnd() && counter > 0 && !check(TokenKind.NL)) {
             // Finished a statement
-            if (peek().kind == TokenKind.LPAREN) { counter++}
-            if (peek().kind == TokenKind.RPAREN) { counter--}
+            if (check(TokenKind.LPAREN)) { counter++}
+            if (check(TokenKind.RPAREN)) { counter--}
             advance()
         }
         if(isAtEnd()) {
             throw errorFinal(start, "unclosed delimiter: '('", current)
+        } else {
+            throw error(start, "unclosed delimiter: '('", current)
         }
     }
+    
 
     func endStar(): Unit {
         while(matches(TokenKindHelper.END)) { }
@@ -155,7 +185,7 @@ class ParserHelper {
 
     func consumeError(token: Token, index: Int64, expected: TokenKind, found: String) {
         reporter.consumeError(token, index, expected, found)
-        ParseError()
+        ConsumeError()
     }
 
     func logErrors() {

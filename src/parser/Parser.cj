@@ -57,7 +57,6 @@ public class Parser {
             }
             return Program(NodeIdManager.nextId(), nodes)
         } catch (_) {
-            println("MASSIVE FAIL, TOPLEVEL REACHED, current token = ${parserHelper.current}")
             return None
         }
     }

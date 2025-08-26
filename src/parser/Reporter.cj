@@ -16,6 +16,10 @@ public class Reporter {
         this.console = console
     }
 
+    public func pop() {
+        errors.remove(at: errors.size-1)
+    }
+
     private func getSuffixPrefix(current: Int64): (String, String) {
         var prefix: String = ""
         var suffix: String = ""
@@ -72,7 +76,7 @@ Failed to parse program.
 
 }
 
-private struct Error {
+public struct Error {
 
     Error(private let line: Int64, private let index: Int64, 
         private let wher: String, private let message: String, 
