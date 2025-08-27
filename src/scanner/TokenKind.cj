@@ -3,8 +3,8 @@ package cjcj.scanner
 
 import std.deriving.*
 
-@Derive[ToString, Equatable]
-public enum TokenKind {
+@Derive[ Equatable]
+public enum TokenKind <: ToString{
         DOT
     | /*  "."           */
         COMMA
@@ -237,6 +237,123 @@ public enum TokenKind {
       /*  "()"               */
     | ILLEGAL
 
+    public func toString(): String {
+        return match(this) {
+            case DOT => "."
+            case COMMA => ","
+            case LPAREN => "("
+            case RPAREN => ")"
+            case LSQUARE => "["
+            case RSQUARE => "]"
+            case LCURL => "{"
+            case RCURL => "}"
+            case EXP => "**"
+            case MUL => "*"
+            case MOD => "%"
+            case DIV => "/"
+            case ADD => "+"
+            case SUB => "-"
+            case INCR => "++"
+            case DECR => "--"
+            case AND => "&&"
+            case OR => "||"
+            case NOT => "!"
+            case BITAND => "&"
+            case BITOR => "|"
+            case BITXOR => "^"
+            case BITNOT => "~"
+            case LSHIFT => "<<"
+            case RSHIFT => ">>"
+            case COLON => ":"
+            case SEMI => ";"
+            case ASSIGN => "="
+            case ADD_ASSIGN => "+="
+            case SUB_ASSIGN => "-="
+            case MUL_ASSIGN => "*="
+            case DIV_ASSIGN => "/="
+            case MOD_ASSIGN => "%="
+            case BACKARROW => "<-"
+            case DOUBLE_ARROW => "=>"
+            case HASH => "#"
+            case QUEST => "?"
+            case LT => "<"
+            case GT => ">"
+            case LE => "<="
+            case GE => ">="
+            case IS => "is"
+            case AS => "as"
+            case NOTEQ => "!="
+            case EQUAL => "=="
+            case WILDCARD => "_"
+            case INT8 => "Int8"
+            case INT16 => "Int16"
+            case INT32 => "Int32"
+            case INT64 => "Int64"
+            case INTNATIVE => "IntNative"
+            case UINT8 => "UInt8"
+            case UINT16 => "UInt16"
+            case UINT32 => "UInt32"
+            case UINT64 => "UInt64"
+            case UINTNATIVE => "UIntNative"
+            case FLOAT16 => "Float16"
+            case FLOAT32 => "Float32"
+            case FLOAT64 => "Float64"
+            case RUNE => "Rune"
+            case BOOLEAN => "Bool"
+            case NOTHING => "Nothing"
+            case UNIT => "Unit"
+            case STRUCT => "struct"
+            case ENUM => "enum"
+            case VARRAY => "VArray"
+            case THISTYPE => "This"
+            case CLASS => "class"
+            case FUNC => "func"
+            case LET => "let"
+            case VAR => "var"
+            case CONST => "const"
+            case TYPE => "type"
+            case INIT => "init"
+            case THIS => "this"
+            case SUPER => "super"
+            case IF => "if"
+            case ELSE => "else"
+            case DO => "do"
+            case WHILE => "while"
+            case RETURN => "return"
+            case CONTINUE => "continue"
+            case BREAK => "break"
+            case MATCH => "match" 
+            case PROP => "prop"
+            case STATIC => "static"
+            case PUBLIC => "public"
+            case PRIVATE => "private"
+            case INTERNAL => "internal"
+            case PROTECTED => "protected"
+            case OVERRIDE => "override"
+            case ABSTRACT => "abstract"
+            case SEALED => "sealed"
+            case OPEN => "open"
+            case INOUT => "inout"
+            case MUT => "mut"
+            case OPERATOR => "operator"
+            case UPPERBOUND => "<:"
+            case MAIN => "main"
+            case IDENTIFIER => "identifier"
+            case INTEGER_LITERAL => "integer literal"
+            case RUNE_BYTE_LITERAL => "rune byte literal"
+            case FLOAT_LITERAL => "float literal"
+            case COMMENT => "comment"
+            case NL => "newline"
+            case END => "end of file"
+            case RUNE_LITERAL => "rune literal"
+            case STRING_LITERAL => "string literal"
+            case BOOL_LITERAL => "boolean literal"
+            case UNIT_LITERAL => "unit literal"
+            case ILLEGAL => "illegal"
+        }
+    }
+
+
 }
 
 public class TokenKindHelper {
@@ -310,6 +427,9 @@ public class TokenKindHelper {
         PROTECTED,
         INTERNAL
     ]
+
+    
+    
 
     public static let ASSIGNMENT_OPERATOR: Array<TokenKind> = [
         TokenKind.ASSIGN
@@ -388,5 +508,12 @@ public class TokenKindHelper {
     public static let END: Array<TokenKind> = [
         TokenKind.NL,
         TokenKind.SEMI
+    ]
+
+    public static let TOP: Array<TokenKind> = [
+        TokenKind.MAIN,
+        TokenKind.FUNC,
+        TokenKind.LET,
+        TokenKind.VAR
     ]
 }

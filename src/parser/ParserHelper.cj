@@ -5,7 +5,9 @@ import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import cjcj.scanner.TokenKindHelper
 
-public class ParseError <: Exception { }
+public open class ConsumeError <: FinalError { }
+public open class ParseError <: FinalError { }
+public open class FinalError <: Exception { }
 
 public class NodeIdManager {
     // The ID 0 is a default invalid value.
@@ -115,15 +117,58 @@ class ParserHelper {
         }
     }
 
+    func synchronizeBlockParenthesis(start: Token, current: Int64): ?FinalError {
+        var counter: Int64 = 1
+        if(!check(TokenKind.LCURL) && !check(TokenKind.COMMA)) {
+            do {
+                if (peek().kind == TokenKind.LPAREN) { counter++}
+                if (peek().kind == TokenKind.RPAREN) { counter--}
+                advance()
+                
+            } while (!isAtEnd() && counter > 0 && 
+            !check(TokenKind.LCURL) && !check(TokenKind.COMMA))
+        } else {
+            reporter.pop()
+        }
+        if(isAtEnd()) {
+            errorFinal(start, "2unclosed delimiter: '('", current)
+        } else if (check(TokenKind.LCURL) && counter > 0){
+            error(start, "1unclosed delimiter: '('", current)
+        } else if (check(TokenKind.COMMA)){
+            error(tokens[this.current-1], "Malformed parameter", this.current-1)
+        } else {
+            None
+        }
+    }
+
+    func synchronizeCallParenthesis(start: Token, current: Int64): Unit {
+        var counter: Int64 = 1
+        while (!isAtEnd() && counter > 0 && !check(TokenKind.NL)) {
+            // Finished a statement
+            if (check(TokenKind.LPAREN)) { counter++}
+            if (check(TokenKind.RPAREN)) { counter--}
+            advance()
+        }
+        if(isAtEnd()) {
+            throw errorFinal(start, "unclosed delimiter: '('", current)
+        } else {
+            throw error(start, "unclosed delimiter: '('", current)
+        }
+    }
+    
+
     func endStar(): Unit {
         while(matches(TokenKindHelper.END)) { }
     }
 
-    func endPlus(message: String, index: Int64): Unit {
+    func endPlus(_: String, index: Int64): Unit {
         if (isAtEnd() || matches(TokenKindHelper.END)) {
             endStar()
+        } else if (TokenKindHelper.TOP.iterator().any({tk => check(tk)})){
+            error(peek(), "Newline forgotten at new TopLevelObject declaration", index)
         } else {
-            throw error(previous(), message, index)
+            error(peek(), "Expected newline after top level declaration, found '${peek().value}'", index)
+            synchronize()
         }
     }
 
@@ -132,16 +177,21 @@ class ParserHelper {
         ParseError()
     }
 
+    func errorFinal(token: Token, message: String, index: Int64): FinalError {
+        reporter.error(token, message, index)
+        FinalError()
+    }
+
     func consumeError(token: Token, index: Int64, expected: TokenKind, found: String) {
         reporter.consumeError(token, index, expected, found)
-        ParseError()
+        ConsumeError()
     }
 
     func logErrors() {
         reporter.logErrors()
     }
 
-    func consume(kind: TokenKind, message: String, index: Int64): Token {
+    func consume(kind: TokenKind, _: String, index: Int64): Token {
         if (check(kind)) { return advance() }
 
         throw consumeError(peek(), index, kind, peek().value)
