@@ -1,6 +1,6 @@
 package cjcj.asg
 
-import cjcj.ast.*
+import cjcj.visitor.*
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import cjcj.parser.NodeIdManager
@@ -26,7 +26,7 @@ private enum ScopeType {
 
 /*
 * Resolves a Program and retrieves the ASG root. Every variable and function
-* reference will be bound to the node of the initialization.
+* reference will be bound to the node of the initialization. (declaration maybe?)
 * The reference and call nodes will be different from the AST for this reason.
 *
 * Note: I'm using a few getOrThrow() functions without custom errors and without
@@ -49,6 +49,7 @@ public class AsgMaker <: Visitor<Node> {
     * Resolves all of the function and variable references and returns the new
     * Program node that is the ASG root.
     */
+
     public func resolve(program: Program): Program {
         return (program.traverse(this) as Program).getOrThrow()
     }
@@ -113,8 +114,10 @@ public class AsgMaker <: Visitor<Node> {
         block.nodes.iterator().forEach({ n => nodes.add(n.traverse(this)) })
 
         currentScopeType = precScopeType
+        let asgBlock = Block(NodeIdManager.nextId(), nodes)
+
         endScope()
-        Block(NodeIdManager.nextId(), nodes)
+        asgBlock
     }
 
     public override func visit(ifExpr: IfExpr): Node {
@@ -193,7 +196,8 @@ public class AsgMaker <: Visitor<Node> {
 
         // TODO: Make this return an AssignExpr if there's an initializer
         // because variable declaration are not a thing in ASG.
-        VarDecl(nodeId, varDecl.keyword, varDecl.identifier, initializer,
+        // TODO: Figure out what to do with VarDeclWithRef
+        VarDeclWithRef(nodeId, varDecl.keyword, varDecl.identifier, ref, initializer,
             declType)
     }
 
@@ -287,3 +291,6 @@ public class AsgMaker <: Visitor<Node> {
         currentEnvironment.get(identifier)
     }
 }
+
+// TODO : Make typechecking in the following way
+// in a seperate file

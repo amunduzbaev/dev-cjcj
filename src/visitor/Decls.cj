@@ -1,4 +1,4 @@
-package cjcj.ast
+package cjcj.visitor
 
 import cjcj.prettyPrinter.PrettyPrinter
 
@@ -63,7 +63,7 @@ public abstract class Decl <: Node {
     }
 }
 
-public class VarDecl <: Decl {
+public open class VarDecl <: Decl {
     private var initializer_: ?Expr
     private var declType_: ?TypeNode
 

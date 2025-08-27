@@ -1,17 +1,19 @@
-package cjcj.asg
+package cjcj.visitor
 
-import cjcj.ast.Node
-import cjcj.ast.Expr
-import cjcj.ast.Block
-import cjcj.ast.TypeNode
-import cjcj.ast.FuncParam
-import cjcj.ast.Argument
-import cjcj.ast.NodeId
-import cjcj.ast.Visitor
+// import cjcj.ast.Node
+// import cjcj.ast.Expr
+// import cjcj.ast.Block
+// import cjcj.ast.TypeNode
+// import cjcj.ast.FuncParam
+// import cjcj.ast.Argument
+// import cjcj.ast.NodeId
+// import cjcj.ast.Visitor
 import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
-import cjcj.parser.ParseError
+// import cjcj.asg.Environment
+// import cjcj.parser.ParseError
+// import cjcj.ast.VarDecl
 
 import std.collection.ArrayList
 
@@ -19,7 +21,7 @@ import std.collection.ArrayList
 * Reference nodes represent references to variables, functions, . . . inside the
 * ASG.
 */
-public open class Reference <: Node {
+public open class Reference <: Node & Hashable & Equatable<Reference> {
     /*
     TODO: the identifier will become an expression and in general all the
     * references will be checked by hashing the toString of the expression that
@@ -44,6 +46,13 @@ public open class Reference <: Node {
         throw UnsupportedException("Unimplemented method")
     }
 
+    public func hashCode(): Int64 {
+        this.id.hashCode()
+    }
+    public operator func == (rhs: Reference) :Bool{
+        id.id == rhs.id.id
+    }
+
     public prop identifier: Token {
         get() { identifier_ }
     }
@@ -53,7 +62,7 @@ public open class Reference <: Node {
     }
 }
 
-class VariableReference <: Reference {
+public class VariableReference <: Reference {
     private let keyword_: Token
 
     public init(id: NodeId, identifier: Token, declType: ?TypeNode,
@@ -67,7 +76,7 @@ class VariableReference <: Reference {
     }
 }
 
-class FuncReference <: Reference {
+public class FuncReference <: Reference {
     private let environment_: Environment
     private let params_: ArrayList<FuncParam>
 
@@ -88,5 +97,28 @@ class FuncReference <: Reference {
 
     public prop params: ArrayList<FuncParam> {
         get() { params_ }
+    }
+}
+
+
+public class VarDeclWithRef <: VarDecl {
+    private let ref_: Reference
+
+    public init (id: NodeId, keyword: Token, identifier: Token, ref: Reference) {
+        this(id, keyword, identifier, ref, None)
+    }
+
+    public init(id: NodeId, keyword: Token, identifier: Token, ref: Reference, initializer: ?Expr) {
+        this(id, keyword, identifier, ref, initializer, None)
+    }
+
+    public init(id: NodeId, keyword: Token, identifier: Token, ref: Reference, initializer: ?Expr,
+            declType: ?TypeNode) {
+        super(id, keyword, identifier, initializer, declType)
+        ref_ = ref
+    }
+
+    public prop ref : Reference {
+        get() { ref_ }
     }
 }

@@ -1,8 +1,8 @@
 package cjcj
 
 import cjcj.asg.AsgMaker
-import cjcj.ast.Program
-import cjcj.ast.Node
+import cjcj.visitor.Program
+import cjcj.visitor.Node
 import cjcj.parser.*
 import cjcj.scanner.*
 import cjcj.prettyPrinter.PrettyPrinter

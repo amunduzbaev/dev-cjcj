@@ -1,8 +1,8 @@
-package cjcj.ast
+package cjcj.visitor
 
 public abstract class Visitor<R> {
 
-    protected open func visit(_: Program): R
+    protected open func visit(_: Program): R 
 
     protected open func visit(_: BinaryExpr): R
 
@@ -41,4 +41,12 @@ public abstract class Visitor<R> {
     protected open func visit(_: PrimitiveType): R
 
     protected open func visit(_: RefType): R
+
+    protected open func visit(_: VariableReference): R{
+        throw Exception("Unimplemented method for Visitor : Program")
+    }
+
+    protected open func visit(_: FuncReference): R{
+        throw Exception("Unimplemented method for Visitor : Program")
+    }
 }
