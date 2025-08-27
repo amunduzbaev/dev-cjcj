@@ -2,7 +2,6 @@ package cjcj
 
 import cjcj.asg.AsgMaker
 import cjcj.visitor.Program
-import cjcj.visitor.Node
 import cjcj.parser.*
 import cjcj.scanner.*
 import cjcj.prettyPrinter.PrettyPrinter
@@ -26,7 +25,7 @@ public class Cj {
 
     private static func run(source: String) {
         let scanner = Scanner(source.toRuneArray())
-        let tokens = scanner.scanTokens()
+        let tokens = scanner.scanTokens().toArray()
 
         let parser: Parser = Parser(tokens.toArray(), Reporter(getStdErr()))
         let program: ?Program = parser.parse()
@@ -34,6 +33,7 @@ public class Cj {
         let asgMaker = AsgMaker()
         let asg: Program
         if (let Some(p) <- program) {
+            parser.logErrors()
             asg = asgMaker.resolve(p)
             asg.prettyPrint(printer)
             println(printer.toString())

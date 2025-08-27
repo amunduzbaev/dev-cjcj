@@ -19,12 +19,12 @@ public class NodeIdManager {
 }
 
 class ParserHelper {
-    private var current: Int64
+    private var current_: Int64
     private let tokens: Array<Token>
 
     public ParserHelper(tokens: Array<Token>, private let reporter: Reporter) {
         this.tokens = tokens
-        current = 0
+        current_ = 0
     }
 
     /*
@@ -34,18 +34,18 @@ class ParserHelper {
     * If it's not it goes back to before the NL and returns false.
     */
     func skipNLCompare(target: Array<TokenKind>): Bool {
-        let tmp: Int64 = current
+        let tmp: Int64 = current_
         skipNL()
         if (target.iterator().any({ t => matches(t) })) {
             return true
         }
-        current = tmp
+        current_ = tmp
         return false
     }
 
     func advance(): Token {
         if (!isAtEnd()) {
-            current++
+            current_++
         }
         previous()
     }
@@ -55,7 +55,7 @@ class ParserHelper {
     }
 
     func peek(): Token {
-        tokens[current]
+        tokens[current_]
     }
 
     func matches(types: Array<TokenKind>): Bool {
@@ -76,7 +76,7 @@ class ParserHelper {
     }
 
     func previous(): Token {
-        tokens[current - 1]
+        tokens[current_ - 1]
     }
 
     func skipNL(): Unit {
@@ -119,23 +119,32 @@ class ParserHelper {
         while(matches(TokenKindHelper.END)) { }
     }
 
-    func endPlus(message: String): Unit {
-        if (matches(TokenKindHelper.END)) {
+    func endPlus(message: String, index: Int64): Unit {
+        if (isAtEnd() || matches(TokenKindHelper.END)) {
             endStar()
         } else {
-            throw error(previous(), message)
+            throw error(previous(), message, index)
         }
     }
 
-    func error(token: Token, message: String): ParseError {
-        reporter.error(token, message)
+    func error(token: Token, message: String, index: Int64): ParseError {
+        reporter.error(token, message, index)
         ParseError()
     }
 
-    func consume(kind: TokenKind, message: String): Token {
+    func consumeError(token: Token, index: Int64, expected: TokenKind, found: String) {
+        reporter.consumeError(token, index, expected, found)
+        ParseError()
+    }
+
+    func logErrors() {
+        reporter.logErrors()
+    }
+
+    func consume(kind: TokenKind, _: String, index: Int64): Token {
         if (check(kind)) { return advance() }
 
-        throw error(peek(), message)
+        throw consumeError(peek(), index, kind, peek().value)
     }
 
     /*
@@ -143,11 +152,15 @@ class ParserHelper {
     * a valid result it'll go back to the token point it was before.
     */
     func tryParse<T>(fun: () -> ?T): ?T {
-        let tmp: Int64 = current
+        let tmp: Int64 = current_
         if (let Some(val) <- fun()) {
             return val
         }
-        current = tmp
+        current_ = tmp
         None
+    }
+
+    public prop current: Int64 {
+        get() { current_ }
     }
 }
