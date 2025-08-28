@@ -81,6 +81,7 @@ public class VariableReference <: Reference {
 }
 
 public class FuncReference <: Reference {
+    // TODO: Maybe environment can be removed.
     private let environment_: Environment
     private let params_: ArrayList<FuncParam>
 
@@ -108,7 +109,10 @@ public class FuncReference <: Reference {
     }
 }
 
-
+/*
+    TODO: The following classes may be a temporary solution until we find a cleaner way to handle
+    this kind of problem.
+*/
 public class VarDeclWithRef <: VarDecl {
     private let ref_: Reference
 
@@ -136,21 +140,21 @@ public class VarDeclWithRef <: VarDecl {
 }
 
 public class FuncDeclWithRef <: FuncDecl {
+    // TODO: Maybe this can be removed
     private let paramRef_: ArrayList<Reference>
+    private let funcRef_: FuncReference
 
-    public init() {
-        this(NodeId(), Token(), Token(), Block(), ArrayList(), None, ArrayList())
-    }
-
-    public init(id: NodeId, keyword: Token, block: Block,
-                params: ArrayList<FuncParam>, paramRef: ArrayList<Reference>) {
-        this(id, keyword, Token(), block, params, None, paramRef)
+    public init(id: NodeId, keyword: Token, block: Block, params: ArrayList<FuncParam>,
+            paramRef: ArrayList<Reference>, funcRef: FuncReference) {
+        this(id, keyword, Token(), block, params, None, paramRef, funcRef)
     }
 
     public FuncDeclWithRef(id: NodeId, keyword: Token, identifier: Token, block: Block,
-                params: ArrayList<FuncParam>, declType: ?TypeNode, paramRef: ArrayList<Reference>) {
+                params: ArrayList<FuncParam>, declType: ?TypeNode, paramRef: ArrayList<Reference>,
+                funcRef: FuncReference) {
         super(id, keyword, identifier, block, params, declType)
         paramRef_ = paramRef
+        funcRef_ = funcRef
     }
 
     public override func traverse<R>(v: Visitor<R>): R {
@@ -160,11 +164,17 @@ public class FuncDeclWithRef <: FuncDecl {
     public prop paramRef : ArrayList<Reference> {
         get() { paramRef_ }
     }
+
+    public prop funcRef: FuncReference {
+        get() { funcRef_ }
+    }
 }
 
 public class MainDeclWithRef <: MainDecl {
     private var paramRef_: ArrayList<Reference>
 
+    // TODO: Remove this when the TODO in AsgMaker:243 is fixed, and look also for other similar
+    // cases to fix.
     public init() {
         this(NodeId(), Block(), None, None, ArrayList())
     }

@@ -236,10 +236,11 @@ public class AsgMaker <: Visitor<Node> {
         let nodeId: NodeId = NodeIdManager.nextId()
 
         FuncDeclWithRef(nodeId, funcDecl.keyword, funcDecl.identifier,
-            block, params, declType, paramRefs)
+            block, params, declType, paramRefs, reference)
     }
 
     public override func visit(mainDecl: MainDecl): Node {
+        // TODO: Remove this declaration with assignments and create only one object in the end.
         let newMain = MainDeclWithRef()
         newMain.keyword = mainDecl.keyword
         if (let Some(dt) <- mainDecl.declType) {
