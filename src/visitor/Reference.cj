@@ -1,19 +1,8 @@
 package cjcj.visitor
 
-// import cjcj.ast.Node
-// import cjcj.ast.Expr
-// import cjcj.ast.Block
-// import cjcj.ast.TypeNode
-// import cjcj.ast.FuncParam
-// import cjcj.ast.Argument
-// import cjcj.ast.NodeId
-// import cjcj.ast.Visitor
 import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
-// import cjcj.asg.Environment
-// import cjcj.parser.ParseError
-// import cjcj.ast.VarDecl
 
 import std.collection.ArrayList
 
@@ -21,7 +10,7 @@ import std.collection.ArrayList
 * Reference nodes represent references to variables, functions, . . . inside the
 * ASG.
 */
-public open class Reference <: Node & Hashable & Equatable<Reference> {
+public open class Reference <: Expr & Hashable & Equatable<Reference> {
     /*
     TODO: the identifier will become an expression and in general all the
     * references will be checked by hashing the toString of the expression that

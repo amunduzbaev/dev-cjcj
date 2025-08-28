@@ -1,3 +1,32 @@
+main () {
+    
+    var A: Int32
+
+    if(true) {
+        if(false) {
+            A = 2
+        }
+    } else {
+        A = 1
+    }
+
+    var C: Int32
+    if(true) {
+        if(false) {
+            C = 2
+        } else {
+            C = 7
+        }
+    } else {
+        C = 1
+    }
+
+    let D = C
+
+    D
+}
+
+/*
 func h(a: Int64, c: Int64, bo: Bo): Int64 {
     a + c
     return 10
@@ -49,3 +78,5 @@ main (args: String): Unit {
 
     // let args = 5
 }
+
+*/
