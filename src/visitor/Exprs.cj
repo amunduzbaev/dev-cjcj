@@ -157,16 +157,16 @@ public class UnaryExpr <: Expr {
 }
 
 public class AssignExpr <: Expr {
-    private var left_: Node
+    private var left_: Expr
     private var right_: Expr
 
     public init() {
         this(NodeId(), Expr(), Expr())
     }
 
-    public AssignExpr(id: NodeId, name: Node, value: Expr) {
+    public AssignExpr(id: NodeId, left: Expr, value: Expr) {
         super(id)
-        left_ = name
+        left_ = left
         right_ = value
     }
 
@@ -180,7 +180,7 @@ public class AssignExpr <: Expr {
         right.prettyPrint(printer)
     }
 
-    public mut prop left: Node {
+    public mut prop left: Expr {
         get() { left_ }
         set(v) { left_ = v }
     }
