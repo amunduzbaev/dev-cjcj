@@ -86,7 +86,7 @@ public open class VarDecl <: Decl {
         declType_ = declType
     }
 
-    public override func traverse<R>(v: Visitor<R>): R {
+    public open override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 
@@ -110,7 +110,7 @@ public open class VarDecl <: Decl {
     }
 }
 
-public class MainDecl <: Decl {
+public open class MainDecl <: Decl {
     private var block_: Block
     private var param_: ?FuncParam
     private var declType_: ?TypeNode
@@ -127,7 +127,7 @@ public class MainDecl <: Decl {
         this.declType_ = declType
     }
 
-    public override func traverse<R>(v: Visitor<R>): R {
+    public override open func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 
@@ -202,7 +202,7 @@ public class FuncParam <: Decl {
     }
 }
 
-public class FuncDecl <: Decl {
+public open class FuncDecl <: Decl {
     private var block_: Block
     private var params_: ArrayList<FuncParam>
     private var declType_: ?TypeNode
@@ -224,7 +224,7 @@ public class FuncDecl <: Decl {
         this(id, keyword, Token(), block, params, None)
     }
 
-    public override func traverse<R>(v: Visitor<R>): R {
+    public open override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 

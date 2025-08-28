@@ -212,15 +212,18 @@ public class AsgMaker <: Visitor<Node> {
             declType = dt.traverse(this) as TypeNode
         }
         
+        let paramRefs: ArrayList<Reference> = ArrayList()
         let params: ArrayList<FuncParam> = ArrayList()
         funcDecl.params.iterator()
             .map({ p => (p.traverse(this) as FuncParam).getOrThrow()})
             .forEach({ p =>
                 params.add(p)
-                waitingDeclarations.add(VariableReference(
+                let pref = VariableReference(
                     NodeIdManager.nextId(), p.name, p.paramType,
                     // Using the LET keyword because parameters are not mutable.
-                    Token(TokenKind.LET, "", p.name.pos)))
+                    Token(TokenKind.LET, "", p.name.pos))
+                paramRefs.add(pref)
+                waitingDeclarations.add(pref)
             })
         
         let block: Block = (funcDecl.block.traverse(this) as Block).getOrThrow()
@@ -232,25 +235,29 @@ public class AsgMaker <: Visitor<Node> {
         
         let nodeId: NodeId = NodeIdManager.nextId()
 
-        FuncDecl(nodeId, funcDecl.keyword, funcDecl.identifier,
-            block, params, declType)
+        FuncDeclWithRef(nodeId, funcDecl.keyword, funcDecl.identifier,
+            block, params, declType, paramRefs)
     }
 
     public override func visit(mainDecl: MainDecl): Node {
-        let newMain = MainDecl()
+        let newMain = MainDeclWithRef()
         newMain.keyword = mainDecl.keyword
         if (let Some(dt) <- mainDecl.declType) {
             newMain.declType = dt.traverse(this) as TypeNode
         }
+        let paramRefs: ArrayList<Reference> = ArrayList()
         if (let Some(p) <- mainDecl.param &&
             let Some(np) <- (p.traverse(this) as FuncParam)) {
             newMain.param = np
-            waitingDeclarations.add(VariableReference(
+            let pref = VariableReference(
                 NodeIdManager.nextId(), np.name, np.paramType,
-                Token(TokenKind.LET, "", np.name.pos)))
+                Token(TokenKind.LET, "", np.name.pos))
+            paramRefs.add(pref)
+            waitingDeclarations.add(pref)
         }
         newMain.block = (mainDecl.block.traverse(this) as Block).getOrThrow()
         newMain.id = NodeIdManager.nextId()
+        newMain.paramRef = paramRefs
         newMain
     }
 

@@ -42,7 +42,7 @@ public open class Reference <: Node & Hashable & Equatable<Reference> {
         printer.append(identifier.value)
     }
 
-    public override func traverse<R>(_: Visitor<R>): R {
+    public override open func traverse<R>(_: Visitor<R>): R {
         throw UnsupportedException("Unimplemented method")
     }
 
@@ -71,6 +71,10 @@ public class VariableReference <: Reference {
         keyword_ = keyword
     }
 
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
     public prop keyword: Token {
         get() { keyword_ }
     }
@@ -85,6 +89,10 @@ public class FuncReference <: Reference {
         super(id, identifier, declType)
         environment_ = environment
         params_ = params
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
@@ -118,7 +126,61 @@ public class VarDeclWithRef <: VarDecl {
         ref_ = ref
     }
 
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
     public prop ref : Reference {
         get() { ref_ }
+    }
+}
+
+public class FuncDeclWithRef <: FuncDecl {
+    private let paramRef_: ArrayList<Reference>
+
+    public init() {
+        this(NodeId(), Token(), Token(), Block(), ArrayList(), None, ArrayList())
+    }
+
+    public init(id: NodeId, keyword: Token, block: Block,
+                params: ArrayList<FuncParam>, paramRef: ArrayList<Reference>) {
+        this(id, keyword, Token(), block, params, None, paramRef)
+    }
+
+    public FuncDeclWithRef(id: NodeId, keyword: Token, identifier: Token, block: Block,
+                params: ArrayList<FuncParam>, declType: ?TypeNode, paramRef: ArrayList<Reference>) {
+        super(id, keyword, identifier, block, params, declType)
+        paramRef_ = paramRef
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public prop paramRef : ArrayList<Reference> {
+        get() { paramRef_ }
+    }
+}
+
+public class MainDeclWithRef <: MainDecl {
+    private var paramRef_: ArrayList<Reference>
+
+    public init() {
+        this(NodeId(), Block(), None, None, ArrayList())
+    }
+
+    public MainDeclWithRef(id: NodeId, block: Block, param: ?FuncParam, 
+                    declType: ?TypeNode, paramRef: ArrayList<Reference>) {
+        super(id, block, param, declType)
+        paramRef_ = paramRef
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public mut prop paramRef : ArrayList<Reference> {
+        get() { paramRef_ }
+        set(v) { paramRef_ = v }
     }
 }
