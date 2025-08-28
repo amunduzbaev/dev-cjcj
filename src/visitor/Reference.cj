@@ -160,16 +160,10 @@ public class FuncDeclWithRef <: FuncDecl {
 }
 
 public class MainDeclWithRef <: MainDecl {
-    private var paramRef_: ArrayList<Reference>
-
-    // TODO: Remove this when the TODO in AsgMaker:243 is fixed, and look also for other similar
-    // cases to fix.
-    public init() {
-        this(NodeId(), Block(), None, None, ArrayList())
-    }
+    private var paramRef_: ?Reference
 
     public MainDeclWithRef(id: NodeId, block: Block, param: ?FuncParam, 
-                    declType: ?TypeNode, paramRef: ArrayList<Reference>) {
+                    declType: ?TypeNode, paramRef: ?Reference) {
         super(id, block, param, declType)
         paramRef_ = paramRef
     }
@@ -178,7 +172,7 @@ public class MainDeclWithRef <: MainDecl {
         v.visit(this)
     }
 
-    public mut prop paramRef : ArrayList<Reference> {
+    public mut prop paramRef : ?Reference {
         get() { paramRef_ }
         set(v) { paramRef_ = v }
     }
