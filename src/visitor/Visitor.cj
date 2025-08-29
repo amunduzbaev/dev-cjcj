@@ -91,15 +91,18 @@ public abstract class Visitor<R> {
     }
 
     protected open func visit(_: VarDeclWithRef): R{
-        throw Exception("Unimplemented method for Visitor : Variable Declaration with References Stored (ASG)")
+        throw Exception("Unimplemented method for Visitor : Variable Declaration with" + 
+                        "References Stored (ASG)")
     }
 
     protected open func visit(_: FuncDeclWithRef): R{
-        throw Exception("Unimplemented method for Visitor : Function Declaration with References Stored (ASG)")
+        throw Exception("Unimplemented method for Visitor : Function Declaration with" + 
+                        "References Stored (ASG)")
     }
 
     protected open func visit(_: MainDeclWithRef): R{
-        throw Exception("Unimplemented method for Visitor : Main Declaration with References Stored (ASG)")
+        throw Exception("Unimplemented method for Visitor : Main Declaration with" + 
+                        "References Stored (ASG)")
     }
 
 }
