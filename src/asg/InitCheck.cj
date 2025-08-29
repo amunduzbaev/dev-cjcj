@@ -251,10 +251,12 @@ public class InitCheck <: Visitor< InitsRefs >{
         lastNode = mainDecl
         
         let current = InitsRefs()
-        mainDecl.paramRef.iterator().forEach({ p => 
-            let child = p.traverse(this)
-            current.mergeL(child)
-        })
+        match (mainDecl.paramRef) {
+            case Some(p) => 
+                let child = p.traverse(this)
+                current.mergeL(child)
+            case _ => ()
+        }
 
         match (mainDecl.declType) {
             case Some(declType) => current.mergeL(declType.traverse(this))
