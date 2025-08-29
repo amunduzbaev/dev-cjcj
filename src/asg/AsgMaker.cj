@@ -240,26 +240,24 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(mainDecl: MainDecl): Node {
-        // TODO: Remove this declaration with assignments and create only one object in the end.
-        let newMain = MainDeclWithRef()
-        newMain.keyword = mainDecl.keyword
+        var declType: ?TypeNode = None
         if (let Some(dt) <- mainDecl.declType) {
-            newMain.declType = dt.traverse(this) as TypeNode
+            declType = dt.traverse(this) as TypeNode
         }
-        let paramRefs: ArrayList<Reference> = ArrayList()
-        if (let Some(p) <- mainDecl.param &&
-            let Some(np) <- (p.traverse(this) as FuncParam)) {
-            newMain.param = np
+        var param: ?FuncParam = None
+        var paramRef: ?Reference = None
+        if (let Some(p) <- mainDecl.param) {
+            let np: FuncParam = (p.traverse(this) as FuncParam).getOrThrow()
             let pref = VariableReference(
                 NodeIdManager.nextId(), np.name, np.paramType,
                 Token(TokenKind.LET, "", np.name.pos))
-            paramRefs.add(pref)
+            param = np
             waitingDeclarations.add(pref)
+            paramRef = pref
         }
-        newMain.block = (mainDecl.block.traverse(this) as Block).getOrThrow()
-        newMain.id = NodeIdManager.nextId()
-        newMain.paramRef = paramRefs
-        newMain
+        let block = (mainDecl.block.traverse(this) as Block).getOrThrow()
+        let id = NodeIdManager.nextId()
+        MainDeclWithRef(id, block, param, declType, paramRef)
     }
 
     public override func visit(argument: Argument): Node {

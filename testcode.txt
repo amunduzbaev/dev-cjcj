@@ -1,4 +1,4 @@
-main () {
+main (args: Bo) {
     
     var A: Int32
 
