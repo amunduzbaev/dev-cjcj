@@ -40,45 +40,67 @@ extend<K, V> HashMap<K, V> <: Less<HashMap<K, V>> where K <: Hashable & Equatabl
 }
 
 public class InitsRefs {
-    private var inits_: HashMap<Reference, Node>
+    private var inits_: HashSet<Reference> 
     private var refs_: HashMap<Reference, ArrayList<Node>>
     private var assrefs_: HashMap<Reference, ArrayList<Node>>
+    private var tmpInits_: HashMap<Reference, ArrayList<Node>>
     private var mutated_: HashMap<Reference, ArrayList<Node>>
 
-    // inits_: HashSet of references of initialised variables in this environment
-    // refs_: HashMap of variables who are referenced and have to be initialized but not initialized
-    // yet, with mapping to the exact expression where the variable is referenced
-    // assrefs_: HashMap of variables who are referenced in an assignment(left) but not initialized 
-    // yet, with mapping to the exact expression where the variable is referenced
+    // DEF inits_: HashSet of references of initialised variables in this environment
+    
+    // Reference in expression Check
+    // DEF refs_: HashMap of variables who are referenced and have to be initialized but not 
+    // initialized yet, with mapping to the exact expression where the variable is referenced
+
+    // Assignment refernce Check
+    // DEF assrefs_: HashMap of variables who are referenced in an assignment(left) but not 
+    // initialized yet, with mapping to the exact expression where the variable is referenced
     // we don't know yet whether we have to initialize assrefs, we add them into references that
     // have to be initialized when we leave a function (or main)
-    // mutated 
+
+    // Mutation Check
+    // DEF tmpInits_: HashMap of references and nodes where the reference is invoked at the nodes
+    // and refrences are "temporary" initializations of the variable in some branch in this scope
+    // This means that the elements from tmpInits might change its state and join mutated at some
+    // point in the future if the variable is initialized above in the code
+    // DEF mutated : HashMap of references and nodes where the reference is invoked at the nodes
+    // and variable (to which the refernce points) is mutated  
 
     public init() {
-        inits_ = HashMap<Reference, Node>()
+        inits_= HashSet<Reference>()
+        tmpInits_ = HashMap<Reference, ArrayList<Node>>()
         refs_ = HashMap<Reference, ArrayList<Node>>()
         assrefs_ = HashMap<Reference, ArrayList<Node>>()
         mutated_ = HashMap<Reference, ArrayList<Node>>()
     }
     
-    public init(inits: HashMap<Reference, Node>, refs: HashMap<Reference, ArrayList<Node>>, 
+    public init(inits: HashSet<Reference>, tmpInits: HashMap<Reference, ArrayList<Node>>, 
+                refs: HashMap<Reference, ArrayList<Node>>, 
                 assrefs: HashMap<Reference, ArrayList<Node>>, 
                 mutated: HashMap<Reference, ArrayList<Node>> ) {
         inits_ = inits
+        tmpInits_ = tmpInits
         refs_ = refs
         assrefs_ = assrefs
         mutated_ = mutated
     }
 
     /* Do not modify */
-    // private func merge<T, V>(setA_:HashMap<T, V>, setB_: HashSet<T>) : 
-    //         (HashSet<T>, HashSet<T>) where T <: Hashable & Equatable<T> {
-    //     var (setA, setB) = sswap(setA_, setB_)
-    //     setB.add(all: setA.toArray())
-    //     setA.clear()
+    private func merge<T>(setA_:HashSet<T>, setB_: HashSet<T>) : 
+            (HashSet<T>, HashSet<T>, HashSet<T>) where T <: Hashable & Equatable<T> {
+        let (setA, setB) = sswap(setA_, setB_)
+        let arrA = setA.toArray()
+        setB.add(all: arrA)
+        let intersection = HashSet<T>()
+        arrA.iterator().forEach({d => 
+            if(setB.contains(d)){
+                intersection.add(d)
+            }
+        })
+        setA.clear()
 
-    //     (setB, setA)
-    // }
+        (setB, setA, intersection)
+    }
 
     private func merge<T>(listA_: ArrayList<T>, listB_: ArrayList<T>) : 
             (ArrayList<T>, ArrayList<T>) {
@@ -109,83 +131,93 @@ public class InitsRefs {
         (mapB, mapA)
     }
 
-    private func merge<T, V>(mapA_: HashMap<T, V>, mapB_: HashMap<T, V>) : 
-            (HashMap<T, V>, HashMap<T, V>, HashMap<T, V>) 
-            where T <:Hashable & Equatable<T> {
-        var (mapA, mapB) = sswap(mapA_, mapB_)
-        var remaining: HashMap<T, V> = HashMap()
-        for(entry in mapA.toArray()){
-            var (ref, node) = entry
+    // private func merge<T, V>(mapA_: HashMap<T, V>, mapB_: HashMap<T, V>) : 
+    //         (HashMap<T, V>, HashMap<T, V>, HashMap<T, V>) 
+    //         where T <:Hashable & Equatable<T> {
+    //     var (mapA, mapB) = sswap(mapA_, mapB_)
+    //     var remaining: HashMap<T, V> = HashMap()
+    //     for(entry in mapA.toArray()){
+    //         var (ref, node) = entry
 
-            match (mapB.get(ref)) {
-                case Some(otherNode) => remaining.add(ref, node)
-                case _ => mapB.add(ref, node)
-            }
-        }
-        mapA.clear()
+    //         match (mapB.get(ref)) {
+    //             case Some(otherNode) => remaining.add(ref, node)
+    //             case _ => mapB.add(ref, node)
+    //         }
+    //     }
+    //     mapA.clear()
 
-        (mapB, mapA, remaining)
-    }
+    //     (mapB, mapA, remaining)
+    // }
 
-    private func cancelInitlaizedReferences(someInits: HashMap<Reference, Node>, 
-                             someRefs: HashMap<Reference, ArrayList<Node>>) :
-                            (HashMap<Reference, Node>, HashMap<Reference, ArrayList<Node>>) {
-        if(someInits.size > someRefs.size) {
-            let arr = someRefs.toArray()
+    private func cancelInitlaizedReferences<T, V>(someSet: HashSet<T>, 
+                someMap: HashMap<T, ArrayList<V>>) :
+                (HashMap<T, ArrayList<V>>, HashMap<T, ArrayList<V>>) 
+                where T <: Hashable & Equatable<T> {
+        let intersection = HashMap<T, ArrayList<V>>()
+        if(someSet.size > someMap.size) {
+            let arr = someMap.toArray()
             for(entry in arr) {
-                let (ref, _) = entry
-                if(someInits.contains(ref)) {
-                    someRefs.remove(ref)
+                let (ref, nodeList) = entry
+                if(someSet.contains(ref)) {
+                    intersection.add(ref, nodeList)
+                    someMap.remove(ref)
                 }
             }
         } else {
-            let arr = someInits.toArray()
+            let arr = someSet.toArray()
             for(entry in arr){
-                let (ref, _) = entry
-                if(someRefs.contains(ref)) {
-                    someRefs.remove(ref)
+                let ref = entry
+                if(let Some(nodeList) <- someMap.get(ref)) {
+                    someMap.remove(ref)
+                    intersection.add(ref, nodeList)
                 }
             }
         }
 
-        (someInits, someRefs)
+        (someMap, intersection)
     }
 
-    public func merge(other: InitsRefs) {
-        var newMutated: HashMap<Reference, Node>
-        
-        (inits, other.inits, newMutated) = merge(inits, other.inits)
-        let foldedMutated = newMutated.iterator().fold(HashMap<Reference, ArrayList<Node>>(), {
-            map: HashMap<Reference, ArrayList<Node>>, entry: (Reference, Node) => 
-                map.add(entry[0], ArrayList<Node>([entry[1]]))
-                map
-        })
-        (mutated, _) = merge(mutated, foldedMutated)
-
+    public func merge(other: InitsRefs, newMutated: HashMap<Reference, ArrayList<Node>>) {
+        (inits, other.inits, _) = merge(inits, other.inits)
+        (tmpInits, other.tmpInits) = merge(tmpInits, other.tmpInits)
         (refs,  other.refs) =  merge(refs, other.refs)
         (assrefs, other.assrefs) = merge(assrefs, other.assrefs)
+
+        (mutated, _) = merge(mutated, newMutated)
         (mutated, other.mutated) = merge(mutated, other.mutated)
+    }
+
+    public func seqMerge<T, V>(inits: HashSet<T>, refs: HashMap<T, ArrayList<V>>, 
+                assrefs: HashMap<T, ArrayList<V>>, tmpInits: HashMap<T, ArrayList<V>>) 
+                where T <: Hashable & Equatable<T> {
+        let (newRefs, _) = cancelInitlaizedReferences(inits, refs)
+        let (newAssrefs, _) = cancelInitlaizedReferences(inits, assrefs)
+        let (newTmpInits, newMutated) = cancelInitlaizedReferences(inits, tmpInits)
+        (newRefs, newAssrefs, newTmpInits, newMutated)
     }
 
     // Merging with other InitsRefs
     public func mergeL(other: InitsRefs) {
-        (inits, other.refs) = cancelInitlaizedReferences(inits, other.refs)
-        (inits, other.assrefs) = cancelInitlaizedReferences(inits, other.assrefs)
-        merge(other)
+        var newMutated = HashMap<Reference, ArrayList<Node>>()
+        (other.refs, other.assrefs, other.tmpInits, newMutated) = 
+            seqMerge(inits, other.refs, other.assrefs, other.tmpInits)
+        merge(other, newMutated)
     }
     public func mergeR(other: InitsRefs) {
-        (other.inits, refs) = cancelInitlaizedReferences(other.inits, refs)
-        (other.inits, assrefs) = cancelInitlaizedReferences(other.inits, assrefs)
-        merge(other)
+        var newMutated = HashMap<Reference, ArrayList<Node>>()
+        (refs, assrefs, tmpInits, newMutated) = 
+            seqMerge(other.inits, refs, assrefs, tmpInits)
+        merge(other, newMutated)
     }
     public func bramchMerge(other: InitsRefs) {
         (_, other.inits, inits) = merge(inits, other.inits)
-        merge(other)
+        merge(other, HashMap<Reference, ArrayList<Node>>())
     }
 
     // Editing and Asking information about reference or initialization of variables
     public func initialized(ref: Reference, node: Node) {
-        inits.add(ref, node)
+        tmpInits.add(ref, ArrayList<Node>([node]))
+        inits.add(ref)
     }
 
     public func referenced(ref: Reference, node: Node) {
@@ -216,6 +248,7 @@ public class InitsRefs {
 
     public func clearInits() {
         inits.clear()
+        // (mutated, tmpInits) = merge(mutated, tmpInits)
     }
 
     public func isInitialized(ref: Reference) : ArrayList<(Reference, Node)>{
@@ -248,9 +281,14 @@ public class InitsRefs {
         (refs, assrefs) = merge(refs, assrefs)
     }
 
-    private mut prop inits: HashMap<Reference, Node> {
+    private mut prop inits: HashSet<Reference> {
         get() { inits_ }
         set(v) { inits_ = v }
+    }
+
+    private mut prop tmpInits: HashMap<Reference, ArrayList<Node>> {
+        get() { tmpInits_ }
+        set(v) { tmpInits_ = v }
     }
 
     private mut prop refs: HashMap<Reference, ArrayList<Node>> {
