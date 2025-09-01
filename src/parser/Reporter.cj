@@ -10,7 +10,7 @@ import std.env.ConsoleWriter
 
 public class Reporter {
     private let console: ConsoleWriter
-    private let errors: ArrayList<Error> = ArrayList()
+    private let errors: ArrayList<BaseErrorMessage> = ArrayList()
 
     public Reporter(console: ConsoleWriter, private let tokens: Array<Token>) {
         this.console = console
@@ -39,26 +39,38 @@ public class Reporter {
 
     func error(token: Token, message: String, index: Int64) {
         if (token.kind == TokenKind.END) {
-            errors.add(Error(Int64(token.pos.line), index, "end", message, getSuffixPrefix(index)))
+            errors.add(Error(token.pos.line, index, "end", message, getSuffixPrefix(index)))
         } else {
-            errors.add(Error(Int64(token.pos.line), index, token.value, message, getSuffixPrefix(index)))
+            errors.add(Error(token.pos.line, index, token.value, message, getSuffixPrefix(index)))
         }
     }
 
     func consumeError(token: Token, index: Int64, expected: TokenKind, found: String) {
         if (token.kind == TokenKind.END) {
-            errors.add(Error(Int64(token.pos.line), index, "end", 
-            "expected '${redify(expected.toString())}', found ${redify("end")}", getSuffixPrefix(index)))
+            errors.add(Error(token.pos.line, index, "end",
+            "expected '${redify(expected.toString())}', found '${redify(found.toString())}'", 
+            getSuffixPrefix(index)))
         } else {
-            errors.add(Error(Int64(token.pos.line), index, token.value, 
-            "expected '${redify(expected.toString())}', found '${redify(found.toString())}'", getSuffixPrefix(index)))
+            errors.add(Error(token.pos.line, index, token.value, 
+            "expected '${redify(expected.toString())}', found '${redify(found.toString())}'", 
+            getSuffixPrefix(index)))
         }
+    }
+
+    func unclosedDelimiterError(currentToken: Token, startToken: Token, startIndex: Int64, 
+                                currentIndex: Int64) {
+            errors.add(ErrorUnclosedDelimiter( currentToken.pos.line, startIndex, startToken.value, 
+            getSuffixPrefix(startIndex), currentIndex, currentToken.value, getSuffixPrefix(currentIndex)))
+    }
+
+    static public func redify(str: String) {
+        return "\u{001b}[31m${str}\u{001b}[0m"
     }
 
     public func logErrors() {
         if (errors.size > 0) {
             for(i in 0..(min(errors.size,5))) {
-                console.write(errors[i].report())
+                console.write(errors[i])
             }
             console.write(
                 """
@@ -70,29 +82,5 @@ Failed to parse program.
         }
     }
 
-    static public func redify(str: String) {
-        return "\u{001b}[31m${str}\u{001b}[0m"
-    }
 
-}
-
-public struct Error {
-
-    Error(private let line: Int64, private let index: Int64, 
-        private let wher: String, private let message: String, 
-        private let suffixPrefix: (String, String)) {}
-
-    public func report(): String {
-        let lineStr: String = line.toString()
-            let spaces: String = " "*lineStr.size
-            return """
-\u{001b}[31m
-error\u{001b}[0m: ${message}
-${spaces} |
-${lineStr} | ${suffixPrefix[0]}${Reporter.redify(wher)} ${suffixPrefix[1]}
-${spaces} | ${" " * suffixPrefix[0].size}^
-            """
-            
-
-    }
 }

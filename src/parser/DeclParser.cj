@@ -60,11 +60,12 @@ internal open class DeclParser {
                     } catch(e: FinalError) {
                         helper.synchronizeBlockParenthesis(start[0], start[1])
                     }
-                    helper.skipNL()
                 } else {
                     helper.error(helper.previous(), 
                     "Expected parameter name after comma", helper.current-1)
+                    
                 }
+                helper.skipNL()
             } while (helper.matches(TK.COMMA))
         }
         return parameters
@@ -90,7 +91,8 @@ internal open class DeclParser {
                     "Expect ')' after function parameters", helper.current)
                 } catch(e: ConsumeError) {
                     if (helper.check(TK.LCURL)) {
-                        helper.error(start[0], "unclosed delimiter: '('", start[1])
+                        reporter.pop()
+                        reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
                     } else {
                         helper.synchronizeBlockParenthesis(start[0],start[1])
                     }
@@ -349,7 +351,7 @@ internal open class DeclParser {
                 helper.synchronizeCallParenthesis(start[0], start[1])
             } catch (e: ConsumeError) {
                 reporter.pop()
-                helper.error(start[0], "unclosed delimiter: '('", start[1])
+                reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
             }
             
         } else if (!helper.matches(TK.UNIT_LITERAL)) {

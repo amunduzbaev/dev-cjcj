@@ -27,7 +27,7 @@ public class Cj {
         let scanner = Scanner(source.toRuneArray())
         let tokens = scanner.scanTokens().toArray()
 
-        let parser: Parser = Parser(tokens.toArray(), Reporter(getStdErr()))
+        let parser: Parser = Parser(tokens.toArray(), Reporter(getStdErr(), tokens))
         let program: ?Program = parser.parse()
         let printer: PrettyPrinter = PrettyPrinter()
         let asgMaker = AsgMaker()

@@ -150,9 +150,9 @@ class ParserHelper {
             advance()
         }
         if(isAtEnd()) {
-            throw errorFinal(start, "unclosed delimiter: '('", current)
+            throw errorFinal(start, "unclosed delimiter: '\u{001b}[31m('\u{001b}[0m", current)
         } else {
-            throw error(start, "unclosed delimiter: '('", current)
+            throw error(start, "unclosed delimiter: '\u{001b}[31m('\u{001b}[0m", current)
         }
     }
     
@@ -186,6 +186,10 @@ class ParserHelper {
         reporter.consumeError(token, index, expected, found)
         ConsumeError()
     }
+
+    // func unclosedDelimiterError(currentToken: Token, startToken: Token, index: Int64) {
+    //     reporter.unclosedDelimiterError(currentToken, startToken, index)
+    // }
 
     func logErrors() {
         reporter.logErrors()
