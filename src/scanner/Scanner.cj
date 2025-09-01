@@ -285,10 +285,16 @@ public class Scanner {
                             return
             
             case '\r' =>if(windowsiness() && matches(r'\n')) {
-                                addToken(TokenKind.NL, "\\n".toRuneArray())
                                 line++
                                 column = 1
+                                skipSpace()
+                                while(!isAtEnd() && matches(r'\r') && matches(r'\n')) {
+                                    line++
+                                    column = 1
+                                    skipSpace()
+                                }
                         }
+                        addToken(TokenKind.NL, "\\n".toRuneArray())
                         return
             
             case ' ' => return
