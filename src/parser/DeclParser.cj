@@ -87,11 +87,11 @@ internal open class DeclParser {
             declType)
     }
 
-    private func nodeType(id: NodeId, name: Token, keyword: Token): TypeNode {
+    private func nodeType(id: NodeId, typeParameterName: Token, typeName: Token): TypeNode {
         try {
-            return PrimitiveType(id, name, keyword)
+            return PrimitiveType(id, typeParameterName, typeName)
         } catch (_: IllegalArgumentException) {
-            return RefType(id, name, keyword)
+            return RefType(id, typeParameterName, typeName)
         }
     }
 
