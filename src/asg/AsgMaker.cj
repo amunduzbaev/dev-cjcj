@@ -1,6 +1,6 @@
 package cjcj.asg
 
-import cjcj.ast.*
+import cjcj.visitor.*
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import cjcj.parser.NodeIdManager
@@ -26,7 +26,7 @@ private enum ScopeType {
 
 /*
 * Resolves a Program and retrieves the ASG root. Every variable and function
-* reference will be bound to the node of the initialization.
+* reference will be bound to the node of the initialization. (declaration maybe?)
 * The reference and call nodes will be different from the AST for this reason.
 *
 * Note: I'm using a few getOrThrow() functions without custom errors and without
@@ -49,6 +49,7 @@ public class AsgMaker <: Visitor<Node> {
     * Resolves all of the function and variable references and returns the new
     * Program node that is the ASG root.
     */
+
     public func resolve(program: Program): Program {
         return (program.traverse(this) as Program).getOrThrow()
     }
@@ -113,8 +114,10 @@ public class AsgMaker <: Visitor<Node> {
         block.nodes.iterator().forEach({ n => nodes.add(n.traverse(this)) })
 
         currentScopeType = precScopeType
+        let asgBlock = Block(NodeIdManager.nextId(), nodes)
+
         endScope()
-        Block(NodeIdManager.nextId(), nodes)
+        asgBlock
     }
 
     public override func visit(ifExpr: IfExpr): Node {
@@ -193,7 +196,8 @@ public class AsgMaker <: Visitor<Node> {
 
         // TODO: Make this return an AssignExpr if there's an initializer
         // because variable declaration are not a thing in ASG.
-        VarDecl(nodeId, varDecl.keyword, varDecl.identifier, initializer,
+        // TODO: Figure out what to do with VarDeclWithRef
+        VarDeclWithRef(nodeId, varDecl.keyword, varDecl.identifier, ref, initializer,
             declType)
     }
 
@@ -208,15 +212,18 @@ public class AsgMaker <: Visitor<Node> {
             declType = dt.traverse(this) as TypeNode
         }
         
+        let paramRefs: ArrayList<Reference> = ArrayList()
         let params: ArrayList<FuncParam> = ArrayList()
         funcDecl.params.iterator()
             .map({ p => (p.traverse(this) as FuncParam).getOrThrow()})
             .forEach({ p =>
                 params.add(p)
-                waitingDeclarations.add(VariableReference(
+                let pref = VariableReference(
                     NodeIdManager.nextId(), p.name, p.paramType,
                     // Using the LET keyword because parameters are not mutable.
-                    Token(TokenKind.LET, "", p.name.pos)))
+                    Token(TokenKind.LET, "", p.name.pos))
+                paramRefs.add(pref)
+                waitingDeclarations.add(pref)
             })
         
         let block: Block = (funcDecl.block.traverse(this) as Block).getOrThrow()
@@ -228,26 +235,29 @@ public class AsgMaker <: Visitor<Node> {
         
         let nodeId: NodeId = NodeIdManager.nextId()
 
-        FuncDecl(nodeId, funcDecl.keyword, funcDecl.identifier,
-            block, params, declType)
+        FuncDeclWithRef(nodeId, funcDecl.keyword, funcDecl.identifier,
+            block, params, declType, paramRefs, reference)
     }
 
     public override func visit(mainDecl: MainDecl): Node {
-        let newMain = MainDecl()
-        newMain.keyword = mainDecl.keyword
+        var declType: ?TypeNode = None
         if (let Some(dt) <- mainDecl.declType) {
-            newMain.declType = dt.traverse(this) as TypeNode
+            declType = dt.traverse(this) as TypeNode
         }
-        if (let Some(p) <- mainDecl.param &&
-            let Some(np) <- (p.traverse(this) as FuncParam)) {
-            newMain.param = np
-            waitingDeclarations.add(VariableReference(
+        var param: ?FuncParam = None
+        var paramRef: ?Reference = None
+        if (let Some(p) <- mainDecl.param) {
+            let np: FuncParam = (p.traverse(this) as FuncParam).getOrThrow()
+            let pref = VariableReference(
                 NodeIdManager.nextId(), np.name, np.paramType,
-                Token(TokenKind.LET, "", np.name.pos)))
+                Token(TokenKind.LET, "", np.name.pos))
+            param = np
+            waitingDeclarations.add(pref)
+            paramRef = pref
         }
-        newMain.block = (mainDecl.block.traverse(this) as Block).getOrThrow()
-        newMain.id = NodeIdManager.nextId()
-        newMain
+        let block = (mainDecl.block.traverse(this) as Block).getOrThrow()
+        let id = NodeIdManager.nextId()
+        MainDeclWithRef(id, block, param, declType, paramRef)
     }
 
     public override func visit(argument: Argument): Node {
@@ -287,3 +297,6 @@ public class AsgMaker <: Visitor<Node> {
         currentEnvironment.get(identifier)
     }
 }
+
+// TODO : Make typechecking in the following way
+// in a seperate file

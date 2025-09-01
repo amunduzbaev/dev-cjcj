@@ -4,7 +4,7 @@ import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import std.collection.*
 import std.ast.Position
-import cjcj.ast.*
+import cjcj.visitor.*
 
 abstract public class BaseErrorMessage <: ToString{}
 
@@ -34,13 +34,15 @@ public class ErrorUnclosedDelimiter <: BaseErrorMessage {
     public func toString(): String {
         let lineStr: String = line.toString()
             let spaces: String = " "*lineStr.size
-            if (currentIndex - startIndex < 20){
+            if (currentIndex - startIndex < 20) {
                 return """
 \u{001b}[31m
 error\u{001b}[0m: unclosed delimiter '${Reporter.redify(start)}'
 ${spaces} |
 ${lineStr} | ${suffixPrefixStart[0]}${Reporter.redify(start)} ${suffixPrefixStart[1]}
 ${spaces} | ${" " * suffixPrefixStart[0].size}^
+
+            ${currentIndex}   
                 """
             } else {
                 return """

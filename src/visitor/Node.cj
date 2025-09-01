@@ -1,4 +1,4 @@
-package cjcj.ast
+package cjcj.visitor
 
 import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.scanner.TokenKind

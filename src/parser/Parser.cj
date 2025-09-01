@@ -1,6 +1,6 @@
 package cjcj.parser
 
-import cjcj.ast.*
+import cjcj.visitor.*
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import cjcj.scanner.TokenKindHelper
