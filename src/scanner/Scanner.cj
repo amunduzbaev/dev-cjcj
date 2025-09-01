@@ -273,9 +273,11 @@ public class Scanner {
             case '\n' => if(!windowsiness()) {
                                 line++
                                 column = 1
+                                skipSpace()
                                 while(!isAtEnd() && matches(r'\n')) {
                                     line++
                                     column = 1
+                                    skipSpace()
                                 }
                                 
                             }
@@ -428,6 +430,10 @@ public class Scanner {
         current++
         column++
         return charToReturn
+    }
+
+    private func skipSpace() {
+        while(matches(r' ')) {}
     }
 
     private func addToken(typ: TokenKind) {
