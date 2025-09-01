@@ -131,9 +131,9 @@ class ParserHelper {
             reporter.pop()
         }
         if(isAtEnd()) {
-            errorFinal(start, "2unclosed delimiter: '('", current)
+            errorFinal(start, "unclosed delimiter: '('", current)
         } else if (check(TokenKind.LCURL) && counter > 0){
-            error(start, "1unclosed delimiter: '('", current)
+            error(start, "unclosed delimiter: '('", current)
         } else if (check(TokenKind.COMMA)){
             error(tokens[this.current-1], "Malformed parameter", this.current-1)
         } else {
