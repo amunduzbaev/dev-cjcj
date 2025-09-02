@@ -97,10 +97,11 @@ public class TypeManager {
                     .reduce({ a, b => a + ',' + b }).getOrDefault({ => ""}) +
                         ") is already defined")
             }
+        } else {
+            let definitions: Map<String, Type> = HashMap()
+            definitions.add(funcHashConcat(params), returnType)
+            definedFunctions.add(funcName, definitions)
         }
-        let definitions: Map<String, Type> = HashMap()
-        definitions.add(funcHashConcat(params), returnType)
-        definedFunctions.add(funcName, definitions)
     }
 
     /*
