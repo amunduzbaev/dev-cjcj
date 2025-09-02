@@ -48,6 +48,7 @@ public class TypeChecker <: Visitor<Type> {
             case TokenKind.FLOAT_LITERAL => return typeManager.get("Float64")
             case TokenKind.BOOL_LITERAL => return typeManager.get("Bool")
             case TokenKind.STRING_LITERAL => return typeManager.get("String")
+            case TokenKind.UNIT_LITERAL => return typeManager.get("Unit")
             // TODO: Add all other literals.
             case _ => return DUMMY_TYPE
         }

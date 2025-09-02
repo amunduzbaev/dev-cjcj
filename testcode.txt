@@ -1,12 +1,14 @@
 main(args: Int64) {
+    func bo() : Unit {
+        ()
+    }
+    let f = bo()
     func aa(b: Int64, h: String): Int64 {
         4
         return 6; 1 + 3
     }
     var a = if (true) {
         "a"
-    } else if (true) {
-        5
     }
     var b = while (true) {
         1 + 3
