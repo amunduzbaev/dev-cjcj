@@ -194,9 +194,6 @@ public class AsgMaker <: Visitor<Node> {
 
         let nodeId: NodeId = NodeIdManager.nextId()
 
-        // TODO: Make this return an AssignExpr if there's an initializer
-        // because variable declaration are not a thing in ASG.
-        // TODO: Figure out what to do with VarDeclWithRef
         VarDeclWithRef(nodeId, varDecl.keyword, varDecl.identifier, ref, initializer,
             declType)
     }
