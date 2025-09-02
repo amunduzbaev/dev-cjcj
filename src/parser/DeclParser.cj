@@ -204,10 +204,21 @@ internal open class DeclParser {
     }
 
     private func block(): Block {
-        helper.consume(TK.LCURL, "Expect '{' before block.", helper.current)
-        let nodes: ArrayList<Node> = expressionOrDeclarations()
-        helper.endStar()
-        helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
+        var nodes: ArrayList<Node> = ArrayList()
+        let start: (Token,Int64) = (helper.peek(), helper.current)
+        try {
+            helper.consume(TK.LCURL, "Expect '{' before block.", helper.current)
+            nodes = expressionOrDeclarations()
+            helper.endStar()
+            helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
+        } catch (e: ParseError) {
+            reporter.pop()
+            helper.synchronizeBlockRightCurl(start[0], start[1])
+            reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
+        } catch (e: ConsumeError) {
+            reporter.pop()
+            reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
+        }
         Block(NodeIdManager.nextId(), nodes)
     }
 
@@ -240,8 +251,8 @@ internal open class DeclParser {
             helper.current)
         } catch (e: ParseError) {
             helper.synchronize()
-            Expr(NodeIdManager.nextId())
         }
+        None
     }
 
 
@@ -298,26 +309,22 @@ internal open class DeclParser {
         helper.skipNL()
 
         let ifBlock: Block = block()
-        let elseBranch: Expr = if (let Some(elseBranch) <- helper.tryParse<Expr>({ =>
-                helper.skipNL()
-                if (helper.matches(TK.ELSE)) {
-                    helper.skipNL()
-                    if (let Some(ifExpr) <- ifExpression()) {
-                        return ifExpr
-                    } else {
-                        return block()
-                    }
-                }
-                return None
-        })) {
-            elseBranch
+        helper.skipNL()
+        let elseBranch: Expr
+        if (helper.matches(TK.ELSE)) {
+            helper.skipNL()
+            if (let Some(ifExpr) <- ifExpression()) {
+                elseBranch = ifExpr
+            } else {
+                elseBranch = block()
+            }
         } else {
             /*
             * Desugar if () { expr } to if () { expr; () } else { () }
             */
             ifBlock.nodes.add(LitConstExpr(NodeIdManager.nextId(),
                 Token(TK.UNIT_LITERAL, "()", Position())))
-            Block(NodeIdManager.nextId(), ArrayList<Node>([
+            elseBranch = Block(NodeIdManager.nextId(), ArrayList<Node>([
                 LitConstExpr(NodeIdManager.nextId(), Token(TK.UNIT_LITERAL, "()", Position()))
             ]))
         }
@@ -344,35 +351,34 @@ internal open class DeclParser {
 
     private func callSuffix(callee: Expr): ?Expr {
         let arguments: ArrayList<Argument> = ArrayList()
-            if (helper.matches(TK.LPAREN)) {
-                let start: (Token,Int64) = (helper.previous(), helper.current-1)
-                try {
-                helper.skipNL()
-                if (!helper.check(TK.RPAREN)) {
-                    do {
-                        helper.skipNL()
-                        arguments.add(
-                            Argument(
-                                NodeIdManager.nextId(),
-                                expectExpression(
-                                    expression,
-                                    "Expected expression inside call suffix."
-                                )
+        if (helper.matches(TK.LPAREN)) {
+            let start: (Token,Int64) = (helper.previous(), helper.current-1)
+            try {
+            helper.skipNL()
+            if (!helper.check(TK.RPAREN)) {
+                do {
+                    helper.skipNL()
+                    arguments.add(
+                        Argument(
+                            NodeIdManager.nextId(),
+                            expectExpression(
+                                expression,
+                                "Expected expression inside call suffix."
                             )
                         )
-                        helper.skipNL()
-                    } while (helper.matches(TK.COMMA))
-                }
-                helper.consume(TK.RPAREN, "Expect ')' after arguments.", helper.current)
+                    )
+                    helper.skipNL()
+                } while (helper.matches(TK.COMMA))
+            }
+            helper.consume(TK.RPAREN, "Expect ')' after arguments.", helper.current)
             } catch (e: ParseError) {
                 helper.synchronizeCallParenthesis(start[0], start[1])
             } catch (e: ConsumeError) {
                 reporter.pop()
                 reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
             }
-            
         } else if (!helper.matches(TK.UNIT_LITERAL)) {
-            return None
+        return None
         }
         CallExpr(NodeIdManager.nextId(), callee, arguments)
     }
