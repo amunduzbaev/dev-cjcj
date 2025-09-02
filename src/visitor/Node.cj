@@ -32,10 +32,6 @@ public abstract class Node {
         id_ = id
     }
 
-    /*
-    TODO: Change this implementation to all classes if it's better to let the
-    nodes traverse their subgraph on their own.
-    */
     public func traverse<R>(v: Visitor<R>): R
 
     /*

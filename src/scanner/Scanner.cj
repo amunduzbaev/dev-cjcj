@@ -133,21 +133,22 @@ public class Scanner {
                             addToken(TokenKind.WILDCARD)
                         }
             case 'r' => if(matches(r'\'')) {
-                            addToken(TokenKind.RUNE_LITERAL, advance())
-                            if(peek() != r'\'') {
-                                println("Line: ${line} , Unterminated rune literal.")
-                                exit(65)
+                            advance()
+                            if(!matches(r'\'')) {
+                                println("Line: ${line} , Unterminated byte rune literal.")
+                                
                             }
+                            addToken(TokenKind.RUNE_LITERAL)
                         }else{
                             identifier()
                         }
 
             case 'b' => if(matches(r'\'')) {
-                            addToken(TokenKind.RUNE_BYTE_LITERAL, advance())
-                            if(peek() != r'\'') {
+                            advance()
+                            if(!matches(r'\'')) {
                                 println("Line: ${line} , Unterminated byte rune literal.")
-                                exit(65)
                             }
+                            addToken(TokenKind.RUNE_BYTE_LITERAL, advance())
                         }else{
                             identifier()
                         }
@@ -272,9 +273,11 @@ public class Scanner {
             case '\n' => if(!windowsiness()) {
                                 line++
                                 column = 1
+                                skipSpace()
                                 while(!isAtEnd() && matches(r'\n')) {
                                     line++
                                     column = 1
+                                    skipSpace()
                                 }
                                 
                             }
@@ -282,10 +285,16 @@ public class Scanner {
                             return
             
             case '\r' =>if(windowsiness() && matches(r'\n')) {
-                                addToken(TokenKind.NL, "\\n".toRuneArray())
                                 line++
                                 column = 1
+                                skipSpace()
+                                while(!isAtEnd() && matches(r'\r') && matches(r'\n')) {
+                                    line++
+                                    column = 1
+                                    skipSpace()
+                                }
                         }
+                        addToken(TokenKind.NL, "\\n".toRuneArray())
                         return
             
             case ' ' => return
@@ -427,6 +436,10 @@ public class Scanner {
         current++
         column++
         return charToReturn
+    }
+
+    private func skipSpace() {
+        while(matches(r' ')) {}
     }
 
     private func addToken(typ: TokenKind) {
