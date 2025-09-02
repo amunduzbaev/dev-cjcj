@@ -205,18 +205,20 @@ internal open class DeclParser {
 
     private func block(): Block {
         var nodes: ArrayList<Node> = ArrayList()
-        let start: (Token,Int64) = (helper.previous(), helper.current-1)
+        let start: (Token,Int64) = (helper.peek(), helper.current)
         try {
             helper.consume(TK.LCURL, "Expect '{' before block.", helper.current)
             nodes = expressionOrDeclarations()
             helper.endStar()
             helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
         } catch (e: ParseError) {
-                helper.synchronizeBlockRightCurl(start[0], start[1])
-            } catch (e: ConsumeError) {
-                reporter.pop()
-                reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
-            }
+            reporter.pop()
+            helper.synchronizeBlockRightCurl(start[0], start[1])
+            reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
+        } catch (e: ConsumeError) {
+            reporter.pop()
+            reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
+        }
         Block(NodeIdManager.nextId(), nodes)
     }
 
@@ -249,8 +251,8 @@ internal open class DeclParser {
             helper.current)
         } catch (e: ParseError) {
             helper.synchronize()
-            Expr(NodeIdManager.nextId())
         }
+        None
     }
 
 
@@ -307,26 +309,22 @@ internal open class DeclParser {
         helper.skipNL()
 
         let ifBlock: Block = block()
-        let elseBranch: Expr = if (let Some(elseBranch) <- helper.tryParse<Expr>({ =>
-                helper.skipNL()
-                if (helper.matches(TK.ELSE)) {
-                    helper.skipNL()
-                    if (let Some(ifExpr) <- ifExpression()) {
-                        return ifExpr
-                    } else {
-                        return block()
-                    }
-                }
-                return None
-        })) {
-            elseBranch
+        helper.skipNL()
+        let elseBranch: Expr
+        if (helper.matches(TK.ELSE)) {
+            helper.skipNL()
+            if (let Some(ifExpr) <- ifExpression()) {
+                elseBranch = ifExpr
+            } else {
+                elseBranch = block()
+            }
         } else {
             /*
             * Desugar if () { expr } to if () { expr; () } else { () }
             */
             ifBlock.nodes.add(LitConstExpr(NodeIdManager.nextId(),
                 Token(TK.UNIT_LITERAL, "()", Position())))
-            Block(NodeIdManager.nextId(), ArrayList<Node>([
+            elseBranch = Block(NodeIdManager.nextId(), ArrayList<Node>([
                 LitConstExpr(NodeIdManager.nextId(), Token(TK.UNIT_LITERAL, "()", Position()))
             ]))
         }

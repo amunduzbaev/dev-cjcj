@@ -181,9 +181,12 @@ class ParserHelper {
     func endPlus(_: String, index: Int64): Unit {
         if (isAtEnd() || matches(TokenKindHelper.END)) {
             endStar()
-        }
-        error(peek(), "Expected newline or semi, found '${peek().value}'", index)
-        synchronize()
+        } else if (TokenKindHelper.TOP.iterator().any({tk => check(tk)})){
+            error(peek(), "Newline or semi expected before declaration", index)
+        } else {
+            error(peek(), "Expected newline after top level declaration, found '${peek().value}'", index)
+            synchronize()
+    }
         
     }
 
