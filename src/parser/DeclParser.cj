@@ -204,10 +204,19 @@ internal open class DeclParser {
     }
 
     private func block(): Block {
-        helper.consume(TK.LCURL, "Expect '{' before block.", helper.current)
-        let nodes: ArrayList<Node> = expressionOrDeclarations()
-        helper.endStar()
-        helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
+        var nodes: ArrayList<Node> = ArrayList()
+        let start: (Token,Int64) = (helper.previous(), helper.current-1)
+        try {
+            helper.consume(TK.LCURL, "Expect '{' before block.", helper.current)
+            nodes = expressionOrDeclarations()
+            helper.endStar()
+            helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
+        } catch (e: ParseError) {
+                helper.synchronizeBlockRightCurl(start[0], start[1])
+            } catch (e: ConsumeError) {
+                reporter.pop()
+                reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
+            }
         Block(NodeIdManager.nextId(), nodes)
     }
 
@@ -340,35 +349,34 @@ internal open class DeclParser {
 
     private func callSuffix(callee: Expr): ?Expr {
         let arguments: ArrayList<Argument> = ArrayList()
-            if (helper.matches(TK.LPAREN)) {
-                let start: (Token,Int64) = (helper.previous(), helper.current-1)
-                try {
-                helper.skipNL()
-                if (!helper.check(TK.RPAREN)) {
-                    do {
-                        helper.skipNL()
-                        arguments.add(
-                            Argument(
-                                NodeIdManager.nextId(),
-                                expectExpression(
-                                    expression,
-                                    "Expected expression inside call suffix."
-                                )
+        if (helper.matches(TK.LPAREN)) {
+            let start: (Token,Int64) = (helper.previous(), helper.current-1)
+            try {
+            helper.skipNL()
+            if (!helper.check(TK.RPAREN)) {
+                do {
+                    helper.skipNL()
+                    arguments.add(
+                        Argument(
+                            NodeIdManager.nextId(),
+                            expectExpression(
+                                expression,
+                                "Expected expression inside call suffix."
                             )
                         )
-                        helper.skipNL()
-                    } while (helper.matches(TK.COMMA))
-                }
-                helper.consume(TK.RPAREN, "Expect ')' after arguments.", helper.current)
+                    )
+                    helper.skipNL()
+                } while (helper.matches(TK.COMMA))
+            }
+            helper.consume(TK.RPAREN, "Expect ')' after arguments.", helper.current)
             } catch (e: ParseError) {
                 helper.synchronizeCallParenthesis(start[0], start[1])
             } catch (e: ConsumeError) {
                 reporter.pop()
                 reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
             }
-            
         } else if (!helper.matches(TK.UNIT_LITERAL)) {
-            return None
+        return None
         }
         CallExpr(NodeIdManager.nextId(), callee, arguments)
     }

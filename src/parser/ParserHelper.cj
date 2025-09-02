@@ -141,6 +141,23 @@ class ParserHelper {
         }
     }
 
+    func synchronizeBlockRightCurl(start: Token, current: Int64): ?FinalError {
+        var counter: Int64 = 1
+        if(!check(TokenKind.RCURL)) {
+            do {
+                if (peek().kind == TokenKind.LCURL) { counter++}
+                if (peek().kind == TokenKind.RCURL) { counter--}
+                advance()
+                
+            } while (!isAtEnd() && counter > 0)
+        }
+        if(isAtEnd()) {
+            errorFinal(start, "unclosed delimiter: '{'", current)
+        } else {
+            error(start, "unclosed delimiter: '{'", current)
+        } 
+    }
+
     func synchronizeCallParenthesis(start: Token, current: Int64): Unit {
         var counter: Int64 = 1
         while (!isAtEnd() && counter > 0 && !check(TokenKind.NL)) {
@@ -164,12 +181,10 @@ class ParserHelper {
     func endPlus(_: String, index: Int64): Unit {
         if (isAtEnd() || matches(TokenKindHelper.END)) {
             endStar()
-        } else if (TokenKindHelper.TOP.iterator().any({tk => check(tk)})){
-            error(peek(), "Newline forgotten at new TopLevelObject declaration", index)
-        } else {
-            error(peek(), "Expected newline after top level declaration, found '${peek().value}'", index)
-            synchronize()
         }
+        error(peek(), "Expected newline or semi, found '${peek().value}'", index)
+        synchronize()
+        
     }
 
     func error(token: Token, message: String, index: Int64): ParseError {
