@@ -1,6 +1,7 @@
 package cjcj
 
 import cjcj.asg.AsgMaker
+import cjcj.asg.typeChecker.TypeChecker
 import cjcj.visitor.Program
 import cjcj.parser.*
 import cjcj.scanner.*
@@ -32,9 +33,10 @@ public class Cj {
         let printer: PrettyPrinter = PrettyPrinter()
         let asgMaker = AsgMaker()
         let asg: Program
+        parser.logErrors()
         if (let Some(p) <- program) {
-            parser.logErrors()
             asg = asgMaker.resolve(p)
+            TypeChecker().typeCheck(asg)
             asg.prettyPrint(printer)
             println(printer.toString())
         }
