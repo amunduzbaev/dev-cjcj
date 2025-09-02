@@ -502,7 +502,8 @@ public class TokenKindHelper {
         TokenKind.INTEGER_LITERAL,
         TokenKind.STRING_LITERAL,
         TokenKind.FLOAT_LITERAL,
-        TokenKind.RUNE_LITERAL
+        TokenKind.RUNE_LITERAL,
+        TokenKind.UNIT_LITERAL
     ]
 
     public static let END: Array<TokenKind> = [

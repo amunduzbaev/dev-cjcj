@@ -5,7 +5,7 @@ main(args: Int64) {
     }
     var a = if (true) {
         "a"
-    } else {
+    } else if (true) {
         5
     }
     var b = while (true) {

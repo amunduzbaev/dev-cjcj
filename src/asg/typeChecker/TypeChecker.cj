@@ -73,12 +73,8 @@ public class TypeChecker <: Visitor<Type> {
     public override func visit(ifExpr: IfExpr): Type {
         ifExpr.condition.traverse(this)
         let ifType: Type = ifExpr.ifBlock.traverse(this)
-        if (let Some(elseBranch) <- ifExpr.elseBranch) {
-            let elseType: Type = elseBranch.traverse(this)
-            return typeManager.smallestCommonSupertype(ifType, elseType)
-        } else {
-            return typeManager.get("Unit")
-        }
+        let elseType: Type = ifExpr.elseBranch.traverse(this)
+        return typeManager.smallestCommonSupertype(ifType, elseType)
     }
 
     public override func visit(whileExpr: WhileExpr): Type {

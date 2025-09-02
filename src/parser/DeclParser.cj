@@ -7,6 +7,7 @@ import cjcj.scanner.TokenKindHelper
 
 import std.collection.ArrayList
 import std.convert.Parsable
+import std.ast.Position
 
 private type TK = TokenKind
 private type TKH = TokenKindHelper
@@ -298,7 +299,7 @@ internal open class DeclParser {
 
         let ifBlock: Block = block()
         helper.skipNL()
-        var elseBranch: ?Expr = None
+        let elseBranch: Expr
         if (helper.matches(TK.ELSE)) {
             helper.skipNL()
             if (let Some(ifExpr) <- ifExpression()) {
@@ -306,6 +307,15 @@ internal open class DeclParser {
             } else {
                 elseBranch = block()
             }
+        } else {
+            /*
+            * Desugar if () { expr } to if () { expr; () } else { () }
+            */
+            ifBlock.nodes.add(LitConstExpr(NodeIdManager.nextId(),
+                Token(TK.UNIT_LITERAL, "()", Position())))
+            elseBranch = Block(NodeIdManager.nextId(), ArrayList<Node>([
+                LitConstExpr(NodeIdManager.nextId(), Token(TK.UNIT_LITERAL, "()", Position()))
+            ]))
         }
         return IfExpr(NodeIdManager.nextId(), condition, ifBlock, elseBranch)
     }

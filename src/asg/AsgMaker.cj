@@ -121,13 +121,10 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(ifExpr: IfExpr): Node {
-        let elseBranch: ?Expr = match(ifExpr.elseBranch) {
-            case Some(eb) => eb.traverse(this) as Expr
-            case None => None
-        }
         IfExpr(NodeIdManager.nextId(),
             (ifExpr.condition.traverse(this) as Expr).getOrThrow(),
-            (ifExpr.ifBlock.traverse(this) as Block).getOrThrow(), elseBranch)
+            (ifExpr.ifBlock.traverse(this) as Block).getOrThrow(),
+            (ifExpr.elseBranch.traverse(this) as Expr).getOrThrow())
     }
 
     public override func visit(whileExpr: WhileExpr): Node {
