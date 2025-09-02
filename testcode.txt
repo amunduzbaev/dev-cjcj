@@ -9,8 +9,6 @@ main(args: Int64) {
     }
     var a = if (true) {
         "a"
-    } else if (true) {
-        ()
     }
     var b = while (true) {
         1 + 3
