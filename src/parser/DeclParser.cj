@@ -213,9 +213,12 @@ internal open class DeclParser {
     private func expressionOrDeclarations(): ArrayList<Node> {
         let expressionOrDeclarations: ArrayList<Node> = ArrayList()
         helper.endStar()
-        while (!helper.isAtEnd() &&
-                let Some(exprOrDecl) <- expressionOrDeclaration()) {
+        if (let Some(exprOrDecl) <- expressionOrDeclaration()) {
             expressionOrDeclarations.add(exprOrDecl)
+            while (let Some(exprOrDecl) <- helper.tryParse({ =>
+                    helper.endPlus("", helper.current); expressionOrDeclaration() })) {
+                expressionOrDeclarations.add(exprOrDecl)
+            }
         }
         expressionOrDeclarations
     }
@@ -590,7 +593,7 @@ internal open class DeclParser {
             return None
         }
         let keyword: Token = helper.previous()
-        helper.endStar()
+        helper.skipNL()
         ReturnExpr(NodeIdManager.nextId(), expression(), keyword)
     }
 
