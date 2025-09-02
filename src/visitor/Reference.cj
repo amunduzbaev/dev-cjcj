@@ -20,11 +20,13 @@ public open class Reference <: Expr & Hashable & Equatable<Reference> {
     */
     private let identifier_: Token
     private let declType_: ?TypeNode
+    private var effectiveType_: ?Type
 
-    public Reference(id: NodeId, identifier: Token, declType: ?TypeNode) {
+    public Reference(id: NodeId, identifier: Token, declType: ?TypeNode, effectiveType: ?Type) {
         super(id)
         identifier_ = identifier
         declType_ = declType
+        effectiveType_ = effectiveType
     }
 
     public override open func prettyPrint(printer: PrettyPrinter): Unit {
@@ -49,6 +51,11 @@ public open class Reference <: Expr & Hashable & Equatable<Reference> {
     public prop declType: ?TypeNode {
         get() { declType_ }
     }
+
+    public mut prop effectiveType: ?Type {
+        get() { effectiveType_ }
+        set(v) { effectiveType_ = v }
+    }
 }
 
 public class VariableReference <: Reference {
@@ -56,7 +63,7 @@ public class VariableReference <: Reference {
 
     public init(id: NodeId, identifier: Token, declType: ?TypeNode,
         keyword: Token) {
-        super(id, identifier, declType)
+        super(id, identifier, declType, None)
         keyword_ = keyword
     }
 
@@ -76,7 +83,7 @@ public class FuncReference <: Reference {
 
     public FuncReference(id: NodeId, identifier: Token, declType: ?TypeNode,
         environment: Environment, params: ArrayList<FuncParam>) {
-        super(id, identifier, declType)
+        super(id, identifier, declType, None)
         environment_ = environment
         params_ = params
     }
@@ -129,7 +136,7 @@ public class VarDeclWithRef <: VarDecl {
 }
 
 public class FuncDeclWithRef <: FuncDecl {
-    // TODO: Maybe this can be removed
+    // TODO: Maybe the list of parameters can be removed
     private let paramRef_: ArrayList<Reference>
     private let funcRef_: FuncReference
 

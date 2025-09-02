@@ -121,13 +121,10 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(ifExpr: IfExpr): Node {
-        let elseBranch: ?Expr = match(ifExpr.elseBranch) {
-            case Some(eb) => eb.traverse(this) as Expr
-            case None => None
-        }
         IfExpr(NodeIdManager.nextId(),
             (ifExpr.condition.traverse(this) as Expr).getOrThrow(),
-            (ifExpr.ifBlock.traverse(this) as Block).getOrThrow(), elseBranch)
+            (ifExpr.ifBlock.traverse(this) as Block).getOrThrow(),
+            (ifExpr.elseBranch.traverse(this) as Expr).getOrThrow())
     }
 
     public override func visit(whileExpr: WhileExpr): Node {
@@ -194,9 +191,6 @@ public class AsgMaker <: Visitor<Node> {
 
         let nodeId: NodeId = NodeIdManager.nextId()
 
-        // TODO: Make this return an AssignExpr if there's an initializer
-        // because variable declaration are not a thing in ASG.
-        // TODO: Figure out what to do with VarDeclWithRef
         VarDeclWithRef(nodeId, varDecl.keyword, varDecl.identifier, ref, initializer,
             declType)
     }
@@ -265,17 +259,16 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(typeNode: TypeNode): Node {
-        TypeNode(NodeIdManager.nextId(), typeNode.typeParameterName)
+        TypeNode(NodeIdManager.nextId(), typeNode.typeParameterName, typeNode.typeName)
     }
 
     public override func visit(primitiveType: PrimitiveType): Node {
         PrimitiveType(NodeIdManager.nextId(), primitiveType.typeParameterName,
-            primitiveType.keyword)
+            primitiveType.typeName)
     }
 
     public override func visit(refType: RefType): Node {
-        RefType(NodeIdManager.nextId(), refType.typeParameterName,
-            refType.identifier)
+        RefType(NodeIdManager.nextId(), refType.typeParameterName, refType.typeName)
     }
 
     private func beginScope(): Unit {
@@ -297,6 +290,3 @@ public class AsgMaker <: Visitor<Node> {
         currentEnvironment.get(identifier)
     }
 }
-
-// TODO : Make typechecking in the following way
-// in a seperate file

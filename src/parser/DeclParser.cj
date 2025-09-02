@@ -7,6 +7,7 @@ import cjcj.scanner.TokenKindHelper
 
 import std.collection.ArrayList
 import std.convert.Parsable
+import std.ast.Position
 
 private type TK = TokenKind
 private type TKH = TokenKindHelper
@@ -115,11 +116,11 @@ internal open class DeclParser {
             declType)
     }
 
-    private func nodeType(id: NodeId, name: Token, keyword: Token): TypeNode {
+    private func nodeType(id: NodeId, typeParameterName: Token, typeName: Token): TypeNode {
         try {
-            return PrimitiveType(id, name, keyword)
+            return PrimitiveType(id, typeParameterName, typeName)
         } catch (_: IllegalArgumentException) {
-            return RefType(id, name, keyword)
+            return RefType(id, typeParameterName, typeName)
         }
     }
 
@@ -213,9 +214,12 @@ internal open class DeclParser {
     private func expressionOrDeclarations(): ArrayList<Node> {
         let expressionOrDeclarations: ArrayList<Node> = ArrayList()
         helper.endStar()
-        while (!helper.isAtEnd() &&
-                let Some(exprOrDecl) <- expressionOrDeclaration()) {
+        if (let Some(exprOrDecl) <- expressionOrDeclaration()) {
             expressionOrDeclarations.add(exprOrDecl)
+            while (let Some(exprOrDecl) <- helper.tryParse({ =>
+                    helper.endPlus("", helper.current); expressionOrDeclaration() })) {
+                expressionOrDeclarations.add(exprOrDecl)
+            }
         }
         expressionOrDeclarations
     }
@@ -295,7 +299,7 @@ internal open class DeclParser {
 
         let ifBlock: Block = block()
         helper.skipNL()
-        var elseBranch: ?Expr = None
+        let elseBranch: Expr
         if (helper.matches(TK.ELSE)) {
             helper.skipNL()
             if (let Some(ifExpr) <- ifExpression()) {
@@ -303,6 +307,15 @@ internal open class DeclParser {
             } else {
                 elseBranch = block()
             }
+        } else {
+            /*
+            * Desugar if () { expr } to if () { expr; () } else { () }
+            */
+            ifBlock.nodes.add(LitConstExpr(NodeIdManager.nextId(),
+                Token(TK.UNIT_LITERAL, "()", Position())))
+            elseBranch = Block(NodeIdManager.nextId(), ArrayList<Node>([
+                LitConstExpr(NodeIdManager.nextId(), Token(TK.UNIT_LITERAL, "()", Position()))
+            ]))
         }
         return IfExpr(NodeIdManager.nextId(), condition, ifBlock, elseBranch)
     }
@@ -590,7 +603,7 @@ internal open class DeclParser {
             return None
         }
         let keyword: Token = helper.previous()
-        helper.endStar()
+        helper.skipNL()
         ReturnExpr(NodeIdManager.nextId(), expression(), keyword)
     }
 
