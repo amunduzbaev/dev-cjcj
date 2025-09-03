@@ -108,7 +108,7 @@ public class AsgMaker <: Visitor<Node> {
         currentScopeType = ScopeType.BLOCK
 
         while (let Some(last) <- waitingDeclarations.remove()) {
-            declare(last.identifier, last)
+            declareVar(last.identifier, last)
         }
         let nodes: ArrayList<Node> = ArrayList()
         block.nodes.iterator().forEach({ n => nodes.add(n.traverse(this)) })
@@ -190,7 +190,7 @@ public class AsgMaker <: Visitor<Node> {
             ref = VariableReference(NodeIdManager.nextId(), varDecl.identifier,
                 declType, varDecl.keyword)
         }
-        declare(varDecl.identifier, ref)
+        declareVar(varDecl.identifier, ref)
 
         let nodeId: NodeId = NodeIdManager.nextId()
 
@@ -228,7 +228,7 @@ public class AsgMaker <: Visitor<Node> {
         let reference: FuncReference = FuncReference(NodeIdManager.nextId(),
             funcDecl.identifier, declType,
             lastKilledEnvironment.getOrThrow(), params)
-        declare(funcDecl.identifier, reference)
+        declareFunc(funcDecl.identifier, reference)
         
         let nodeId: NodeId = NodeIdManager.nextId()
 
@@ -285,11 +285,15 @@ public class AsgMaker <: Visitor<Node> {
             UnsupportedException("Trying to close the global scope") })
     }
 
-    private func declare(identifier: Token, value: Reference): Unit {
-        currentEnvironment.declare(identifier, value)
+    private func declareVar(identifier: Token, value: Reference): Unit {
+        currentEnvironment.declareVar(identifier, value)
+    }
+    private func declareFunc(identifier: Token, value: Reference): Unit {
+        currentEnvironment.declareFunc(identifier, value)
     }
 
     private func get(identifier: Token): Reference {
         currentEnvironment.get(identifier)
     }
 }
+

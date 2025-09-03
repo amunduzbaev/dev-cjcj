@@ -18,7 +18,8 @@ import std.collection.ArrayList
 */
 public class Environment {
     private let enclosing_: ?Environment
-    private let references: Map<String, Reference> = HashMap()
+    private let varReferences: Map<String, Reference> = HashMap()
+    private let funcReferences: Map<String, Reference> = HashMap()
 
     public init(enclosing: ?Environment) {
         enclosing_ = enclosing
@@ -29,7 +30,9 @@ public class Environment {
     }
 
     public func get(identifier: Token): Reference {
-        if (let Some(value) <- references.get(identifier.value)) {
+        if (let Some(value) <- varReferences.get(identifier.value)) {
+            return value
+        } else if (let Some(value) <- funcReferences.get(identifier.value)) {
             return value
         }
 
@@ -39,18 +42,24 @@ public class Environment {
             return enclosing.getOrThrow().get(identifier)
         }
 
-        println("Undefined variable '" + identifier.value + "'.")
-        // throw ParseError()
-        throw Exception()
+        throw Exception("Undefined variable '" + identifier.value + "'.")
     }
 
-    public func declare(identifier: Token, value: Reference): Unit {
-        if (references.addIfAbsent(identifier.value, value).isSome()) {
-            println("Cannot redefine a variable with the same name in the " +
-                "same scope")
-            // throw ParseError()
-            throw Exception()
+    public func declareVar(identifier: Token, value: Reference): Unit {
+        if (funcReferences.contains(identifier.value)){
+            throw Exception("Cannot define a variable and a function with the" + 
+                " same name in the same scope")
+        } else if(varReferences.addIfAbsent(identifier.value, value).isSome()) {
+            throw Exception("Cannot redefine a variable with the in the same scope")
         }
+    }
+
+    public func declareFunc(identifier: Token, value: Reference): Unit {
+        if(varReferences.contains(identifier.value)) {
+            throw Exception("Cannot define a function and variable with the same name in the " +
+                "same scope")
+        }
+        funcReferences.add(identifier.value, value)
     }
 
     public prop enclosing: ?Environment {
