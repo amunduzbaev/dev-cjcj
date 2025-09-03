@@ -257,18 +257,18 @@ public class Block <: Expr {
 public class IfExpr <: Expr {
     private var condition_: Expr
     private var ifBlock_: Block
-    private var elseBranch_: ?Expr
+    private var elseBranch_: Expr
 
     public init() {
-        this(NodeId(), Expr(), Block(), None)
+        this(NodeId(), Expr(), Block(), Expr())
     }
 
     public init(id: NodeId, condition: Expr, ifBlock: Block) {
-        this(id, condition, ifBlock, None)
+        this(id, condition, ifBlock, Expr())
     }
 
     public IfExpr(id: NodeId, condition: Expr, ifBlock: Block,
-                    elseBranch: ?Expr) {
+                    elseBranch: Expr) {
         super(id)
         condition_ = condition
         ifBlock_ = ifBlock
@@ -284,10 +284,8 @@ public class IfExpr <: Expr {
         condition.prettyPrint(printer)
         printer.append(") ")
         ifBlock.prettyPrint(printer)
-        if (let Some(eb) <- elseBranch) {
-            printer.append("else ")
-            eb.prettyPrint(printer)
-        }
+        printer.append("else ")
+        elseBranch.prettyPrint(printer)
     }
 
     public mut prop condition: Expr {
@@ -300,7 +298,7 @@ public class IfExpr <: Expr {
         set(v) { ifBlock_ = v }
     }
 
-    public mut prop elseBranch: ?Expr {
+    public mut prop elseBranch: Expr {
         get() { elseBranch_ }
         set(v) { elseBranch_ = v }
     }

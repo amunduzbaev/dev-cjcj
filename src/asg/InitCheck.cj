@@ -142,12 +142,7 @@ public class InitCheck <: Visitor< InitsRefs >{
         let prev = lastNode
         lastNode = ifExpr
         
-        let elseBranch = 
-        match (ifExpr.elseBranch) {
-            case Some(eb) => eb.traverse(this)
-            case _ => InitsRefs()
-        }
-
+        let elseBranch = ifExpr.elseBranch.traverse(this)
         let condition = ifExpr.condition.traverse(this)
         condition.mergeL(ifExpr.ifBlock.traverse(this))
         condition.bramchMerge(elseBranch)
