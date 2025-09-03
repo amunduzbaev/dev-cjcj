@@ -311,22 +311,26 @@ internal open class DeclParser {
         helper.skipNL()
 
         let ifBlock: Block = block()
-        helper.skipNL()
-        let elseBranch: Expr
-        if (helper.matches(TK.ELSE)) {
+        let elseBranch: Expr = if (let Some(elseBranch) <- helper.tryParse<Expr>({ =>
             helper.skipNL()
-            if (let Some(ifExpr) <- ifExpression()) {
-                elseBranch = ifExpr
-            } else {
-                elseBranch = block()
+            if (helper.matches(TK.ELSE)) {
+                helper.skipNL()
+                if (let Some(ifExpr) <- ifExpression()) {
+                    return ifExpr
+                } else {
+                    return block()
+                }
             }
+            return None
+        })) {
+            elseBranch
         } else {
             /*
             * Desugar if () { expr } to if () { expr; () } else { () }
             */
             ifBlock.nodes.add(LitConstExpr(NodeIdManager.nextId(),
                 Token(TK.UNIT_LITERAL, "()", Position())))
-            elseBranch = Block(NodeIdManager.nextId(), ArrayList<Node>([
+            Block(NodeIdManager.nextId(), ArrayList<Node>([
                 LitConstExpr(NodeIdManager.nextId(), Token(TK.UNIT_LITERAL, "()", Position()))
             ]))
         }
