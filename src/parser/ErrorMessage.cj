@@ -40,9 +40,7 @@ public class ErrorUnclosedDelimiter <: BaseErrorMessage {
 error\u{001b}[0m: unclosed delimiter '${Reporter.redify(start)}'
 ${spaces} |
 ${lineStr} | ${suffixPrefixStart[0]}${Reporter.redify(start)} ${suffixPrefixStart[1]}
-${spaces} | ${" " * suffixPrefixStart[0].size}^
-
-            ${currentIndex}   
+${spaces} | ${" " * suffixPrefixStart[0].size}^ 
                 """
             } else {
                 return """
