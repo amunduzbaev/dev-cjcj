@@ -31,14 +31,16 @@ public class Cj {
         let parser: Parser = Parser(tokens.toArray(), Reporter(getStdErr(), tokens.toArray()))
         let program: ?Program = parser.parse()
         let printer: PrettyPrinter = PrettyPrinter()
-        let asgMaker = AsgMaker()
-        let asg: Program
+        // let asgMaker = AsgMaker()
+        // let asg: Program
         parser.logErrors()
         if (let Some(p) <- program) {
-            asg = asgMaker.resolve(p)
-            TypeChecker().typeCheck(asg)
-            asg.prettyPrint(printer)
+            p.prettyPrint(printer)
             println(printer.toString())
+            // asg = asgMaker.resolve(p)
+            // TypeChecker().typeCheck(asg)
+            // asg.prettyPrint(printer)
+            // println(printer.toString())
         }
     }
 }

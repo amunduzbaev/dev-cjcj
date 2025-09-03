@@ -27,6 +27,9 @@ internal open class DeclParser {
         if (let Some(varDecl) <- variableDeclaration()) {
             return varDecl
         }
+        if (let Some(classDecl) <- classDefinition()) {
+            return classDecl
+        }
         None
     }
 
@@ -81,26 +84,7 @@ internal open class DeclParser {
         let name: Token = helper.consume(TK.IDENTIFIER, "Expect function name.", helper.current)
         var parameters: ArrayList<FuncParam> = ArrayList()
         helper.skipNL()
-            if (!helper.matches(TK.UNIT_LITERAL)) {
-                helper.consume(TK.LPAREN, "Expect '(' before function parameters", helper.current)
-                let start: (Token,Int64) = (helper.previous(), helper.current-1)
-                helper.skipNL()
-                try {
-                    parameters = unnamedParameterList()
-                    helper.skipNL()
-                    helper.consume(TK.RPAREN, 
-                    "Expect ')' after function parameters", helper.current)
-                } catch(e: ConsumeError) {
-                    if (helper.check(TK.LCURL)) {
-                        reporter.pop()
-                        reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
-                    } else {
-                        helper.synchronizeBlockParenthesis(start[0],start[1])
-                    }
-                } catch(e: ParseError) {
-                    helper.synchronizeBlockParenthesis(start[0],start[1])
-                }
-            }
+        parameters = functionParameters()
         
         var declType: ?TypeNode = None
         helper.skipNL()
@@ -114,6 +98,111 @@ internal open class DeclParser {
         let block: Block = block()
         FuncDecl(NodeIdManager.nextId(), keyword, name, block, parameters,
             declType)
+    }
+
+    private func functionParameters(): ArrayList<FuncParam> {
+        if (helper.matches(TK.UNIT_LITERAL)) {
+            return ArrayList()
+        }
+        helper.consume(TK.LPAREN, "Expect '(' before function parameters", helper.current)
+        let start: (Token,Int64) = (helper.previous(), helper.current-1)
+        helper.skipNL()
+        let parameters: ArrayList<FuncParam> = ArrayList()
+        try {
+            parameters.add(all: unnamedParameterList())
+            helper.skipNL()
+            helper.consume(TK.RPAREN, "Expect ')' after function parameters", helper.current)
+            helper.skipNL()
+        } catch(e: ConsumeError) {
+            if (helper.check(TK.LCURL)) {
+                reporter.pop()
+                reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
+            } else {
+                helper.synchronizeBlockParenthesis(start[0],start[1])
+            }
+        } catch(e: ParseError) {
+            helper.synchronizeBlockParenthesis(start[0],start[1])
+        }
+        parameters
+    }
+
+    private func classDefinition(): ?ClassDecl {
+        if (!helper.matches(TK.CLASS)) {
+            return None
+        }
+        let keyword: Token = helper.previous()
+        helper.skipNL()
+        let identifier: Token = className()
+        helper.skipNL()
+        let supertypes: ArrayList<TypeNode> = if (helper.matches(TK.UPPERBOUND)) {
+            helper.skipNL()
+            superClassOrInterfaces()
+        } else {
+            ArrayList()
+        }
+        helper.skipNL()
+        let body: Body = classBody()
+        ClassDecl(NodeIdManager.nextId(), keyword, identifier, body, supertypes)
+    }
+
+    private func className(): Token {
+        return helper.consume(TK.IDENTIFIER, "Expect class name.", helper.current)
+    }
+
+    private func classBody(): Body {
+        helper.consume(TK.LCURL, "Expect '{' before body.", helper.current)
+        helper.endStar()
+        let decls: ArrayList<Decl> = ArrayList()
+        while (let Some(classMemberDeclaration) <- classMemberDeclaration()) {
+            decls.add(classMemberDeclaration)
+        }
+        helper.endStar()
+        helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
+        Body(NodeIdManager.nextId(), decls)
+    }
+
+    public func classMemberDeclaration(): ?Decl {
+        var decl: ?Decl = None
+        if (let Some(classInit) <- classInit()) {
+            decl = classInit
+        }
+        if (let Some(variableDeclaration) <- variableDeclaration()) {
+            decl = variableDeclaration
+        }
+        if (let Some(functionDefinition) <- functionDefinition()) {
+            decl = functionDefinition
+        }
+        helper.endStar()
+        decl
+    }
+
+    public func classInit(): ?FuncDecl {
+        //TODO: look and understand what the const modifier does.
+        if (!helper.matches(TK.INIT)) {
+            return None
+        }
+        let keyword: Token = helper.previous()
+        let params: ArrayList<FuncParam> = functionParameters()
+        helper.skipNL()
+        let block: Block = block()
+        FuncDecl(NodeIdManager.nextId(), keyword, block, params)
+    }
+
+    private func superClassOrInterfaces(): ArrayList<TypeNode> {
+        let superClassOrInterfaces: ArrayList<TypeNode> = ArrayList()
+        // We assume that the first element of the super classes or interfaces is a class, we will
+        // check it in the following process.
+        superClassOrInterfaces.add(superClass())
+        superClassOrInterfaces
+    }
+
+    private func superClass(): TypeNode {
+        classType()
+    }
+
+    private func classType(): TypeNode {
+        // In the future we'll have also (identifier NL* DOT  NL*)*
+        RefType(NodeIdManager.nextId(), Token(), className())
     }
 
     private func nodeType(id: NodeId, typeParameterName: Token, typeName: Token): TypeNode {
