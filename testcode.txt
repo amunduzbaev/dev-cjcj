@@ -2,15 +2,15 @@ class a {
     init(a: Int64, b: String) {
         let idujfhg = 5
         boo()
-    }
-
-    func boo(): Unit {
+    } func boo(): Unit {
         2 + 4
     }
 
     let a : Int32
     var b = 5
 }
+
+let a: Int64
 
 main(args: Int64) {
     func bo() : Unit {
@@ -23,7 +23,7 @@ main(args: Int64) {
     }
     var a = if (true) {
         "a"
-    } 
+    }
     var b = while (true) {
         1 + 3
     }

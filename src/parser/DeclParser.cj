@@ -153,8 +153,15 @@ internal open class DeclParser {
         helper.consume(TK.LCURL, "Expect '{' before body.", helper.current)
         helper.endStar()
         let decls: ArrayList<Decl> = ArrayList()
-        while (let Some(classMemberDeclaration) <- classMemberDeclaration()) {
-            decls.add(classMemberDeclaration)
+        if (let Some(cmd) <- classMemberDeclaration()) {
+            decls.add(cmd)
+                        
+            while (let Some(cmd) <- helper.tryParse({ =>
+                helper.endPlus("", helper.current);
+                classMemberDeclaration()})
+            ) {
+                decls.add(cmd)
+            }
         }
         helper.endStar()
         helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
