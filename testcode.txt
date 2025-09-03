@@ -12,6 +12,6 @@ main(args: Int64) {
     }
     var b = while (true) {
         1 + 3
-    
+    }
     aa(2, "1")
 }
