@@ -36,6 +36,9 @@ main(args: Int64) {
     var a = if (true) {
         "a"}
     var b = while (true) {
-        
+        1 + 3
     }
-    aa(2, "1")}
+    
+    aa(2, "1")
+}
+
