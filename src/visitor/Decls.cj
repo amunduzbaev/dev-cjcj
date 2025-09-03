@@ -260,3 +260,39 @@ public open class FuncDecl <: Decl {
         set(v) { declType_ = v }
     }
 }
+
+public class ClassDecl <: Decl {
+    private let body_: Body
+    private let superTypes_: ArrayList<TypeNode>
+
+    public init(id: NodeId, keyword: Token, identifier: Token, body: Body,
+            superTypes: ArrayList<TypeNode>) {
+        super(id, keyword, identifier)
+        body_ = body
+        superTypes_ = superTypes
+
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter) {
+        super.prettyPrint(printer)
+
+        if (!superTypes.isEmpty()) {
+            printer.append(" <: ")
+            printer.append(superTypes[0].typeParameterName.value)
+            for (i in 1..superTypes.size) {
+                printer.append(" & ")
+                superTypes[i].prettyPrint(printer)
+            }
+        }
+        body.prettyPrint(printer)
+    }
+
+    public prop body: Body {
+        get() { body_ }
+    }
+
+    public prop superTypes: ArrayList<TypeNode> {
+        get() { superTypes_ }
+    }
+
+}
