@@ -301,17 +301,17 @@ internal open class DeclParser {
     private func block(): Block {
         var nodes: ArrayList<Node> = ArrayList()
         let start: (Token,Int64) = (helper.peek(), helper.current)
+        helper.consume(TK.LCURL, "Expect '{' before block.", helper.current)
         try {
-            helper.consume(TK.LCURL, "Expect '{' before block.", helper.current)
             nodes = expressionOrDeclarations()
             helper.endStar()
             helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
         } catch (e: ParseError) {
-            reporter.pop()
+
             helper.synchronizeBlockRightCurl(start[0], start[1])
             reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
         } catch (e: ConsumeError) {
-            reporter.pop()
+
             reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
         }
         Block(NodeIdManager.nextId(), nodes)
@@ -443,7 +443,7 @@ internal open class DeclParser {
                 return assignmentExpression()
             } catch (e: Exception) {
                 helper.synchronize()
-                return Expr(NodeIdManager.nextId())
+                return None
             }
     }
 
@@ -480,7 +480,6 @@ internal open class DeclParser {
             } catch (e: ParseError) {
                 helper.synchronizeCallParenthesis(start[0], start[1])
             } catch (e: ConsumeError) {
-                reporter.pop()
                 reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
             }
         } else if (!helper.matches(TK.UNIT_LITERAL)) {
