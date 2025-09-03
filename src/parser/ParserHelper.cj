@@ -172,7 +172,10 @@ class ParserHelper {
             throw error(start, "unclosed delimiter: '\u{001b}[31m('\u{001b}[0m", current)
         }
     }
-    
+
+    public func pop() {
+        reporter.pop()
+    }
 
     func endStar(): Unit {
         while(matches(TokenKindHelper.END)) { }
@@ -185,7 +188,7 @@ class ParserHelper {
             error(peek(), "Newline or semi expected before declaration", index)
         } else {
             error(peek(), "Expected newline after top level declaration, found '${peek().value}'", index)
-            synchronize()
+            //synchronize()
     }
         
     }

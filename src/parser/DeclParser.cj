@@ -179,7 +179,6 @@ internal open class DeclParser {
         if (let Some(functionDefinition) <- functionDefinition()) {
             decl = functionDefinition
         }
-        helper.endStar()
         decl
     }
 
@@ -323,8 +322,15 @@ internal open class DeclParser {
         helper.endStar()
         if (let Some(exprOrDecl) <- expressionOrDeclaration()) {
             expressionOrDeclarations.add(exprOrDecl)
-            while (let Some(exprOrDecl) <- helper.tryParse({ =>
-                    helper.endPlus("", helper.current); expressionOrDeclaration() })) {
+            while (let Some(exprOrDecl) <- helper.tryParse<Node>({ =>
+                try {
+                    helper.endPlus("", helper.current)
+                } catch(_) {
+                    helper.pop(); return None
+                }
+                expressionOrDeclaration()
+                })
+            ) {
                 expressionOrDeclarations.add(exprOrDecl)
             }
         }
