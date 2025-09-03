@@ -19,6 +19,10 @@ public class Reporter {
         errors.remove(at: errors.size-1)
     }
 
+    public prop empty: Bool {
+        get() { errors.isEmpty() }
+    }
+
     private func getSuffixPrefix(current: Int64): (String, String) {
         var prefix: String = ""
         var suffix: String = ""

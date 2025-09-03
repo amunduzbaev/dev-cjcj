@@ -92,7 +92,6 @@ internal open class DeclParser {
                     "Expect ')' after function parameters", helper.current)
                 } catch(e: ConsumeError) {
                     if (helper.check(TK.LCURL)) {
-                        reporter.pop()
                         reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
                     } else {
                         helper.synchronizeBlockParenthesis(start[0],start[1])
@@ -212,13 +211,11 @@ internal open class DeclParser {
             helper.endStar()
             helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
         } catch (e: ParseError) {
-            reporter.pop()
-            reporter.pop()
+
             helper.synchronizeBlockRightCurl(start[0], start[1])
             reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
         } catch (e: ConsumeError) {
-            reporter.pop()
-            reporter.pop()
+
             reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
         }
         Block(NodeIdManager.nextId(), nodes)
@@ -230,7 +227,7 @@ internal open class DeclParser {
         if (let Some(exprOrDecl) <- expressionOrDeclaration()) {
             expressionOrDeclarations.add(exprOrDecl)
             while (let Some(exprOrDecl) <- helper.tryParse({ =>
-                    helper.endPlus("", helper.current); expressionOrDeclaration() })) {
+                    helper.endPlus("", helper.peek(), helper.current); expressionOrDeclaration() })) {
                 expressionOrDeclarations.add(exprOrDecl)
             }
         }
@@ -380,7 +377,6 @@ internal open class DeclParser {
             } catch (e: ParseError) {
                 helper.synchronizeCallParenthesis(start[0], start[1])
             } catch (e: ConsumeError) {
-                reporter.pop()
                 reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
             }
         } else if (!helper.matches(TK.UNIT_LITERAL)) {
