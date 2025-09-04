@@ -205,4 +205,8 @@ public class TypeChecker <: Visitor<Type> {
                 { res, v => res.add(v.traverse(this)); res }).toArray()
         )
     }
+
+    public override func visit(_: ClassDecl): Type {
+        DUMMY_TYPE
+    }
 }

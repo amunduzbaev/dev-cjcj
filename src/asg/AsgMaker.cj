@@ -271,6 +271,10 @@ public class AsgMaker <: Visitor<Node> {
         RefType(NodeIdManager.nextId(), refType.typeParameterName, refType.typeName)
     }
 
+    public override func visit(classDecl: ClassDecl): Node {
+        classDecl
+    }
+
     private func beginScope(): Unit {
         currentEnvironment = Environment(currentEnvironment)
         lastKilledEnvironment = None
