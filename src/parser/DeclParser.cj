@@ -549,7 +549,7 @@ internal open class DeclParser {
                 reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
             }
         } else if (!helper.matches(TK.UNIT_LITERAL)) {
-        return None
+            return None
         }
         CallExpr(NodeIdManager.nextId(), callee, arguments)
     }

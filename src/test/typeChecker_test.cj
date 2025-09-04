@@ -42,7 +42,7 @@ class TypeCheckTests {
             @Assert(initChecker.notInitialized.isEmpty() && 
                     initChecker.cannotMutate.isEmpty())
 
-            @AssertThrows[Exception](TypeChecker().typeCheck(asg))
+            @AssertThrows[Exception](TypeChecker(asg))
         }
     }
 
@@ -89,7 +89,7 @@ class TypeCheckTests {
             @Assert(initChecker.notInitialized.isEmpty() && 
                     initChecker.cannotMutate.isEmpty())
 
-            @AssertThrows[Exception](TypeChecker().typeCheck(asg))
+            @AssertThrows[Exception](TypeChecker(asg))
         }
     }
 
@@ -126,7 +126,7 @@ class TypeCheckTests {
             @Assert(initChecker.notInitialized.isEmpty() && 
                     initChecker.cannotMutate.isEmpty())
 
-            @AssertThrows[Exception](TypeChecker().typeCheck(asg))
+            @AssertThrows[Exception](TypeChecker(asg))
         }
     }
 
@@ -174,7 +174,7 @@ class TypeCheckTests {
             @Assert(initChecker.notInitialized.isEmpty() && 
                     initChecker.cannotMutate.isEmpty())
             
-            TypeChecker().typeCheck(asg)
+            TypeChecker(asg)
         }
     }
 
@@ -219,7 +219,7 @@ class TypeCheckTests {
             @Assert(initChecker.notInitialized.isEmpty() && 
                     initChecker.cannotMutate.isEmpty())
             
-            @AssertThrows[Exception](TypeChecker().typeCheck(asg))
+            @AssertThrows[Exception](TypeChecker(asg))
         }
     }
 }

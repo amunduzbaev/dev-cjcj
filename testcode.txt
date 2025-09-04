@@ -27,7 +27,7 @@ class d <: c {
 */
 
 main(args: Int64) {
-    Int64.a.b().f = 5
+    let a = asdasd.asd(asa, aa, asgfhd.b.x() + 5 * 4).asda.asda.faa() + 2
 }
     /* func bo() : Unit {
         ()
