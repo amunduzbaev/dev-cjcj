@@ -211,7 +211,7 @@ public class TypeChecker <: Visitor<Type> {
     }
 
     public override func visit(body: Body): Type {
-        body.decls.iterator().forEach({ decl => decl.traverse(this) })
+        // body.decls.iterator().forEach({ decl => decl.traverse(this) })
         typeManager.get("Unit")
     }
 }
