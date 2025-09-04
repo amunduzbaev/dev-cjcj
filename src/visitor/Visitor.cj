@@ -2,11 +2,11 @@ package cjcj.visitor
 
 public abstract class Visitor<R> {
 
-    protected open func visit(_: Program): R  {
+    protected open func visit(_: Program): R {
         throw Exception("Unimplemented method for Visitor : Program")
     }
  
-    protected open func visit(_: BinaryExpr): R{
+    protected open func visit(_: BinaryExpr): R {
         throw Exception("Unimplemented method for Visitor : Binary Expression")
     }
 
@@ -18,7 +18,7 @@ public abstract class Visitor<R> {
         throw Exception("Unimplemented method for Visitor : Parent Expression")
     }
 
-    protected open func visit(_: LitConstExpr): R{
+    protected open func visit(_: LitConstExpr): R {
         throw Exception("Unimplemented method for Visitor : Literal Constant Expression")
     }
 
@@ -94,23 +94,30 @@ public abstract class Visitor<R> {
         throw Exception("Unimplemented method for Visitor : Variable Reference (ASG)")
     }
 
-    protected open func visit(_: FuncReference): R{
+    protected open func visit(_: FuncReference): R {
         throw Exception("Unimplemented method for Visitor : Function Reference (ASG)")
     }
 
-    protected open func visit(_: VarDeclWithRef): R{
+    protected open func visit(_: VarDeclWithRef): R {
         throw Exception("Unimplemented method for Visitor : Variable Declaration with" + 
                         "References Stored (ASG)")
     }
 
-    protected open func visit(_: FuncDeclWithRef): R{
+    protected open func visit(_: FuncDeclWithRef): R {
         throw Exception("Unimplemented method for Visitor : Function Declaration with" + 
                         "References Stored (ASG)")
     }
 
-    protected open func visit(_: MainDeclWithRef): R{
+    protected open func visit(_: MainDeclWithRef): R {
         throw Exception("Unimplemented method for Visitor : Main Declaration with" + 
                         "References Stored (ASG)")
     }
 
+    protected open func visit(_: MemberAccess): R {
+        throw Exception("Unimplemented method for Visitor : Member Access")
+    }
+
+    protected open func visit(_: PrimitiveTypeExpr): R {
+        throw Exception("Unimplemented method for Visitor : Primitive type expression")
+    }
 }
