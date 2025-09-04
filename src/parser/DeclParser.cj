@@ -157,7 +157,7 @@ internal open class DeclParser {
             decls.add(cmd)
                         
             while (let Some(cmd) <- helper.tryParse({ =>
-                helper.endPlus("", helper.current);
+                helper.endPlus("", helper.peek(), helper.current);
                 classMemberDeclaration()})
             ) {
                 decls.add(cmd)
@@ -335,7 +335,7 @@ internal open class DeclParser {
             expressionOrDeclarations.add(exprOrDecl)
             while (let Some(exprOrDecl) <- helper.tryParse<Node>({ =>
                 try {
-                    helper.endPlus("", helper.current)
+                    helper.endPlus("", helper.peek(), helper.current)
                 } catch(_) {
                     helper.pop(); return None
                 }
