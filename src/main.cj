@@ -63,6 +63,7 @@ public class Cj {
             })
 
             println(printer.toString())
+            parser.logErrors()
         } else {
             parser.logErrors()
         }

@@ -26,6 +26,61 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
 
 --------------------------------------------------------------------------------
 
+## CLASS DEFINITION
+
+    classDefinition
+        : CLASS NL* identifier
+        (NL* UPPERBOUND NL* superClassOrInterfaces)?
+        NL* classBody
+        ;
+
+    superClassOrInterfaces
+        : superClass (NL* BITAND NL* superInterfaces)?
+        | superInterfaces
+        ;
+
+    superClass
+        : classType
+        ;
+
+    classType
+        : (identifier NL* DOT  NL*)*  identifier
+        ;
+
+    superInterfaces
+        : interfaceType (NL* BITAND NL* interfaceType )*
+        ;
+
+    interfaceType
+        : classType
+        ;
+
+    upperBounds
+        : type (NL* BITAND NL* type)*
+        ;
+
+    classBody
+        : LCURL  end* (classMemberDeclaration (end+ classMemberDeclaration?)*)?
+            end* RCURL
+        ;
+
+    classMemberDeclaration
+        : (classInit
+        | variableDeclaration
+        | functionDefinition
+        )? end*
+        ;
+
+    classInit
+        : INIT NL* functionParameters NL* block
+        ;
+
+    className
+        : identifier
+        ;
+
+--------------------------------------------------------------------------------
+
 ## FUNCTION DEFINITION
 
     functionDefinition
