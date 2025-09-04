@@ -52,7 +52,7 @@ public class InitsRefs {
     // DEF refs_: HashMap of variables who are referenced and have to be initialized but not 
     // initialized yet, with mapping to the exact expression where the variable is referenced
 
-    // Assignment refernce Check
+    // Assignment reference Check
     // DEF assrefs_: HashMap of variables who are referenced in an assignment(left) but not 
     // initialized yet, with mapping to the exact expression where the variable is referenced
     // we don't know yet whether we have to initialize assrefs, we add them into references that
@@ -60,7 +60,8 @@ public class InitsRefs {
 
     // Mutation Check
     // DEF tmpInits_: HashMap of references and nodes where the reference is invoked at the nodes
-    // and refrences are "temporary" initializations of the variable in some branch in this scope
+    // and refrences are "temporaryly" considered as initializations of the variable in some branch 
+    // in this scope
     // This means that the elements from tmpInits might change its state and join mutated at some
     // point in the future if the variable is initialized above in the code
     // DEF mutated : HashMap of references and nodes where the reference is invoked at the nodes

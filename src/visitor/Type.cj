@@ -40,7 +40,7 @@ public class Type <: Equatable<Type> & Hashable {
     public init(name: String, parents: Array<Type>, isOpen: Bool) {
         this(name, parents, isOpen, min(parents.iterator().map({ p => p.rootDist})).getOrThrow({ =>
             Exception("Parents cannot be empty")
-        }))
+        }) + 1)
     }
 
     private init(name: String, parents: Array<Type>, isOpen: Bool, rootDist: Int64) {
@@ -75,6 +75,10 @@ public class Type <: Equatable<Type> & Hashable {
             "the ancestors of ${this.name}")}) }
     }
 
+    public prop ancestorSet: HashSet<Type> {
+        get() { HashSet(ancestors) }
+    }
+
     public prop rootDist: Int64 {
         get() { rootDist_ }
     }
@@ -94,6 +98,7 @@ public class Type <: Equatable<Type> & Hashable {
         let visited: Set<Type> = HashSet()
         let res: ArrayList<Type> = ArrayList()
         visited.add(this)
+        res.add(this)
         q.add(this)
         while (let Some(front) <- q.remove()) {
             if (front == target) {
