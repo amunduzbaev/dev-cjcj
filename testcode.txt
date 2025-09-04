@@ -24,9 +24,6 @@ class d <: c {
 
 }
 
-
-let a: Int64
-
 main(args: Int64) {
     func bo() : Unit {
         ()
