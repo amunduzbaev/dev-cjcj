@@ -451,11 +451,11 @@ internal open class DeclParser {
 
     public func expression(): ?Expr {
         try {
-                return assignmentExpression()
-            } catch (e: Exception) {
-                helper.synchronize()
-                return None
-            }
+            return assignmentExpression()
+        } catch (e: Exception) {
+            helper.synchronize()
+            return None
+        }
     }
 
     private func leftValueExpression(): ?Expr {
@@ -463,7 +463,61 @@ internal open class DeclParser {
     }
 
     private func leftValueExpressionWithoutWildCard(): ?Expr {
+        if (let Some(leftWithAssignable) <- helper.tryParse({ =>
+            if (let Some(lae) <- leftAuxExpression()) {
+                helper.skipNL()
+                var base: Expr = lae
+                var assignable: Bool = true
+                while (true) {
+                    if (let Some(fieldAccess) <- fieldAccess(base)) {
+                        base = fieldAccess
+                        assignable = true
+                        continue
+                    }
+                    if (let Some(callSuffix) <- callSuffix(base)) {
+                        base = callSuffix
+                        assignable = false
+                        continue
+                    }
+                    break
+                }
+                if (assignable) {
+                    return base
+                }
+                throw helper.error(helper.previous(), "The left part needs to be assignable!",
+                    helper.current - 1)
+            }
+            None
+        })) {
+            return leftWithAssignable
+        }
         return identifier()
+    }
+
+    private func leftAuxExpression(): ?Expr {
+        if (let Some(identifier) <- identifier()) {
+            return identifier
+        }
+        primitiveTypeExpr()
+    }
+
+    private func primitiveTypeExpr(): ?Expr {
+        if (helper.matches(TKH.CHAR_LANG_TYPES)) {
+            return PrimitiveTypeExpr(NodeIdManager.nextId(), helper.previous())
+        }
+        None
+    }
+
+    private func fieldAccess(baseExpr: Expr): ?Expr {
+        return helper.tryParse({ =>
+            helper.skipNL()
+            if (helper.matches(TK.DOT)) {
+                helper.skipNL()
+                return MemberAccess(NodeIdManager.nextId(), baseExpr,
+                    helper.consume(TK.IDENTIFIER, "Expected identifier after '.'", helper.current))
+            }
+            None
+        })
     }
 
     private func callSuffix(callee: Expr): ?Expr {
@@ -495,7 +549,7 @@ internal open class DeclParser {
                 reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
             }
         } else if (!helper.matches(TK.UNIT_LITERAL)) {
-        return None
+            return None
         }
         CallExpr(NodeIdManager.nextId(), callee, arguments)
     }
@@ -518,10 +572,17 @@ internal open class DeclParser {
                 * include my left value expression to the expression I will
                 * eventually parse.
                 */
-                if (let Some(value) <- leftValueExpression() &&
-                    helper.matches(TKH.ASSIGNMENT_OPERATOR) &&
-                    let Some(right) <- logicConjunctionExpression())  {
-                    return AssignExpr(NodeIdManager.nextId(), value, right)
+                try {
+                    if (let Some(value) <- leftValueExpression() &&
+                        helper.matches(TKH.ASSIGNMENT_OPERATOR) &&
+                        let Some(right) <- logicConjunctionExpression())  {
+                        return AssignExpr(NodeIdManager.nextId(), value, right)
+                    }
+                } catch(e: Exception) {
+                    if (helper.check(TKH.ASSIGNMENT_OPERATOR)) {
+                        throw e
+                    }
+                    helper.pop()
                 }
                 None
             })
@@ -687,15 +748,34 @@ internal open class DeclParser {
     }
 
     private func postfixExpression(): ?Expr {
+        let base: Expr
         if (let Some(e) <- atomicExpression()) {
-            var expr: Expr = e
-            while (let Some(cs) <- callSuffix(expr)) {
-                expr = cs
+            base = e
+        } else if (let Some(e) <- helper.tryParse({ => 
+            if (let Some(primitiveTypeExpr) <- primitiveTypeExpr()) {
+                if (let Some(fieldAccess) <- fieldAccess(primitiveTypeExpr)) {
+                    return fieldAccess
+                }
             }
-            return expr
+            None
+        })) {
+            base = e
         } else {
             return None
         }
+        var expr: Expr = base
+        while (true) {
+            if (let Some(callSuffix) <- callSuffix(expr)) {
+                expr = callSuffix
+                continue
+            }
+            if (let Some(fieldAccess) <- fieldAccess(expr)) {
+                expr = fieldAccess
+                continue
+            }
+            break
+        }
+        return expr
     }
 
     private func atomicExpression(): ?Expr {

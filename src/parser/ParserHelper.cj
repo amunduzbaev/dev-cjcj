@@ -70,11 +70,11 @@ class ParserHelper {
         return false
     }
 
-    func check(kind: TokenKind): Bool {
+    func check(kind: Array<TokenKind>): Bool {
         if (isAtEnd()) {
             return false
         }
-        peek().kind == kind
+        kind.iterator().any({ kind => peek().kind == kind })
     }
 
     func previous(): Token {

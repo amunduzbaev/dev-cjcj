@@ -435,3 +435,63 @@ public class JumpExpr <: Expr {
         set(v) { keyword_ = v }
     }
 }
+
+public class MemberAccess <: Expr {
+    private var baseExpr_: Expr
+    private var field_: Token
+
+    public init() {
+        this(NodeId(), Expr(), Token())
+    }
+
+    public MemberAccess(id: NodeId, baseExpr: Expr, field: Token) {
+        super(id)
+        baseExpr_ = baseExpr
+        field_ = field
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        baseExpr.prettyPrint(printer)
+        printer.append(".${field.value}")
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public mut prop baseExpr: Expr {
+        get() { baseExpr_ }
+        set(v) { baseExpr_ = v }
+    }
+
+    public mut prop field: Token {
+        get() { field_ }
+        set(v) { field_ = v }
+    }
+}
+
+public class PrimitiveTypeExpr <: Expr {
+    private var keyword_: Token
+
+    public init() {
+        this(NodeId(), Token())
+    }
+
+    public PrimitiveTypeExpr(id: NodeId, keyword: Token) {
+        super(id)
+        keyword_ = keyword
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        printer.append(keyword.value)
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public mut prop keyword: Token {
+        get() { keyword_ }
+        set(v) { keyword_ = v }
+    }
+}

@@ -538,7 +538,7 @@ parenthesizedType
         : identifier (NL* typeArguments)?
         | type
         | thisSuperExpression
-        | leftAuxExpression NL* DOT NL* identifier (NL* typeArguments)?
+        | leftAuxExpression fieldAccess (NL* typeArguments)?
         | leftAuxExpression callSuffix
         | leftAuxExpression indexAccess
         ;
