@@ -174,7 +174,28 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         ;
 
     leftValueExpression
+        : leftValueExpressionWithoutWildCard
+        ;
+
+    leftValueExpressionWithoutWildCard
         : identifier
+        | leftAuxExpression NL* assignableSuffix
+        ;
+
+    leftAuxExpression
+        : identifier
+        | type
+        | leftAuxExpression fieldAccess
+        | leftAuxExpression callSuffix
+        ;
+
+    assignableSuffix
+        : fieldAccess
+        ;
+
+    fieldAccess
+        : NL* DOT NL* identifier
+        ;
 
     logicDisjunctionExpression
         : logicConjunctionExpression (NL* OR NL* logicConjunctionExpression)*
@@ -218,7 +239,9 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
 
     postfixExpression
         : atomicExpression
+        | type NL* DOT NL* identifier
         | postfixExpression callSuffix
+        | postfixExpression NL* DOT NL* identifier
         ;
 
     callSuffix

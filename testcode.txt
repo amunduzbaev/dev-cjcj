@@ -1,3 +1,4 @@
+/*
 class a {
     init(a: Int64, b: String) {
         let idujfhg = 5
@@ -23,12 +24,16 @@ class c <: b {
 class d <: c {
 
 }
+*/
 
 main(args: Int64) {
-    func bo() : Unit {
+    Int64.a.b().f = 5
+}
+    /* func bo() : Unit {
         ()
     }
     let f = bo()
+    a.b = 16
     func aa(b: Int64, h: String): Int64 {
         4
         return 6;
@@ -39,3 +44,5 @@ main(args: Int64) {
         
     }
     aa(2, "1")}
+
+    */
