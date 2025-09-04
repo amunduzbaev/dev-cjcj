@@ -91,3 +91,38 @@ public class Program <: Node {
         set(v) { decls_ = v }
     }
 }
+
+public class Body <: Node {
+    private var decls_: ArrayList<Decl>
+
+    public init() {
+        this(NodeId(), ArrayList())
+    }
+
+    public init(id: NodeId, decls: ArrayList<Decl>) {
+        super(id)
+        decls_ = decls
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        printer.append("{")
+        printer.indent()
+        printer.append("\n")
+        decls.iterator().forEach({
+            d => d.prettyPrint(printer)
+            printer.append("\n")
+        })
+        printer.unindent()
+        printer.append("\n}")
+    }
+
+    public override func traverse<R>(_: Visitor<R>): R {
+        // v.visit(this)
+        throw Exception("Error: Unimplemented traverse for Body node")
+    }
+
+    public mut prop decls: ArrayList<Decl> {
+        get() { decls_ }
+        set(v) { decls_ = v }
+    }
+}

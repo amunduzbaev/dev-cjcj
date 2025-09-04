@@ -27,6 +27,9 @@ internal open class DeclParser {
         if (let Some(varDecl) <- variableDeclaration()) {
             return varDecl
         }
+        if (let Some(classDecl) <- classDefinition()) {
+            return classDecl
+        }
         None
     }
 
@@ -121,6 +124,91 @@ internal open class DeclParser {
             helper.synchronizeBlockParenthesis(start[0],start[1])
         }
         parameters
+    }
+
+    private func classDefinition(): ?ClassDecl {
+        if (!helper.matches(TK.CLASS)) {
+            return None
+        }
+        let keyword: Token = helper.previous()
+        helper.skipNL()
+        let identifier: Token = className()
+        helper.skipNL()
+        let supertypes: ArrayList<TypeNode> = if (helper.matches(TK.UPPERBOUND)) {
+            helper.skipNL()
+            superClassOrInterfaces()
+        } else {
+            ArrayList()
+        }
+        helper.skipNL()
+        let body: Body = classBody()
+        ClassDecl(NodeIdManager.nextId(), keyword, identifier, body, supertypes)
+    }
+
+    private func className(): Token {
+        return helper.consume(TK.IDENTIFIER, "Expect class name.", helper.current)
+    }
+
+    private func classBody(): Body {
+        helper.consume(TK.LCURL, "Expect '{' before body.", helper.current)
+        helper.endStar()
+        let decls: ArrayList<Decl> = ArrayList()
+        if (let Some(cmd) <- classMemberDeclaration()) {
+            decls.add(cmd)
+                        
+            while (let Some(cmd) <- helper.tryParse({ =>
+                helper.endPlus("", helper.current);
+                classMemberDeclaration()})
+            ) {
+                decls.add(cmd)
+            }
+        }
+        helper.endStar()
+        helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
+        Body(NodeIdManager.nextId(), decls)
+    }
+
+    public func classMemberDeclaration(): ?Decl {
+        var decl: ?Decl = None
+        if (let Some(classInit) <- classInit()) {
+            decl = classInit
+        }
+        if (let Some(variableDeclaration) <- variableDeclaration()) {
+            decl = variableDeclaration
+        }
+        if (let Some(functionDefinition) <- functionDefinition()) {
+            decl = functionDefinition
+        }
+        decl
+    }
+
+    public func classInit(): ?FuncDecl {
+        //TODO: look and understand what the const modifier does.
+        if (!helper.matches(TK.INIT)) {
+            return None
+        }
+        let keyword: Token = helper.previous()
+        let params: ArrayList<FuncParam> = functionParameters()
+        helper.skipNL()
+        let block: Block = block()
+        FuncDecl(NodeIdManager.nextId(), keyword, block, params)
+    }
+
+    private func superClassOrInterfaces(): ArrayList<TypeNode> {
+        let superClassOrInterfaces: ArrayList<TypeNode> = ArrayList()
+        // We assume that the first element of the super classes or interfaces is a class, we will
+        // check it in the following process.
+        superClassOrInterfaces.add(superClass())
+        superClassOrInterfaces
+    }
+
+    private func superClass(): TypeNode {
+        classType()
+    }
+
+    private func classType(): TypeNode {
+        // In the future we'll have also (identifier NL* DOT  NL*)*
+        RefType(NodeIdManager.nextId(), Token(), className())
     }
 
     private func nodeType(id: NodeId, typeParameterName: Token, typeName: Token): TypeNode {
@@ -247,7 +335,7 @@ internal open class DeclParser {
             expressionOrDeclarations.add(exprOrDecl)
             while (let Some(exprOrDecl) <- helper.tryParse<Node>({ =>
                 try {
-                    helper.endPlus("", helper.peek(), helper.current)
+                    helper.endPlus("", helper.current)
                 } catch(_) {
                     helper.pop(); return None
                 }

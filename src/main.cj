@@ -64,6 +64,10 @@ public class Cj {
             })
 
             println(printer.toString())
+            // asg = asgMaker.resolve(p)
+            // TypeChecker().typeCheck(asg)
+            // asg.prettyPrint(printer)
+            // println(printer.toString())
         }
     }
 }

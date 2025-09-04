@@ -66,6 +66,14 @@ public abstract class Visitor<R> {
         throw Exception("Unimplemented method for Visitor : Main Declaration")
     }
 
+    protected open func visit(_: ClassDecl): R {
+        throw Exception("Unimplemented method for Visitor : Class Declaration")
+    }
+
+    protected open func visit(_: Body): R {
+        throw Exception("Unimplemented method for Visitor : Body")
+    }
+
     protected open func visit(_: Argument): R {
         throw Exception("Unimplemented method for Visitor : Argument")
     }
