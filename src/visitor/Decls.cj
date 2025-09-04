@@ -287,6 +287,10 @@ public class ClassDecl <: Decl {
         body.prettyPrint(printer)
     }
 
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
     public prop body: Body {
         get() { body_ }
     }
