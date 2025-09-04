@@ -22,7 +22,11 @@ public class TypeChecker <: Visitor<Type> {
     }
 
     public override func visit(program: Program): Type {
+        let environmentTime = typeManager.record()
+
         program.decls.iterator().forEach({ d => d.traverse(this) })
+
+        typeManager.rollBack(environmentTime)
         DUMMY_TYPE
     }
 
@@ -63,7 +67,13 @@ public class TypeChecker <: Visitor<Type> {
     }
 
     public override func visit(block: Block): Type {
-        block.nodes.iterator().map({ n => n.traverse(this) }).last().getOrDefault({=> Type("Unit")})
+        let environmentTime = typeManager.record()
+
+        let returnType = block.nodes.iterator().map({ n => n.traverse(this) }).last().getOrDefault({=> Type("Unit")})
+
+        typeManager.rollBack(environmentTime)
+
+        returnType
     }
 
     /*
