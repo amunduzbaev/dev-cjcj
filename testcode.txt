@@ -1,4 +1,4 @@
-main(args: Int64) 
+main(args: Int64) {
     func bo() : Unit {
         ()
     }
@@ -8,8 +8,7 @@ main(args: Int64)
         return 6; 1 + 3
     }
     var a = if (true) {
-        "a"
-    }
+        "a"} else if (1) {}
     var b = while (true) {
         1 + 3}
     
