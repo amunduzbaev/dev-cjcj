@@ -7,25 +7,11 @@ import std.collection.*
 import std.sort.*
 
 public class TypeManager {
-    // TODO: Add all builtin functions and types (make a script to do that).
-    private static let BUILTIN_FUNCTIONS:
-        ArrayList<(String, ArrayList<(String, String)>)> = ArrayList([
-            ("+", ArrayList([
-                (funcHashConcat(Type("Int64"), Type("Int64")), "Int64"),
-                (funcHashConcat(Type("Int32"), Type("Int32")), "Int32")
-            ]))
-        ])
-
-    private static let BUILTIN_TYPES: Array<String> = [
-        "Int64", "Int32", "Int16", "Int8", "IntNative",
-        "UInt64", "UInt32", "UInt16", "UInt8", "UIntNative",
-        "Float64", "Float32", "Float16",
-        "Rune", "Unit", "Bool", "Nothing", "String"
-    ]
 
     // Returns the concatenation of the string representation of the hash of the name of the types.
     private static func funcHashConcat(params: Array<Type>): String {
         params.iterator().map({ t => t.name.hashCode().toString() })
+        // TODO: Optimize string concatenation using string builder.
             .reduce({ a, b => a + b }).getOrDefault({ => "" })
     }
 
@@ -37,35 +23,26 @@ public class TypeManager {
     */
     private let definedFunctions: Map<String, Map<String, Type>> = HashMap()
 
-    public init() {
-        // Define all primitive types
-        BUILTIN_TYPES.iterator().forEach({ t => nameToType.add(t, Type(t))})
-        nameToType.add("Any", Type.ANY)
-
-        // Define all builtin functions.
-        definedFunctions.add(all: BUILTIN_FUNCTIONS.iterator()
-            .map({ v: (String, ArrayList<(String, String)>) => (
-                v[0],
-                HashMap<String, Type>(v[1].iterator()
-                    .map({ v: (String, String) => (v[0], get(v[1]))})
-                    .fold<ArrayList<(String, Type)>>(ArrayList(), { res, v => res.add(v); res })
-            ))})
-            .fold<ArrayList<(String, Map<String, Type>)>>(ArrayList(), { res, v => res.add(v); res})
-        )
+    /*
+    * Adds a type to the map if the type is not already defined.
+    */
+    public func addType(typeName: String, parents: ArrayList<String>, isOpen!: Bool = false): Unit {
+        addType(Type(typeName,
+            parents.iterator().map({ s => get(s)}).fold(ArrayList<Type>(),
+                { r: ArrayList<Type>, t: Type => r.add(t); r}
+            ), isOpen))
     }
 
     /*
     * Adds a type to the map if the type is not already defined.
     */
-    public func addType(typeName: String, parents: Array<String>, isOpen!: Bool = false): Unit {
-        if (let Some(prev) <- nameToType.get(typeName)) {
-            throw Exception("Type ${typeName} already exists")
+    public func addType(typ: Type): Unit {
+        if (let Some(prev) <- nameToType.get(typ.name)) {
+            throw Exception("Type ${typ.name} already exists")
         }
-        nameToType.add(typeName, Type(typeName,
-            parents.iterator().map({ s => get(s)}).fold(ArrayList<Type>(),
-                { r: ArrayList<Type>, t: Type => r.add(t); r}
-            ), isOpen))
+        nameToType.add(typ.name, typ)
     }
+
 
     /*
     * Retrieves an existing type given the typeName.
