@@ -62,7 +62,7 @@ public class Parser {
             if(reporter.empty) {
                 return Program(NodeIdManager.nextId(), nodes)
             } else {
-                return None
+                return Program(NodeIdManager.nextId(), nodes)
             }
 
         } catch (_) {

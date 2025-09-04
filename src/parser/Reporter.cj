@@ -62,8 +62,11 @@ public class Reporter {
 
     func unclosedDelimiterError(currentToken: Token, startToken: Token, startIndex: Int64, 
                                 currentIndex: Int64) {
+            pop()
+            pop()
             errors.add(ErrorUnclosedDelimiter( currentToken.pos.line, startIndex, startToken.value, 
             getSuffixPrefix(startIndex), currentIndex, currentToken.value, getSuffixPrefix(currentIndex)))
+
     }
 
     static public func redify(str: String) {

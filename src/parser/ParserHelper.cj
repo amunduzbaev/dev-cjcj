@@ -187,9 +187,9 @@ class ParserHelper {
         if (isAtEnd() || matches(TokenKindHelper.END)) {
             endStar()
         } else if (TokenKindHelper.TOP.iterator().any({tk => check(tk)})){
-            error(peek(), "Newline or semi expected before top level declaration", index)
+            throw error(peek(), "Newline or semi expected before top level declaration", index)
         } else {
-            error(peek(), "Expected newline after top level declaration, found '${peek().value}'", index)
+            throw error(peek(), "Expected newline, found '${peek().value}'", index)
             //synchronize()
     }
         

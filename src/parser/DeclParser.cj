@@ -141,8 +141,15 @@ internal open class DeclParser {
             ArrayList()
         }
         helper.skipNL()
-        let body: Body = classBody()
-        ClassDecl(NodeIdManager.nextId(), keyword, identifier, body, supertypes)
+        try {
+            let body: Body = classBody()
+            return ClassDecl(NodeIdManager.nextId(), keyword, identifier, body, supertypes)
+        } catch (e: ConsumeError) {
+            helper.pop()
+            helper.error(helper.peek(), 
+            "body of class '\u{001b}[31m${identifier}\u{001b}[0m' is missing", helper.current)
+            return None
+        }
     }
 
     private func className(): Token {
@@ -150,6 +157,7 @@ internal open class DeclParser {
     }
 
     private func classBody(): Body {
+        let start: (Token,Int64) = (helper.peek(), helper.current)
         helper.consume(TK.LCURL, "Expect '{' before body.", helper.current)
         helper.endStar()
         let decls: ArrayList<Decl> = ArrayList()
@@ -157,14 +165,19 @@ internal open class DeclParser {
             decls.add(cmd)
                         
             while (let Some(cmd) <- helper.tryParse({ =>
-                helper.endPlus("", helper.current);
+                helper.endPlus("", helper.peek(), helper.current);
                 classMemberDeclaration()})
             ) {
                 decls.add(cmd)
             }
         }
         helper.endStar()
-        helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
+        try {
+            helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
+        } catch(e: ConsumeError) {
+            helper.synchronizeBlockRightCurl(start[0], start[1])
+            reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
+        }
         Body(NodeIdManager.nextId(), decls)
     }
 
@@ -237,6 +250,7 @@ internal open class DeclParser {
         if (!helper.matches(TK.MAIN)) {
             return None
         }
+        let start: (Token,Int64) = (helper.previous(), helper.current-1)
         var parameter: ?FuncParam = None
         var parameters: Int64 = 0
         if (!helper.matches(TK.UNIT_LITERAL)) {
@@ -269,9 +283,17 @@ internal open class DeclParser {
             let keyword = helper.advance()
             declType = nodeType(NodeIdManager.nextId(), keyword, keyword)
         }
-        let block: Block = block()
 
-        return MainDecl(NodeIdManager.nextId(), block, parameter, declType)
+        try {
+            let block: Block = block()
+            return MainDecl(NodeIdManager.nextId(), block, parameter, declType)
+        } catch (e: ConsumeError) {
+            helper.pop()
+            helper.error(start[0], 
+            "body of main function is missing", start[1])
+            return MainDecl(NodeIdManager.nextId(), Block(), parameter, declType)
+        }
+        
 
     }
 
@@ -324,7 +346,7 @@ internal open class DeclParser {
             expressionOrDeclarations.add(exprOrDecl)
             while (let Some(exprOrDecl) <- helper.tryParse<Node>({ =>
                 try {
-                    helper.endPlus("", helper.current)
+                    helper.endPlus("", helper.peek(), helper.current)
                 } catch(_) {
                     helper.pop(); return None
                 }

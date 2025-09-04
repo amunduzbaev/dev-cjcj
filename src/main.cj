@@ -35,6 +35,7 @@ public class Cj {
         if (let Some(p) <- program) {
             p.prettyPrint(printer)
             println(printer.toString())
+            parser.logErrors()
         } else {
             parser.logErrors()
         }

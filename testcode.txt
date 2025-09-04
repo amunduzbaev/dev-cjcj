@@ -27,8 +27,6 @@ main(args: Int64) {
         "a"}
     var b = while (true) {
         1 + 3}
-    
-    
     aa(2, "1")
 }
 
