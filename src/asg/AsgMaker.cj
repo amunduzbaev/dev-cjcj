@@ -143,11 +143,6 @@ public class AsgMaker <: Visitor<Node> {
         callExpr.arguments.iterator().forEach({ a => arguments.add(
             (a.traverse(this) as Argument).getOrThrow()
         )})
-        if (arguments.size != callee.params.size) {
-            println("Invalid number of parameters, found ${arguments.size} " +
-                "expected ${callee.params.size}")
-            throw ParseError()
-        }
         CallExpr(NodeIdManager.nextId(), callee, arguments)
     }
 
