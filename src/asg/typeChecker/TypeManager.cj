@@ -36,6 +36,8 @@ public class TypeManager {
     * of the type names and the relative return type. This works for exact match.
     */
     private let definedFunctions: Map<String, Map<String, Type>> = HashMap()
+    private let definedFunctionsList: Map<String, ArrayList<Array<Type>>> = HashMap()
+    private let declStack: ArrayStack<(String, Array<Type>, Type)> = ArrayStack()
 
     public init() {
         // Define all primitive types
@@ -75,32 +77,131 @@ public class TypeManager {
     }
 
     /*
+    * Extension for method applyFunction
+    * For a function call with name : funcName and arguments : params
+    * Find the function which is the closest to the types of arguments in the call and returns its 
+    * return type. 
+    * In other words, find the function where each parameter type is the subtype of the types of the
+    * parameters at the same index in other functions and return its return type. If there is no 
+    * such function, throw an error. 
+    */
+    private func findClosestSuperType(funcName: String, params: Array<Type>): Type {
+        let paramsList = definedFunctionsList.get(funcName).getOrThrow({ =>
+            Exception("Function ${funcName} doesn't exist") })
+        
+        let candidates: ArrayList<Array<Type>> = params.iterator().enumerate().fold(paramsList, { 
+            consider: ArrayList<Array<Type>>, entry: (Int64, Type) => 
+                let (id, curType) = entry 
+
+                consider.iterator().fold(ArrayList<Array<Type>>(), 
+                { acc: ArrayList<Array<Type>>, candidate: Array<Type> => 
+                    if( candidate.size == params.size && 
+                        (curType.ancestorSet.contains(candidate[id]) || curType == candidate[id])){
+                        acc.add(candidate)
+                    }
+
+                    acc
+                })
+        })
+
+        if (candidates.isEmpty()) {
+            let paramString: String = params.iterator().map({ t => t.name })
+                .reduce({ a, b => a + "," + b }).getOrDefault({ => "" })
+            throw Exception("Function ${funcName} is not defined for (${paramString})")
+        }
+
+        let closest: Array<Type> = candidates.iterator().fold<?Array<Type>>(None, { 
+            closestOption: ?Array<Type>, candidate: Array<Type> =>
+                if(let Some(closest) <- closestOption) {
+                    return closest
+                }
+                
+                let canReach = candidate.iterator().enumerate().all({ entry => 
+                    let (column, curType) = entry
+                    let curAncestors = curType.ancestorSet
+
+                    candidates.iterator().all({otherCandidate: Array<Type> => 
+                        curAncestors.contains(otherCandidate[column])
+                    })
+                })
+                
+                if(canReach) { candidate } else { None }
+        }).getOrThrow({ => 
+            let paramString: String = params.iterator().map({ t => t.name })
+                .reduce({ a, b => a + "," + b }).getOrDefault({ => "" })
+            Exception("Function ${funcName} has ambiguous call options for ${paramString}")
+        })
+
+        applyFunction(funcName, closest)
+    }
+
+    /*
     * Returns the return type of the function called with the given parameters.
     */
     public func applyFunction(funcName: String, params: Array<Type>): Type {
         // TODO: right now we're checking only for exact match but we should not do that because a
         // function parameter may be a supertype and we still want to be able to call the function.
-        definedFunctions.get(funcName).getOrThrow({ =>
-            Exception("Function ${funcName} doesn't exist")
-        }).get(funcHashConcat(params)).getOrThrow({ =>
-            let paramString: String = params.iterator().map({ t => t.name })
-                .reduce({ a, b => a + "," + b }).getOrDefault({ => "" })
-            Exception("Function ${funcName} is not defined for (${paramString})")}
-        )
+        
+        match (definedFunctions.get(funcName).getOrThrow({ =>
+            Exception("Function ${funcName} doesn't exist") }).get(funcHashConcat(params))) {
+                case Some(returnType) => returnType
+                case _ => findClosestSuperType(funcName, params)
+        }
     }
 
     public func addFunction(funcName: String, params: Array<Type>, returnType: Type): Unit {
-        if (let Some(fun) <- definedFunctions.get(funcName)) {
+        if (let Some(fun) <- definedFunctions.get(funcName) && 
+            let Some(funList) <- definedFunctionsList.get(funcName)) {
+            
             if (let Some(prev) <- fun.addIfAbsent(funcHashConcat(params), returnType)) {
                 throw Exception("Function ${funcName} with params: (" + 
                     params.iterator().map({ t => t.name })
                     .reduce({ a, b => a + ',' + b }).getOrDefault({ => ""}) +
                         ") is already defined")
             }
+
+            funList.add(params)
         } else {
+            definedFunctionsList.add(funcName, ArrayList<Array<Type>>([params]))
+
             let definitions: Map<String, Type> = HashMap()
             definitions.add(funcHashConcat(params), returnType)
             definedFunctions.add(funcName, definitions)
+        }
+
+        declStack.add((funcName, params, returnType))
+    }
+
+    public func removeFunction(funcName: String, params: Array<Type>, _: Type): Unit {
+        if (let Some(fun) <- definedFunctions.get(funcName) && 
+            let Some(funList) <- definedFunctionsList.get(funcName)) {
+            
+            fun.remove(funcHashConcat(params))
+            funList.remove(at: funList.size - 1)
+        } else {
+            throw Exception("Function ${funcName} is non exsistent in this environment")
+        }
+    }
+
+    /* 
+    * Returns the size of the Stack of functions which are available in current environment
+    */
+    public func record() {
+        declStack.size
+    }
+
+    /*
+    * Removes the functions which are added after the "time". Rolls back to the previouse
+    * environment
+    */
+    public func rollBack(time: Int64) {
+        if(time < 0) {
+            throw Exception("Illegal argument to rollBack, TIME CAN NOT BE NEGATIVE!!!")
+        }
+
+        while (declStack.size > time) {
+            let (funcName, params, returnType) = declStack.remove().getOrThrow()
+            removeFunction(funcName, params, returnType)
         }
     }
 
