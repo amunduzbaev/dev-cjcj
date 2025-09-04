@@ -81,26 +81,7 @@ internal open class DeclParser {
         let name: Token = helper.consume(TK.IDENTIFIER, "Expect function name.", helper.current)
         var parameters: ArrayList<FuncParam> = ArrayList()
         helper.skipNL()
-            if (!helper.matches(TK.UNIT_LITERAL)) {
-                helper.consume(TK.LPAREN, "Expect '(' before function parameters", helper.current)
-                let start: (Token,Int64) = (helper.previous(), helper.current-1)
-                helper.skipNL()
-                try {
-                    parameters = unnamedParameterList()
-                    helper.skipNL()
-                    helper.consume(TK.RPAREN, 
-                    "Expect ')' after function parameters", helper.current)
-                } catch(e: ConsumeError) {
-                    if (helper.check(TK.LCURL)) {
-                        reporter.pop()
-                        reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
-                    } else {
-                        helper.synchronizeBlockParenthesis(start[0],start[1])
-                    }
-                } catch(e: ParseError) {
-                    helper.synchronizeBlockParenthesis(start[0],start[1])
-                }
-            }
+        parameters = functionParameters()
         
         var declType: ?TypeNode = None
         helper.skipNL()
@@ -114,6 +95,32 @@ internal open class DeclParser {
         let block: Block = block()
         FuncDecl(NodeIdManager.nextId(), keyword, name, block, parameters,
             declType)
+    }
+
+    private func functionParameters(): ArrayList<FuncParam> {
+        if (helper.matches(TK.UNIT_LITERAL)) {
+            return ArrayList()
+        }
+        helper.consume(TK.LPAREN, "Expect '(' before function parameters", helper.current)
+        let start: (Token,Int64) = (helper.previous(), helper.current-1)
+        helper.skipNL()
+        let parameters: ArrayList<FuncParam> = ArrayList()
+        try {
+            parameters.add(all: unnamedParameterList())
+            helper.skipNL()
+            helper.consume(TK.RPAREN, "Expect ')' after function parameters", helper.current)
+            helper.skipNL()
+        } catch(e: ConsumeError) {
+            if (helper.check(TK.LCURL)) {
+                reporter.pop()
+                reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
+            } else {
+                helper.synchronizeBlockParenthesis(start[0],start[1])
+            }
+        } catch(e: ParseError) {
+            helper.synchronizeBlockParenthesis(start[0],start[1])
+        }
+        parameters
     }
 
     private func nodeType(id: NodeId, typeParameterName: Token, typeName: Token): TypeNode {
@@ -142,6 +149,7 @@ internal open class DeclParser {
         if (!helper.matches(TK.MAIN)) {
             return None
         }
+        let start: (Token,Int64) = (helper.previous(), helper.current-1)
         var parameter: ?FuncParam = None
         var parameters: Int64 = 0
         if (!helper.matches(TK.UNIT_LITERAL)) {
@@ -174,9 +182,17 @@ internal open class DeclParser {
             let keyword = helper.advance()
             declType = nodeType(NodeIdManager.nextId(), keyword, keyword)
         }
-        let block: Block = block()
 
-        return MainDecl(NodeIdManager.nextId(), block, parameter, declType)
+        try {
+            let block: Block = block()
+            return MainDecl(NodeIdManager.nextId(), block, parameter, declType)
+        } catch (e: ConsumeError) {
+            helper.pop()
+            helper.error(start[0], 
+            "body of main function is missing", start[1])
+            return MainDecl(NodeIdManager.nextId(), Block(), parameter, declType)
+        }
+        
 
     }
 
@@ -229,8 +245,15 @@ internal open class DeclParser {
         helper.endStar()
         if (let Some(exprOrDecl) <- expressionOrDeclaration()) {
             expressionOrDeclarations.add(exprOrDecl)
-            while (let Some(exprOrDecl) <- helper.tryParse({ =>
-                    helper.endPlus("", helper.current); expressionOrDeclaration() })) {
+            while (let Some(exprOrDecl) <- helper.tryParse<Node>({ =>
+                try {
+                    helper.endPlus("", helper.peek(), helper.current)
+                } catch(_) {
+                    helper.pop(); return None
+                }
+                expressionOrDeclaration()
+                })
+            ) {
                 expressionOrDeclarations.add(exprOrDecl)
             }
         }
