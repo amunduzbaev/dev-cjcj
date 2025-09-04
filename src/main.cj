@@ -40,7 +40,7 @@ public class Cj {
         let initChecker = InitCheck()
         if (let Some(p) <- program) {
             asg = asgMaker.resolve(p)
-            TypeChecker().typeCheck(asg)
+            TypeChecker(asg)
             asg.prettyPrint(printer)
 
             initChecker.resolve(asg)
@@ -64,10 +64,6 @@ public class Cj {
             })
 
             println(printer.toString())
-            // asg = asgMaker.resolve(p)
-            // TypeChecker().typeCheck(asg)
-            // asg.prettyPrint(printer)
-            // println(printer.toString())
         }
     }
 }

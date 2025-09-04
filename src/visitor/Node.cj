@@ -116,9 +116,8 @@ public class Body <: Node {
         printer.append("\n}")
     }
 
-    public override func traverse<R>(_: Visitor<R>): R {
-        // v.visit(this)
-        throw Exception("Error: Unimplemented traverse for Body node")
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
     }
 
     public mut prop decls: ArrayList<Decl> {

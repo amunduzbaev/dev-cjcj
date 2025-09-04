@@ -5,12 +5,25 @@ class a {
     }
 
     func boo(): Unit {
-        2 + 4
+        
     }
 
     let a : Int32
     var b = 5
 }
+
+class b <: a {
+
+}
+
+class c <: b {
+
+}
+
+class d <: c {
+
+}
+
 
 let a: Int64
 
@@ -21,11 +34,11 @@ main(args: Int64) {
     let f = bo()
     func aa(b: Int64, h: String): Int64 {
         4
-        return 6; 1 + 3
+        return 6;
     }
     var a = if (true) {
         "a"}
     var b = while (true) {
-        1 + 3
+        
     }
     aa(2, "1")}
