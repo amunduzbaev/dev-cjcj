@@ -4,4 +4,4 @@ target
 *.cjo
 *.a
 *.macrocall
-testcode.txt
+testcode*.txt
