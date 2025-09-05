@@ -753,9 +753,19 @@ internal open class DeclParser {
             base = e
         } else if (let Some(e) <- helper.tryParse({ => 
             if (let Some(primitiveTypeExpr) <- primitiveTypeExpr()) {
-                if (let Some(fieldAccess) <- fieldAccess(primitiveTypeExpr)) {
-                    return fieldAccess
+                var base: Expr = primitiveTypeExpr
+                while (true) {
+                    if (let Some(fieldAccess) <- fieldAccess(base)) {
+                        base = fieldAccess
+                        continue
+                    }
+                    if (let Some(callSuffix) <- callSuffix(base)) {
+                        base = callSuffix
+                        continue
+                    }
+                    break
                 }
+                return base
             }
             None
         })) {
@@ -811,6 +821,7 @@ internal open class DeclParser {
         }
         let keyword: Token = helper.previous()
         helper.skipNL()
+        // TODO: Change return Expr to always have an expression, if expression is None then put ().
         ReturnExpr(NodeIdManager.nextId(), expression(), keyword)
     }
 
