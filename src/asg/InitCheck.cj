@@ -289,6 +289,10 @@ public class InitCheck <: Visitor< InitsRefs >{
         InitsRefs()
     }
 
+    public override func visit(_: ClassDecl) : InitsRefs {
+        InitsRefs()
+    }
+
     public override func visit(varRef: VariableReference) : InitsRefs {
         let current = InitsRefs()
         match (lastNode) {

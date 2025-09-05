@@ -20,9 +20,8 @@ public class Type <: Equatable<Type> & Hashable {
     }
 
     public init(name: String, parents: ArrayList<Type>, isOpen: Bool) {
-        this(name, parents, isOpen, min(parents.iterator().map({ p => p.rootDist})).getOrThrow({ =>
-            Exception("Parents cannot be empty")
-        }) + 1)
+        this(name, parents, isOpen, min(parents.iterator().map({ p => p.rootDist}))
+            .getOrDefault({ => 0 }) + 1)
     }
 
     private init(name: String, parents: ArrayList<Type>, isOpen: Bool, rootDist: Int64) {

@@ -278,13 +278,17 @@ public class ClassDecl <: Decl {
 
         if (!superTypes.isEmpty()) {
             printer.append(" <: ")
-            printer.append(superTypes[0].typeParameterName.value)
+            printer.append(superTypes[0].typeName.value)
             for (i in 1..superTypes.size) {
                 printer.append(" & ")
                 superTypes[i].prettyPrint(printer)
             }
         }
         body.prettyPrint(printer)
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
     }
 
     public prop body: Body {

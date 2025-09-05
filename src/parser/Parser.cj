@@ -14,6 +14,7 @@ public class Parser {
 
     public Parser(private let tokens: Array<Token>,
                     public let reporter: Reporter) {
+                    public let reporter: Reporter) {
         this.parserHelper = ParserHelper(tokens, reporter)
         this.declParser = DeclParser(parserHelper, reporter)
     }
@@ -26,6 +27,7 @@ public class Parser {
             while (!parserHelper.check(TokenKind.MAIN) && !parserHelper.isAtEnd()) {
                 if (let Some(obj) <- declParser.topLevelObject()) {
                     nodes.add(obj)
+                    parserHelper.endPlus("Expected end of TopLevelObject", parserHelper.peek(), parserHelper.current)
                     parserHelper.endPlus("Expected end of TopLevelObject", parserHelper.peek(), parserHelper.current)
                 } else {
                     parserHelper.error(parserHelper.peek(), 
@@ -62,7 +64,7 @@ public class Parser {
             if(reporter.empty) {
                 return Program(NodeIdManager.nextId(), nodes)
             } else {
-                return Program(NodeIdManager.nextId(), nodes)
+                return None
             }
 
         } catch (_) {

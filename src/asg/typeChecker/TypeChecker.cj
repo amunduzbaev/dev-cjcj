@@ -14,11 +14,10 @@ import std.collection.HashMap
 public class TypeChecker <: Visitor<Type> {
     // Dummy type to return when I don't need to return an actual one.
     private static let DUMMY_TYPE = Type("")
-    private let typeManager: TypeManager = TypeManager()
+    private let typeManager: TypeManager
 
-    public func typeCheck(program: Program): Unit {
-        // TODO: Will call the DeclTypeCheck before to see if the type declarations are ok, for now
-        // we don't have type declarations.
+    public init(program: Program) {
+        typeManager = TypeDeclarationChecker().resolve(program)
         program.traverse(this)
     }
 
@@ -204,5 +203,15 @@ public class TypeChecker <: Visitor<Type> {
             callExpr.arguments.iterator().fold<ArrayList<Type>>(ArrayList(),
                 { res, v => res.add(v.traverse(this)); res }).toArray()
         )
+    }
+
+    public override func visit(classDecl: ClassDecl): Type {
+        classDecl.body.traverse(this)
+        typeManager.get("Unit")
+    }
+
+    public override func visit(_: Body): Type {
+        // body.decls.iterator().forEach({ decl => decl.traverse(this) })
+        typeManager.get("Unit")
     }
 }
