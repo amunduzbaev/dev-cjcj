@@ -159,7 +159,7 @@ class TypeDeclarationChecker <: Visitor<Unit> {
     }
 
     // I only want to visit declarations of new types, I can skip everything else.
-    public override func visit(classDecl: ClassDecl): Unit {
+    public override func visit(classDecl: ClassDeclWithRef): Unit {
         declTypes.add(classDecl.identifier.value,
             TypePrecursor(classDecl.identifier.value,
                 // TODO: Desugar classes without supertypes to be <: Any

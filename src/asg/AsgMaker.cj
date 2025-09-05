@@ -51,6 +51,11 @@ public class AsgMaker <: Visitor<Node> {
     */
 
     public func resolve(program: Program): Program {
+        // TODO: We need to declare Any and in the future all the other builtin interfaces / structs
+        // because they're not primitive types, so they are considered as RefType.
+        let anyIdentifier: Token = Token(TokenKind.IDENTIFIER, "Any", Position())
+        currentEnvironment.declareClass(anyIdentifier, ClassReference(NodeIdManager.nextId(),
+            anyIdentifier))
         return (program.traverse(this) as Program).getOrThrow()
     }
 
