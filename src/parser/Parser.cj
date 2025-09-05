@@ -14,7 +14,6 @@ public class Parser {
 
     public Parser(private let tokens: Array<Token>,
                     public let reporter: Reporter) {
-                    public let reporter: Reporter) {
         this.parserHelper = ParserHelper(tokens, reporter)
         this.declParser = DeclParser(parserHelper, reporter)
     }
