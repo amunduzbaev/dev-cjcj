@@ -4,7 +4,6 @@ import cjcj.visitor.*
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import cjcj.parser.NodeIdManager
-import cjcj.parser.ParseError
 
 import std.env.getStdOut
 
@@ -34,7 +33,8 @@ private enum ScopeType {
 * there's a bug in the as operator itself.
 */
 public class AsgMaker <: Visitor<Node> {
-    private var currentEnvironment: Environment = Environment()
+    private var globalScope: Environment = Environment()
+    private var currentEnvironment: Environment = globalScope
     private var lastKilledEnvironment: ?Environment = None
     private var currentScopeType: ScopeType = ScopeType.NIL
     
@@ -92,7 +92,7 @@ public class AsgMaker <: Visitor<Node> {
             // TODO: This probably can never happen because it's an error caught
             // while parsing so we can probably remove it.
             println("No reference on the left part of an assignment")
-            throw ParseError()
+            throw AssignExprError()
         }
         let right: Expr = (assignExpr.right.traverse(this) as Expr).getOrThrow()
         AssignExpr(NodeIdManager.nextId(), left, right)
@@ -134,20 +134,12 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(callExpr: CallExpr): Node {
-        let callee: FuncReference =
-            (callExpr.callee.traverse(this) as FuncReference)
-                .getOrThrow({ => println("Not calling a function.")
-                ParseError() })
+        let callee: Node = callExpr.callee.traverse(this)
 
         let arguments: ArrayList<Argument> = ArrayList()
         callExpr.arguments.iterator().forEach({ a => arguments.add(
             (a.traverse(this) as Argument).getOrThrow()
         )})
-        if (arguments.size != callee.params.size) {
-            println("Invalid number of parameters, found ${arguments.size} " +
-                "expected ${callee.params.size}")
-            throw ParseError()
-        }
         CallExpr(NodeIdManager.nextId(), callee, arguments)
     }
 
@@ -160,7 +152,7 @@ public class AsgMaker <: Visitor<Node> {
                 }, returnExpr.keyword)
         }
         println("Return statement not inside a function")
-        throw ParseError()
+        throw ReturnExprError()
     }
 
     public override func visit(varDecl: VarDecl): Node {
@@ -182,7 +174,7 @@ public class AsgMaker <: Visitor<Node> {
                 declType, varDecl.keyword)
         } else if (declType.isNone()) {
             println("No explicit type without initializer")
-            throw ParseError()
+            throw VarDeclError()
         } else {
             ref = VariableReference(NodeIdManager.nextId(), varDecl.identifier,
                 declType, varDecl.keyword)
@@ -197,7 +189,7 @@ public class AsgMaker <: Visitor<Node> {
 
     public override func visit(funcParam: FuncParam): Node {
         FuncParam(NodeIdManager.nextId(), funcParam.keyword,
-            (funcParam.paramType.traverse(this) as TypeNode).getOrThrow())
+            (funcParam.paramType.traverse(this) as TypeNode).getOrThrow({ => FuncParamError()}))
     }
 
     public override func visit(funcDecl: FuncDecl): Node {
@@ -259,6 +251,9 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(typeNode: TypeNode): Node {
+        if(!isTypeDeclared(typeNode.typeName)) {
+            throw Exception("Type is not declared")
+        }
         TypeNode(NodeIdManager.nextId(), typeNode.typeParameterName, typeNode.typeName)
     }
 
@@ -268,11 +263,50 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(refType: RefType): Node {
+        if(!isTypeDeclared(refType.typeName)) {
+            throw Exception("Type is not declared")
+        }
         RefType(NodeIdManager.nextId(), refType.typeParameterName, refType.typeName)
     }
 
     public override func visit(classDecl: ClassDecl): Node {
-        classDecl
+        if(!currentEnvironment.isGlobal) {
+            throw Exception("Classes can be declared at topLevel only")
+        }
+
+        let body = (classDecl.body.traverse(this) as Body).getOrThrow({ => 
+            Exception("Body of a class has to be Body in ASG")})
+
+        let superTypes = ArrayList<TypeNode>()
+        classDecl.superTypes.iterator().forEach({ superType => 
+            let visitedSuperType = (superType.traverse(this) as TypeNode).getOrThrow({ => 
+                Exception("SuperTypes of classDecl have to be TypeNode") })
+            superTypes.add(visitedSuperType)
+        })
+
+        let classReference = ClassReference(NodeIdManager.nextId(), classDecl.identifier)
+
+        declareClass(classDecl.identifier, classReference)
+
+        ClassDeclWithRef(NodeIdManager.nextId(), classDecl.keyword, 
+        classDecl.identifier, body, superTypes, classReference)
+    }
+
+    // TODO : Sort the body and a program
+    public override func visit(body: Body): Node {
+        beginScope()
+        let decls: ArrayList<Decl> = ArrayList()
+        body.decls.iterator().forEach({ d =>
+            decls.add((d.traverse(this) as Decl).getOrThrow())
+        })
+        endScope()
+        Body(NodeIdManager.nextId(), decls)
+    }
+
+    public override func visit(memberAccess:MemberAccess): Node {
+        let baseExpr = (memberAccess.baseExpr.traverse(this) as Expr).getOrThrow({ => 
+            Exception("BaseExpr in MemberAccess has to be Expr in ASG")})
+        MemberAccess(NodeIdManager.nextId(), baseExpr, memberAccess.field)
     }
 
     private func beginScope(): Unit {
@@ -291,6 +325,12 @@ public class AsgMaker <: Visitor<Node> {
     }
     private func declareFunc(identifier: Token, value: Reference): Unit {
         currentEnvironment.declareFunc(identifier, value)
+    }
+    private func declareClass(identifier: Token, value: Reference): Unit {
+        currentEnvironment.declareClass(identifier, value)
+    }
+    private func isTypeDeclared(typeName: Token) {
+        globalScope.isTypeDeclared(typeName)
     }
 
     private func get(identifier: Token): Reference {

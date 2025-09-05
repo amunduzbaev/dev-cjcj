@@ -145,8 +145,15 @@ internal open class DeclParser {
             ArrayList()
         }
         helper.skipNL()
-        let body: Body = classBody()
-        ClassDecl(NodeIdManager.nextId(), keyword, identifier, body, supertypes)
+        try {
+            let body: Body = classBody()
+            return ClassDecl(NodeIdManager.nextId(), keyword, identifier, body, supertypes)
+        } catch (e: ConsumeError) {
+            helper.pop()
+            helper.error(helper.peek(), 
+            "body of class '\u{001b}[31m${identifier}\u{001b}[0m' is missing", helper.current)
+            return None
+        }
     }
 
     private func className(): Token {
@@ -154,6 +161,7 @@ internal open class DeclParser {
     }
 
     private func classBody(): Body {
+        let start: (Token,Int64) = (helper.peek(), helper.current)
         helper.consume(TK.LCURL, "Expect '{' before body.", helper.current)
         helper.endStar()
         let decls: ArrayList<Decl> = ArrayList()
@@ -168,7 +176,12 @@ internal open class DeclParser {
             }
         }
         helper.endStar()
-        helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
+        try {
+            helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
+        } catch(e: ConsumeError) {
+            helper.synchronizeBlockRightCurl(start[0], start[1])
+            reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
+        }
         Body(NodeIdManager.nextId(), decls)
     }
 
@@ -330,13 +343,11 @@ internal open class DeclParser {
             helper.endStar()
             helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
         } catch (e: ParseError) {
-            reporter.pop()
-            reporter.pop()
+
             helper.synchronizeBlockRightCurl(start[0], start[1])
             reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
         } catch (e: ConsumeError) {
-            reporter.pop()
-            reporter.pop()
+
             reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
         }
         Block(NodeIdManager.nextId(), nodes)
@@ -559,7 +570,6 @@ internal open class DeclParser {
             } catch (e: ParseError) {
                 helper.synchronizeCallParenthesis(start[0], start[1])
             } catch (e: ConsumeError) {
-                reporter.pop()
                 reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
             }
         } else if (!helper.matches(TK.UNIT_LITERAL)) {

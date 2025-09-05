@@ -6,7 +6,7 @@ import cjcj.visitor.Program
 import cjcj.parser.*
 import cjcj.scanner.*
 import cjcj.prettyPrinter.PrettyPrinter
-import cjcj.asg.InitCheck
+import cjcj.asg.InitCheck.InitCheck
 
 import std.env.*
 import std.io.*

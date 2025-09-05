@@ -266,7 +266,7 @@ public open class FuncDecl <: Decl {
     }
 }
 
-public class ClassDecl <: Decl {
+public open class ClassDecl <: Decl {
     private let body_: Body
     private let superTypes_: ArrayList<TypeNode>
 
@@ -293,7 +293,7 @@ public class ClassDecl <: Decl {
         body.prettyPrint(printer)
     }
 
-    public override func traverse<R>(v: Visitor<R>): R {
+    public open override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 
