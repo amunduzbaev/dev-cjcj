@@ -69,10 +69,15 @@ public class TypeChecker <: Visitor<Type> {
     public override func visit(block: Block): Type {
         let environmentTime = typeManager.record()
 
-        let returnType = block.nodes.iterator().map({ n => n.traverse(this) }).last().getOrDefault({=> Type("Unit")})
+        // TODO: This is very wrong, We should do the check with all the returns.
+        let returnType = block.nodes.iterator()
+            .map({ n =>
+                n.traverse(this)
+            })
+            .reduce({ a,b => typeManager.smallestCommonSupertype(a, b) })
+            .getOrDefault({ => Type("Unit")})
 
         typeManager.rollBack(environmentTime)
-
         returnType
     }
 
