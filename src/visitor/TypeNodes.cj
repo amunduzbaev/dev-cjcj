@@ -62,7 +62,7 @@ public class PrimitiveType <: TypeNode {
 
     public override func prettyPrint(printer: PrettyPrinter) {
         super.prettyPrint(printer)
-        printer.append(": " + typeName.value)
+        printer.append(typeName.value)
     }
 
     private func isPrimitive(typeName: Token): Bool {
@@ -83,6 +83,6 @@ public class RefType <: TypeNode {
 
     public override func prettyPrint(printer: PrettyPrinter) {
         super.prettyPrint(printer)
-        printer.append(": " + typeName.value)
+        printer.append(typeName.value)
     }
 }

@@ -199,6 +199,16 @@ internal open class DeclParser {
         // We assume that the first element of the super classes or interfaces is a class, we will
         // check it in the following process.
         superClassOrInterfaces.add(superClass())
+        while (let Some(superClassOrInterface) <- helper.tryParse({ =>
+            helper.skipNL()
+            if (helper.matches(TK.BITAND)) {
+                helper.skipNL()
+                return superClass()
+            }
+            None
+        })) {
+            superClassOrInterfaces.add(superClassOrInterface)
+        }
         superClassOrInterfaces
     }
 

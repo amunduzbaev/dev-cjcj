@@ -58,7 +58,7 @@ public abstract class Decl <: Node {
             printer.append(keyword.value + " ")
         }
         if (identifier.kind != TokenKind.ILLEGAL) {
-            printer.append(identifier.value + " ")
+            printer.append(identifier.value)
         }
     }
 }
@@ -103,6 +103,7 @@ public open class VarDecl <: Decl {
     public override func prettyPrint(printer: PrettyPrinter) {
         super.prettyPrint(printer)
         if (let Some(dtype) <- declType) {
+            printer.append(": ")
             dtype.prettyPrint(printer)
         }
         printer.append("${if (initializer.isSome()) {" = "} else {""}}")
@@ -140,8 +141,10 @@ public open class MainDecl <: Decl {
         printer.append(")")
 
         if (let Some(dtype) <- declType) {
+            printer.append(": ")
             dtype.prettyPrint(printer)
         }
+        printer.append(" ")
         block_.prettyPrint(printer)
     }
 
@@ -184,7 +187,7 @@ public class FuncParam <: Decl {
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
-        printer.append(paramType.typeParameterName.value)
+        printer.append(paramType.typeParameterName.value + ": ")
         paramType.prettyPrint(printer)
     }
 
@@ -240,8 +243,10 @@ public open class FuncDecl <: Decl {
         }
         printer.append(")")
         if (let Some(dtype) <- declType) {
+            printer.append(": ")
             dtype.prettyPrint(printer)
         }
+        printer.append(" ")
         block_.prettyPrint(printer)
     }
 
@@ -284,6 +289,7 @@ public class ClassDecl <: Decl {
                 superTypes[i].prettyPrint(printer)
             }
         }
+        printer.append(" ")
         body.prettyPrint(printer)
     }
 
