@@ -4,7 +4,6 @@ import cjcj.visitor.*
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import cjcj.parser.NodeIdManager
-import cjcj.parser.ParseError
 
 import std.env.getStdOut
 
@@ -92,7 +91,7 @@ public class AsgMaker <: Visitor<Node> {
             // TODO: This probably can never happen because it's an error caught
             // while parsing so we can probably remove it.
             println("No reference on the left part of an assignment")
-            throw ParseError()
+            throw AssignExprError()
         }
         let right: Expr = (assignExpr.right.traverse(this) as Expr).getOrThrow()
         AssignExpr(NodeIdManager.nextId(), left, right)
@@ -137,7 +136,7 @@ public class AsgMaker <: Visitor<Node> {
         let callee: FuncReference =
             (callExpr.callee.traverse(this) as FuncReference)
                 .getOrThrow({ => println("Not calling a function.")
-                ParseError() })
+                CallExprError() })
 
         let arguments: ArrayList<Argument> = ArrayList()
         callExpr.arguments.iterator().forEach({ a => arguments.add(
@@ -155,7 +154,7 @@ public class AsgMaker <: Visitor<Node> {
                 }, returnExpr.keyword)
         }
         println("Return statement not inside a function")
-        throw ParseError()
+        throw ReturnExprError()
     }
 
     public override func visit(varDecl: VarDecl): Node {
@@ -177,7 +176,7 @@ public class AsgMaker <: Visitor<Node> {
                 declType, varDecl.keyword)
         } else if (declType.isNone()) {
             println("No explicit type without initializer")
-            throw ParseError()
+            throw VarDeclError()
         } else {
             ref = VariableReference(NodeIdManager.nextId(), varDecl.identifier,
                 declType, varDecl.keyword)
@@ -192,7 +191,7 @@ public class AsgMaker <: Visitor<Node> {
 
     public override func visit(funcParam: FuncParam): Node {
         FuncParam(NodeIdManager.nextId(), funcParam.keyword,
-            (funcParam.paramType.traverse(this) as TypeNode).getOrThrow())
+            (funcParam.paramType.traverse(this) as TypeNode).getOrThrow({ => FuncParamError()}))
     }
 
     public override func visit(funcDecl: FuncDecl): Node {

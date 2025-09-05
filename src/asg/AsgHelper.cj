@@ -6,6 +6,14 @@ import std.collection.HashSet
 import std.collection.HashMap
 import std.collection.ArrayList
 
+public open class AssignExprError <: ASGError { }
+public open class FuncParamError <: ASGError { }
+public open class VarDeclError <: ASGError { }
+public open class ReturnExprError <: ASGError { }
+public open class CallExprError <: ASGError { }
+public open class ASGError <: Exception { }
+
+
 func sswap<T>(a: T, b: T): (T, T) where T <: Less<T>{
     if(b < a) {
         return (b, a)
