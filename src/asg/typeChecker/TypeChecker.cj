@@ -63,19 +63,19 @@ public class TypeChecker <: Visitor<Type> {
         if (!left.isParent(right)) {
             throw Exception("Cannot assign ${right.name} to ${left.name}")
         }
-        Type("Unit")
+        typeManager.get("Unit")
     }
 
     public override func visit(block: Block): Type {
         let environmentTime = typeManager.record()
 
-        // TODO: This is very wrong, We should do the check with all the returns.
+        let lastId = block.nodes.last.getOrDefault({ => Expr() }).id
         let returnType = block.nodes.iterator()
-            .map({ n =>
-                n.traverse(this)
-            })
+            .map({ n => (n, n.traverse(this)) })
+            .filter({ n => n[0] is ReturnExpr || n[0].id == lastId })
+            .map({ n => n[1] })
             .reduce({ a,b => typeManager.smallestCommonSupertype(a, b) })
-            .getOrDefault({ => Type("Unit")})
+            .getOrDefault({ => typeManager.get("Unit")})
 
         typeManager.rollBack(environmentTime)
         returnType
@@ -95,14 +95,14 @@ public class TypeChecker <: Visitor<Type> {
     public override func visit(whileExpr: WhileExpr): Type {
         whileExpr.condition.traverse(this)
         whileExpr.block.traverse(this)
-        Type("Unit")
+        typeManager.get("Unit")
     }
 
     public override func visit(returnExpr: ReturnExpr): Type {
         if (let Some(expr) <- returnExpr.expr) {
             return expr.traverse(this)
         }
-        Type("Unit")
+        typeManager.get("Unit")
     }
 
     public override func visit(funcParam: FuncParam): Type {

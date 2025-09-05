@@ -12,7 +12,7 @@ public class Type <: Equatable<Type> & Hashable {
 
     // Every type is a subtype of any.
     public init(name: String) {
-        this(name, Type.ANY)
+        this(name, ArrayList())
     }
 
     public init(name: String, parents: ArrayList<Type>) {

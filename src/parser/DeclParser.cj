@@ -96,6 +96,10 @@ internal open class DeclParser {
         helper.skipNL()
 
         let block: Block = block()
+        if (let Some(dtype) <- declType && dtype.typeName.value == "Unit") {
+            block.nodes.add(ReturnExpr(NodeIdManager.nextId(), LitConstExpr(NodeIdManager.nextId(),
+                Token(TK.UNIT_LITERAL, "()", Position())), Token(TK.RETURN, "return", Position())))
+        }
         FuncDecl(NodeIdManager.nextId(), keyword, name, block, parameters,
             declType)
     }

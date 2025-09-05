@@ -25,9 +25,12 @@ class d <: c {
 
 }
 */
+func A(a: Any, b: Any): Any {
+    a
+}
 
 main(args: Int64) {
-    let a = asdasd.asd(asa, aa, asgfhd.b.x() + 5 * 4).asda.asda.faa() + 2
+
 }
     /* func bo() : Unit {
         ()
