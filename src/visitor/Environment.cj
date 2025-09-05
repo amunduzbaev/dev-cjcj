@@ -20,6 +20,7 @@ public class Environment {
     private let enclosing_: ?Environment
     private let varReferences: Map<String, Reference> = HashMap()
     private let funcReferences: Map<String, Reference> = HashMap()
+    private let classReferences: Map<String, Reference> = HashMap()
 
     public init(enclosing: ?Environment) {
         enclosing_ = enclosing
@@ -34,6 +35,8 @@ public class Environment {
             return value
         } else if (let Some(value) <- funcReferences.get(identifier.value)) {
             return value
+        } else if (let Some(value) <- classReferences.get(identifier.value)) {
+            return value
         }
 
         // Go up the environments until something is found or an exception is
@@ -45,11 +48,26 @@ public class Environment {
         throw Exception("Undefined variable '" + identifier.value + "'.")
     }
 
+    public func declareClass(identifier: Token, value: Reference): Unit {
+        if(varReferences.contains(identifier.value)) {
+            throw Exception("Cannot define a class and a variable wirth the same name in the " + 
+                "same scope")
+        } else if(funcReferences.contains(identifier.value)) {
+            throw Exception("Cannot define a class and a function with the same name in the " + 
+                "same scope")
+        } else if(classReferences.addIfAbsent(identifier.value, value).isSome()){
+            throw Exception("Cannot redefine a class with the same name in the same scope")
+        }
+    }
+
     public func declareVar(identifier: Token, value: Reference): Unit {
         if (funcReferences.contains(identifier.value)){
             throw Exception("Cannot define a variable and a function with the" + 
                 " same name in the same scope")
-        } else if(varReferences.addIfAbsent(identifier.value, value).isSome()) {
+        } else if (classReferences.contains(identifier.value)) {
+            throw Exception("Cannot define a variable and a class with the" + 
+                " same name in the same scope")
+        } else if (varReferences.addIfAbsent(identifier.value, value).isSome()) {
             throw Exception("Cannot redefine a variable with the in the same scope")
         }
     }
@@ -58,8 +76,16 @@ public class Environment {
         if(varReferences.contains(identifier.value)) {
             throw Exception("Cannot define a function and variable with the same name in the " +
                 "same scope")
+        } else if(classReferences.contains(identifier.value)) {
+            throw Exception("Cannot define a function and class with the same name in the " +
+                "same scope")
+        } else {
+            funcReferences.add(identifier.value, value)
         }
-        funcReferences.add(identifier.value, value)
+    }
+
+    public func isTypeDeclared(typeName: Token) {
+        classReferences.contains(typeName.value)
     }
 
     public prop enclosing: ?Environment {

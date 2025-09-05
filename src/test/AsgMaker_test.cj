@@ -5,7 +5,7 @@ import cjcj.visitor.Program
 import cjcj.parser
 import cjcj.scanner.*
 import cjcj.prettyPrinter.PrettyPrinter
-import cjcj.asg.InitCheck
+import cjcj.asg.InitCheck.InitCheck
 
 import std.env.*
 import std.collection.ArrayList
@@ -16,7 +16,7 @@ class AsgMakerTests {
     func asgMakerTest1() {
         let test: String = """
             main(args: Int64) {
-                func aa(b: Int64, h: String): Int64 {
+                func aa(b: Int64, h: Int32): Int64 {
                     4
                     return 6; 1 + 3
                 }
@@ -29,7 +29,7 @@ class AsgMakerTests {
                     1 + 3
                 }
                 aa(2, "1")
-            }
+            } 
             """
 
         let scanner = Scanner(test.toRuneArray())
@@ -49,7 +49,7 @@ class AsgMakerTests {
     @TestCase
     func asgMakerTest2() {
         let test: String = """
-            main(args: Bp){
+            main(args: Int32){
                 let a: Int32
                 func A (a: Type, b: Type, c: Type){
                     a = 1

@@ -1,4 +1,4 @@
-package cjcj.asg
+package cjcj.asg.InitCheck
 
 import cjcj.visitor.*
 import std.env.getStdOut

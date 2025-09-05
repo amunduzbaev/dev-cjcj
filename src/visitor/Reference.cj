@@ -105,6 +105,22 @@ public class FuncReference <: Reference {
     }
 }
 
+public class ClassReference <: Reference{
+    // I don't think we need to body here, because even if we include the body, we have to 
+    // process it in order to be able to check if the member exists or not
+    // So better alternative solution is to preprocess the members for each class at declaration 
+    public init(id: NodeId, identifier: Token, declType: ?TypeNode) {
+        super(id, identifier, declType, None)
+    }
+    public init(id: NodeId, identifier: Token) {
+        super(id, identifier, None, None)
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+}
+
 /*
     TODO: The following classes may be a temporary solution until we find a cleaner way to handle
     this kind of problem.
@@ -182,5 +198,23 @@ public class MainDeclWithRef <: MainDecl {
     public mut prop paramRef : ?Reference {
         get() { paramRef_ }
         set(v) { paramRef_ = v }
+    }
+}
+
+public class ClassDeclWithRef <: ClassDecl {
+    private let ref_: Reference
+
+    public init(id: NodeId, keyword: Token, identifier: Token, body: Body,
+            superTypes: ArrayList<TypeNode>, ref: Reference) {
+        super(id, keyword, identifier, body, superTypes)
+        ref_ = ref
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public prop ref : Reference {
+        get() { ref_ }
     }
 }
