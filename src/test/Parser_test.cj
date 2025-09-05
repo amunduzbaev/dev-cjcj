@@ -349,27 +349,25 @@ class ParserTests {
     }
 
     // The following tests will be added after the change to the return expression.
-    // @TestCase
-    // func returnExprNoExpression_test() {
-    //     let test: String = """
-    //         main(){
-    //             return
-    //         }"""
-    //     // Should add the else branch while parsing.
-    //     let m: MainDecl = getMain(test)
-    //     @Assert(m.block.nodes.iterator().all({ n => n is ReturnExpr }))
-    // }
+    @TestCase
+    func returnExprNoExpression_test() {
+        let test: String = """
+            main(){
+                return
+            }"""
+        let m: MainDecl = getMain(test)
+        @Assert(m.block.nodes.iterator().all({ n => n is ReturnExpr }))
+    }
 
-    // @TestCase
-    // func returnExprUnitFunc_test() {
-    //     let test: String = """
-    //         main(): Unit{
-    //             return a
-    //         }"""
-    //     // Should add the else branch while parsing.
-    //     let m: MainDecl = getMain(test)
-    //     @Assert(m.block.nodes.iterator().all({ n => n is ReturnExpr }))
-    // }
+    @TestCase
+    func returnExprUnitFunc_test() {
+        let test: String = """
+            main(): Unit{
+                return a
+            }"""
+        let m: MainDecl = getMain(test)
+        @Assert(m.block.nodes.iterator().all({ n => n is ReturnExpr }))
+    }
 
     @TestCase
     func jumpExpr_test() {
