@@ -27,7 +27,6 @@ public class Parser {
                 if (let Some(obj) <- declParser.topLevelObject()) {
                     nodes.add(obj)
                     parserHelper.endPlus("Expected end of TopLevelObject", parserHelper.peek(), parserHelper.current)
-                    parserHelper.endPlus("Expected end of TopLevelObject", parserHelper.peek(), parserHelper.current)
                 } else {
                     parserHelper.error(parserHelper.peek(), 
                     "Expected TopLevelObject keyword", parserHelper.current)

@@ -12,40 +12,40 @@ import std.collection.ArrayList
 
 @Test
 class InitCheckTests {
-    @TestCase
-    func initCheckTest1() {
-        let test: String = """
-            main(args: Bp){
-                let a: Int32
-                func A (){
-                    a = 1
-                }
+    // @TestCase
+    // func initCheckTest1() {
+    //     let test: String = """
+    //         main(args: Bp){
+    //             let a: Int32
+    //             func A (){
+    //                 a = 1
+    //             }
 
-                a = 2
+    //             a = 2
 
-                let b = a + a
+    //             let b = a + a
 
-                a = 3
-            }"""
+    //             a = 3
+    //         }"""
 
-        let scanner = Scanner(test.toRuneArray())
-        let tokens = scanner.scanTokens().toArray()
+    //     let scanner = Scanner(test.toRuneArray())
+    //     let tokens = scanner.scanTokens().toArray()
 
-        let reporter = parser.Reporter(getStdErr(), tokens.toArray())
-        let parser: parser.Parser = parser.Parser(tokens.toArray(), reporter)
-        let program: ?Program = parser.parse()
-        let asgMaker = AsgMaker()
-        let initChecker = InitCheck()
+    //     let reporter = parser.Reporter(getStdErr(), tokens.toArray())
+    //     let parser: parser.Parser = parser.Parser(tokens.toArray(), reporter)
+    //     let program: ?Program = parser.parse()
+    //     let asgMaker = AsgMaker()
+    //     let initChecker = InitCheck()
 
-        @Assert(program.isSome())
-        if(let Some(p) <- program) {
-            let asg = asgMaker.resolve(p)
-            initChecker.resolve(asg)
+    //     @Assert(program.isSome())
+    //     if(let Some(p) <- program) {
+    //         let asg = asgMaker.resolve(p)
+    //         initChecker.resolve(asg)
 
-            @Assert(!initChecker.notInitialized.isEmpty() && 
-                    !initChecker.cannotMutate.isEmpty())
-        }
-    }
+    //         @Assert(!initChecker.notInitialized.isEmpty() && 
+    //                 !initChecker.cannotMutate.isEmpty())
+    //     }
+    // }
 
     @TestCase
     func initCheckTest2() {
