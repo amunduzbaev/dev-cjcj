@@ -230,20 +230,14 @@ public class AsgMaker <: Visitor<Node> {
 
         let ref: VariableReference
 
-        // CLEANUP : should be cleaned up after testing
-        // if (let Some(ref_) <- storedRef) {
-        //     ref = (ref_ as VariableReference).getOrThrow({ => 
-        //         Exception("Reference given to the variable declaration is not VariableReference")})
-        //     ref.declType = declType
-        // } else 
         if (initializer.isSome() || declType.isSome()) {
             ref = VariableReference(NodeIdManager.nextId(), varDecl.identifier,
                 declType, varDecl.keyword)
-            declareVar(varDecl.identifier, ref)
         } else {
             println("No explicit type without initializer")
             throw VarDeclError()
         }
+        declareVar(varDecl.identifier, ref)
 
         let nodeId: NodeId = NodeIdManager.nextId()
         VarDeclWithRef(nodeId, varDecl.keyword, varDecl.identifier, ref, initializer,
@@ -263,7 +257,19 @@ public class AsgMaker <: Visitor<Node> {
         if (let Some(dt) <- funcDecl.declType) {
             declType = dt.traverse(this) as TypeNode
         }
-        
+
+        let reference: FuncReference
+        if (let Some(ref) <- storedRef) {
+            reference = (ref as FuncReference).getOrThrow({ => 
+                Exception("Reference given to the function declaration is not FuncReference")})
+
+            reference.declType = declType
+        } else {
+            reference = FuncReference(NodeIdManager.nextId(),
+                funcDecl.identifier, declType, Environment(), ArrayList<FuncParam>())
+            declareFunc(funcDecl.identifier, reference)
+        }
+
         let paramRefs: ArrayList<Reference> = ArrayList()
         let params: ArrayList<FuncParam> = ArrayList()
         funcDecl.params.iterator()
@@ -279,23 +285,10 @@ public class AsgMaker <: Visitor<Node> {
             })
 
         let block: Block = (funcDecl.block.traverse(this) as Block).getOrThrow()
-        let reference: FuncReference
 
-        if (let Some(ref) <- storedRef) {
-            reference = (ref as FuncReference).getOrThrow({ => 
-                Exception("Reference given to the function declaration is not FuncReference")})
-
-            reference.declType = declType
-            reference.environment = lastKilledEnvironment.getOrThrow({ => 
-                Exception("BLock of a function is not in lastKilledEnvironment")})
-            reference.params = params
-        } else {
-            reference = FuncReference(NodeIdManager.nextId(),
-                funcDecl.identifier, declType,
-                lastKilledEnvironment.getOrThrow({ => 
-                Exception("BLock of a function is not in lastKilledEnvironment")}), params)
-            declareFunc(funcDecl.identifier, reference)
-        }
+        reference.environment = lastKilledEnvironment.getOrThrow({ => 
+            Exception("BLock of a function is not in lastKilledEnvironment")})
+        reference.params = params
 
         let nodeId: NodeId = NodeIdManager.nextId()
 
@@ -357,6 +350,15 @@ public class AsgMaker <: Visitor<Node> {
             throw Exception("Classes can be declared at topLevel only")
         }
 
+        let classReference: ClassReference 
+        if (let Some(ref) <- storedRef) {
+            classReference = (ref as ClassReference).getOrThrow({ => 
+                Exception("Reference given to the class declaration is not ClassReference")})
+        } else {
+            classReference = ClassReference(NodeIdManager.nextId(), classDecl.identifier)
+            declareClass(classDecl.identifier, classReference)
+        }
+
         let body = (classDecl.body.traverse(this) as Body).getOrThrow({ => 
             Exception("Body of a class has to be Body in ASG")})
 
@@ -366,15 +368,6 @@ public class AsgMaker <: Visitor<Node> {
                 Exception("SuperTypes of classDecl have to be TypeNode") })
             superTypes.add(visitedSuperType)
         })
-
-        let classReference: ClassReference 
-        if (let Some(ref) <- storedRef) {
-            classReference = (ref as ClassReference).getOrThrow({ => 
-                Exception("Reference given to the class declaration is not ClassReference")})
-        } else {
-            classReference = ClassReference(NodeIdManager.nextId(), classDecl.identifier)
-            declareClass(classDecl.identifier, classReference)
-        }
 
         ClassDeclWithRef(NodeIdManager.nextId(), classDecl.keyword, 
         classDecl.identifier, body, superTypes, classReference)
