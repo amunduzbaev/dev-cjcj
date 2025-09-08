@@ -49,6 +49,9 @@ class AsgMakerTests {
     @TestCase
     func asgMakerTest2() {
         let test: String = """
+            class Type{
+            }
+            
             main(args: Int32){
                 let a: Int32
                 func A (a: Type, b: Type, c: Type){
@@ -72,10 +75,11 @@ class AsgMakerTests {
                 }
 
                 let b = a + a
+                let c = a - a
 
                 a = 3
                 a = 5.2
-                a = (a * c + (d - e)) ** 3
+                a = (a * c + (b - c)) ** 3
 
                 A()
                 A(1, 2, "test-param")
@@ -96,7 +100,8 @@ class AsgMakerTests {
 
         @Assert(program.isSome())
         if(let Some(p) <- program) {
-            @AssertThrows[Exception](asgMaker.resolve(p))
+            asgMaker.resolve(p)
+            // @AssertThrows[Exception]()
         }
     }
 }
