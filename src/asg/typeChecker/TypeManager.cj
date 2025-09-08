@@ -183,48 +183,22 @@ public class TypeManager {
     }
 
     /*
-        Returns the common supertype that is closer to both types if it exists and it's unique.
+    * Returns the common supertype that is closer to both types if it exists and it's unique. The
+    * target type is the one of the common supertypes that is a subtype of all the others.
     */
     public func smallestCommonSupertype(a: Type, b: Type): Type {
         if (a == b) { return a }
-        // Returns the ordering first by root distance and then by name.
-        let cmpRootName: (Type, Type) -> Ordering = { a, b =>
-            let rootCmp = a.rootDist.compare(b.rootDist)
-            if (rootCmp == Ordering.EQ) {
-                return rootCmp
-            }
-            return a.name.compare(b.name)
+        let ancB: Set<Type> = b.ancestorSet
+        let commonSuperTypes: Array<Type> = a.ancestorSet.iterator()
+            .filter({ t => ancB.contains(t) })
+            .fold<ArrayList<Type>>(ArrayList(), { res, v => res.add(v); res }).toArray()
+        let validCandidates = commonSuperTypes.iterator()
+            .filter({ t => t.ancestorSet.contains(all: commonSuperTypes) })
+            .fold<ArrayList<Type>>(ArrayList(), { res, v => res.add(v); res })
+        if (validCandidates.size != 1) {
+            throw Exception("Cannot find smallest common supertype")
         }
-        let ancA: Array<Type> = a.ancestors
-        sort(ancA, by: cmpRootName)
-        let ancB: Array<Type> = b.ancestors
-        sort(ancB, by: cmpRootName)
-        var f: Int64 = 0
-        var s: Int64 = 0
-        while (f < ancA.size && s < ancB.size) {
-            match (ancA[f].rootDist.compare(ancB[s].rootDist)) {
-                case Ordering.LT => s++
-                case Ordering.GT => f++
-                case Ordering.EQ =>
-                    let eqSub: (Array<Type>, Array<Type>) = equalSubarray(ancA[f..], ancB[s..],
-                        { a, b => a.rootDist == b.rootDist}
-                    )
-                    let common: ArrayList<Type> = commonElements(eqSub[0], eqSub[1], { a, b =>
-                        a.name.compare(b.name)
-                    })
-                    if (common.size == 1) {
-                        return common[0]
-                    } else if (common.size > 1) {
-                        for (c in common) {
-                            println(c.name)
-                        }
-                        throw Exception("Couldn't find the smallest common supertype, " +
-                            "${common.size} possible candidates were found.")
-                    }
-                    f += eqSub[0].size; s += eqSub[1].size
-            }
-        }
-        throw Exception("Cannot find smallest common supertype")
+        return validCandidates[0]
     }
 
     /*
