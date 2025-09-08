@@ -256,9 +256,6 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(typeNode: TypeNode): Node {
-        if(!isTypeDeclared(typeNode.typeName)) {
-            throw Exception("Type is not declared")
-        }
         TypeNode(NodeIdManager.nextId(), typeNode.typeParameterName, typeNode.typeName)
     }
 
@@ -268,9 +265,6 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(refType: RefType): Node {
-        if(!isTypeDeclared(refType.typeName)) {
-            throw Exception("Type is not declared")
-        }
         RefType(NodeIdManager.nextId(), refType.typeParameterName, refType.typeName)
     }
 
@@ -328,14 +322,13 @@ public class AsgMaker <: Visitor<Node> {
     private func declareVar(identifier: Token, value: Reference): Unit {
         currentEnvironment.declareVar(identifier, value)
     }
+    
     private func declareFunc(identifier: Token, value: Reference): Unit {
         currentEnvironment.declareFunc(identifier, value)
     }
+
     private func declareClass(identifier: Token, value: Reference): Unit {
         currentEnvironment.declareClass(identifier, value)
-    }
-    private func isTypeDeclared(typeName: Token) {
-        globalScope.isTypeDeclared(typeName)
     }
 
     private func get(identifier: Token): Reference {
