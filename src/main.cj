@@ -41,7 +41,7 @@ public class Cj {
         if (let Some(p) <- program) {
             // p.prettyPrint(printer)
             asg = asgMaker.resolve(p)
-            // TypeChecker(asg)
+            TypeChecker(asg)
             asg.prettyPrint(printer)
 
             // initChecker.resolve(asg)

@@ -53,9 +53,14 @@ public class AsgMaker <: Visitor<Node> {
     public func resolve(program: Program): Program {
         // TODO: We need to declare Any and in the future all the other builtin interfaces / structs
         // because they're not primitive types, so they are considered as RefType.
-        let anyIdentifier: Token = Token(TokenKind.IDENTIFIER, "Any", Position())
-        currentEnvironment.declareClass(anyIdentifier, ClassReference(NodeIdManager.nextId(),
-            anyIdentifier))
+        let builtinIdentifiers: Array<Token> = [
+            Token(TokenKind.IDENTIFIER, "Any", Position()),
+            Token(TokenKind.IDENTIFIER, "String", Position())
+        ]
+
+        builtinIdentifiers.iterator().forEach({ t => 
+            currentEnvironment.declareClass(t, ClassReference(NodeIdManager.nextId(), t))
+        })
         return (program.traverse(this) as Program).getOrThrow()
     }
 
@@ -256,6 +261,9 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(typeNode: TypeNode): Node {
+        if(!isTypeDeclared(typeNode.typeName)) {
+            throw Exception("Type is not declared")
+        }
         TypeNode(NodeIdManager.nextId(), typeNode.typeParameterName, typeNode.typeName)
     }
 
@@ -265,6 +273,9 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(refType: RefType): Node {
+        if(!isTypeDeclared(refType.typeName)) {
+            throw Exception("Type is not declared")
+        }
         RefType(NodeIdManager.nextId(), refType.typeParameterName, refType.typeName)
     }
 
@@ -322,13 +333,16 @@ public class AsgMaker <: Visitor<Node> {
     private func declareVar(identifier: Token, value: Reference): Unit {
         currentEnvironment.declareVar(identifier, value)
     }
-    
+
     private func declareFunc(identifier: Token, value: Reference): Unit {
         currentEnvironment.declareFunc(identifier, value)
     }
 
     private func declareClass(identifier: Token, value: Reference): Unit {
         currentEnvironment.declareClass(identifier, value)
+    }
+    private func isTypeDeclared(typeName: Token) {
+        globalScope.isTypeDeclared(typeName)
     }
 
     private func get(identifier: Token): Reference {

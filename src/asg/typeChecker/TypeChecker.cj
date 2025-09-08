@@ -210,8 +210,8 @@ public class TypeChecker <: Visitor<Type> {
         )
     }
 
-    public override func visit(classDecl: ClassDecl): Type {
-        classDecl.body.traverse(this)
+    public override func visit(classDeclWithRef: ClassDeclWithRef): Type {
+        classDeclWithRef.body.traverse(this)
         typeManager.get("Unit")
     }
 
