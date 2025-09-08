@@ -19,7 +19,7 @@ public open class Reference <: Expr & Hashable & Equatable<Reference> {
     * (b() must be different from a.b()).
     */
     private let identifier_: Token
-    private let declType_: ?TypeNode
+    private var declType_: ?TypeNode
     private var effectiveType_: ?Type
 
     public Reference(id: NodeId, identifier: Token, declType: ?TypeNode, effectiveType: ?Type) {
@@ -48,8 +48,9 @@ public open class Reference <: Expr & Hashable & Equatable<Reference> {
         get() { identifier_ }
     }
 
-    public prop declType: ?TypeNode {
+    public mut prop declType: ?TypeNode {
         get() { declType_ }
+        set(v) { declType_ = v}
     }
 
     public mut prop effectiveType: ?Type {
@@ -78,8 +79,8 @@ public class VariableReference <: Reference {
 
 public class FuncReference <: Reference {
     // TODO: Maybe environment can be removed.
-    private let environment_: Environment
-    private let params_: ArrayList<FuncParam>
+    private var environment_: Environment
+    private var params_: ArrayList<FuncParam>
 
     public FuncReference(id: NodeId, identifier: Token, declType: ?TypeNode,
         environment: Environment, params: ArrayList<FuncParam>) {
@@ -96,12 +97,14 @@ public class FuncReference <: Reference {
         super.prettyPrint(printer)
     }
 
-    public prop environment: Environment {
+    public mut prop environment: Environment {
         get() { environment_ }
+        set(v) { environment_ = v}
     }
 
-    public prop params: ArrayList<FuncParam> {
+    public mut prop params: ArrayList<FuncParam> {
         get() { params_ }
+        set(v) { params_ = v}
     }
 }
 

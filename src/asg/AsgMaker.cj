@@ -32,11 +32,49 @@ private enum ScopeType {
 * catching them because it's impossible that the as didn't work except if
 * there's a bug in the as operator itself.
 */
+private class bodyDeclaror <: Visitor<?Reference> {
+    private var currentEnvironment: Environment
+
+    public init(environment: Environment) {
+        currentEnvironment = environment
+    }
+
+    public override func visit(_: VarDecl): ?Reference {
+        None
+        // TODO : Might change, TBD
+        // let ref: VariableReference = VariableReference(NodeIdManager.nextId(), 
+        //     varDecl.identifier, None, varDecl.keyword)
+        // currentEnvironment.declareVar(varDecl.identifier, ref)
+
+        // ref
+    }
+
+    public override func visit(funcDecl: FuncDecl): ?Reference {
+        let ref: FuncReference = FuncReference(NodeIdManager.nextId(),
+            funcDecl.identifier, None, Environment(), ArrayList<FuncParam>())
+        currentEnvironment.declareFunc(funcDecl.identifier, ref)
+        
+        ref
+    }
+
+    public override func visit(_: MainDecl): ?Reference {
+        None
+    }
+
+    public override func visit(classDecl: ClassDecl): ?Reference {
+        let ref = ClassReference(NodeIdManager.nextId(), classDecl.identifier)
+        currentEnvironment.declareClass(classDecl.identifier, ref)
+
+        ref
+    }
+}
+
 public class AsgMaker <: Visitor<Node> {
     private var globalScope: Environment = Environment()
     private var currentEnvironment: Environment = globalScope
     private var lastKilledEnvironment: ?Environment = None
     private var currentScopeType: ScopeType = ScopeType.NIL
+    private var refExists: ?Reference = None
     
     /*
     * Contains the references that are waiting for the next scope to begin
@@ -66,7 +104,16 @@ public class AsgMaker <: Visitor<Node> {
 
     public override func visit(program: Program): Node {
         let decls: ArrayList<Decl> = ArrayList()
+
+        let topDecl = bodyDeclaror(currentEnvironment)
+        let refDecls = ArrayList<(Decl, ?Reference)>()
         program.decls.iterator().forEach({ d =>
+            refDecls.add((d, d.traverse(topDecl)))
+        })
+        
+        refDecls.iterator().forEach({ entry =>
+            let (d, ref) = entry
+            refExists = ref
             decls.add((d.traverse(this) as Decl).getOrThrow())
         })
         Program(NodeIdManager.nextId(), decls)
@@ -168,6 +215,9 @@ public class AsgMaker <: Visitor<Node> {
     public override func visit(varDecl: VarDecl): Node {
         // Call the initializer first because there could be reference to
         // previous variables with the same identifier.
+        // let storedRef = refExists 
+        refExists = None
+
         var initializer: ?Expr = None
         if (let Some(initzer) <- varDecl.initializer) {
             initializer = initzer.traverse(this) as Expr
@@ -179,20 +229,23 @@ public class AsgMaker <: Visitor<Node> {
         }
 
         let ref: VariableReference
-        if (let Some(initzer) <- initializer) {
+
+        // CLEANUP : should be cleaned up after testing
+        // if (let Some(ref_) <- storedRef) {
+        //     ref = (ref_ as VariableReference).getOrThrow({ => 
+        //         Exception("Reference given to the variable declaration is not VariableReference")})
+        //     ref.declType = declType
+        // } else 
+        if (initializer.isSome() || declType.isSome()) {
             ref = VariableReference(NodeIdManager.nextId(), varDecl.identifier,
                 declType, varDecl.keyword)
-        } else if (declType.isNone()) {
+            declareVar(varDecl.identifier, ref)
+        } else {
             println("No explicit type without initializer")
             throw VarDeclError()
-        } else {
-            ref = VariableReference(NodeIdManager.nextId(), varDecl.identifier,
-                declType, varDecl.keyword)
         }
-        declareVar(varDecl.identifier, ref)
 
         let nodeId: NodeId = NodeIdManager.nextId()
-
         VarDeclWithRef(nodeId, varDecl.keyword, varDecl.identifier, ref, initializer,
             declType)
     }
@@ -203,6 +256,9 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(funcDecl: FuncDecl): Node {
+        let storedRef = refExists
+        refExists = None
+        
         var declType: ?TypeNode = None
         if (let Some(dt) <- funcDecl.declType) {
             declType = dt.traverse(this) as TypeNode
@@ -221,14 +277,25 @@ public class AsgMaker <: Visitor<Node> {
                 paramRefs.add(pref)
                 waitingDeclarations.add(pref)
             })
-        
+
         let block: Block = (funcDecl.block.traverse(this) as Block).getOrThrow()
-        
-        let reference: FuncReference = FuncReference(NodeIdManager.nextId(),
-            funcDecl.identifier, declType,
-            lastKilledEnvironment.getOrThrow(), params)
-        declareFunc(funcDecl.identifier, reference)
-        
+        let reference: FuncReference
+
+        if (let Some(ref) <- storedRef) {
+            reference = (ref as FuncReference).getOrThrow({ => 
+                Exception("Reference given to the function declaration is not FuncReference")})
+
+            reference.declType = declType
+            reference.environment = lastKilledEnvironment.getOrThrow({ => 
+                Exception("BLock of a function is not in lastKilledEnvironment")})
+            reference.params = params
+        } else {
+            reference = FuncReference(NodeIdManager.nextId(),
+                funcDecl.identifier, None,
+                Environment(), ArrayList<FuncParam>())
+            declareFunc(funcDecl.identifier, reference)
+        }
+
         let nodeId: NodeId = NodeIdManager.nextId()
 
         FuncDeclWithRef(nodeId, funcDecl.keyword, funcDecl.identifier,
@@ -236,6 +303,8 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(mainDecl: MainDecl): Node {
+        refExists = None 
+
         var declType: ?TypeNode = None
         if (let Some(dt) <- mainDecl.declType) {
             declType = dt.traverse(this) as TypeNode
@@ -280,6 +349,9 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(classDecl: ClassDecl): Node {
+        let storedRef = refExists
+        refExists = None
+
         if(!currentEnvironment.isGlobal) {
             throw Exception("Classes can be declared at topLevel only")
         }
@@ -294,21 +366,35 @@ public class AsgMaker <: Visitor<Node> {
             superTypes.add(visitedSuperType)
         })
 
-        let classReference = ClassReference(NodeIdManager.nextId(), classDecl.identifier)
-
-        declareClass(classDecl.identifier, classReference)
+        let classReference: ClassReference 
+        if (let Some(ref) <- storedRef) {
+            classReference = (ref as ClassReference).getOrThrow({ => 
+                Exception("Reference given to the class declaration is not ClassReference")})
+        } else {
+            classReference = ClassReference(NodeIdManager.nextId(), classDecl.identifier)
+            declareClass(classDecl.identifier, classReference)
+        }
 
         ClassDeclWithRef(NodeIdManager.nextId(), classDecl.keyword, 
         classDecl.identifier, body, superTypes, classReference)
     }
 
-    // TODO : Sort the body and a program
     public override func visit(body: Body): Node {
         beginScope()
+
         let decls: ArrayList<Decl> = ArrayList()
+        let topDecl = bodyDeclaror(currentEnvironment)
+        let refDecls = ArrayList<(Decl, ?Reference)>()
         body.decls.iterator().forEach({ d =>
+            refDecls.add((d, d.traverse(topDecl)))
+        })
+        
+        refDecls.iterator().forEach({ entry =>
+            let (d, ref) = entry
+            refExists = ref
             decls.add((d.traverse(this) as Decl).getOrThrow())
         })
+
         endScope()
         Body(NodeIdManager.nextId(), decls)
     }
