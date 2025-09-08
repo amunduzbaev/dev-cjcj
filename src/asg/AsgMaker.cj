@@ -291,8 +291,9 @@ public class AsgMaker <: Visitor<Node> {
             reference.params = params
         } else {
             reference = FuncReference(NodeIdManager.nextId(),
-                funcDecl.identifier, None,
-                Environment(), ArrayList<FuncParam>())
+                funcDecl.identifier, declType,
+                lastKilledEnvironment.getOrThrow({ => 
+                Exception("BLock of a function is not in lastKilledEnvironment")}), params)
             declareFunc(funcDecl.identifier, reference)
         }
 
