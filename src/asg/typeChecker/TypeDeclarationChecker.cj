@@ -70,7 +70,7 @@ private enum Status {
 * and that there are not cyclic inheritance.
 * After that we will create the DAG of the types to make the future checks easier.
 */
-class TypeDeclarationChecker <: Visitor<Unit> {
+public class TypeDeclarationChecker <: Visitor<Unit> {
     // TODO: Add all builtin functions and types (make a script to do that).
     private static let BUILTIN_FUNCTIONS:
         ArrayList<(String, ArrayList<(ArrayList<String>, String)>)> = ArrayList([
@@ -87,7 +87,7 @@ class TypeDeclarationChecker <: Visitor<Unit> {
         ("IntNative", ["Any"]),  ("UInt64", ["Any"]), ("UInt32", ["Any"]), ("UInt16", ["Any"]),
         ("UInt8", ["Any"]), ("UIntNative", ["Any"]), ("Float64", ["Any"]), ("Float32", ["Any"]),
         ("Float16", ["Any"]), ("Rune", ["Any"]), ("Unit", ["Any"]), ("Bool", ["Any"]),
-        ("Nothing", ["Any"]), ("String", ["Any"]), ("Any", [])
+        ("Nothing", ["Any"]), ("String", ["Any"]), ("Object", ["Any"]), ("Any", [])
     ]
 
     private let declTypes: Map<String, TypePrecursor> = HashMap()
@@ -98,7 +98,7 @@ class TypeDeclarationChecker <: Visitor<Unit> {
         declareBuiltinTypes()
         program.traverse(this)
         let toposort: Array<TypePrecursor> = toposort(declTypes)
-        toposort.iterator().forEach({ t => typeManager.addType(t.name, t.parents, isOpen: t.isOpen) })
+        toposort.iterator().forEach({t => typeManager.addType(t.name, t.parents, isOpen: t.isOpen)})
         // After I have added all types I can add the builtin functions.
         defineBuiltinFunctions(typeManager)
         typeManager
@@ -160,11 +160,14 @@ class TypeDeclarationChecker <: Visitor<Unit> {
 
     // I only want to visit declarations of new types, I can skip everything else.
     public override func visit(classDecl: ClassDeclWithRef): Unit {
+        let supertypes: ArrayList<String> = classDecl.superTypes.iterator()
+            .map({ st => st.typeName.value })
+            .fold<ArrayList<String>>(ArrayList(), { res, v => res.add(v); res })
+        
         declTypes.add(classDecl.identifier.value,
             TypePrecursor(classDecl.identifier.value,
-                // TODO: Desugar classes without supertypes to be <: Any
-                classDecl.superTypes.iterator().map({ st => st.typeName.value })
-                .fold<ArrayList<String>>(ArrayList(), { res, v => res.add(v); res }),
+                // TODO: Desugar classes without supertypes to be <: Object
+                supertypes,
                 true
             )
         )
