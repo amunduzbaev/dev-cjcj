@@ -13,6 +13,143 @@ import std.collection.ArrayList
 
 @Test
 class TypeCheckTests {
+
+    private func getAsg(test: String): Program {
+        let scanner = Scanner(test.toRuneArray())
+        let tokens = scanner.scanTokens().toArray()
+
+        let reporter = parser.Reporter(getStdErr(), tokens.toArray())
+        let parser: parser.Parser = parser.Parser(tokens.toArray(), reporter)
+        let program: ?Program = parser.parse()
+        if (let Some(p) <- program) {
+            return AsgMaker().resolve(p)
+        }
+        @Fail("Couldn't parse the program")
+    }
+
+    @TestCase
+    func typeVarDecl_test() {
+        let testWrong: String = """
+            main() {
+                let a: Int64 = "string"
+            }
+            """
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+
+        let testRight: String = """
+            main() {
+                let a: Int64 = 2543
+            }
+            """
+        TypeChecker(getAsg(testRight))
+    }
+
+    @TestCase
+    func typeVarAssign_test() {
+        let testWrong: String = """
+            main() {
+                var a: Int64 = 5
+                a = "string"
+            }
+            """
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        let testRight: String = """
+            main() {
+                var a: Int64 = 5
+                a = 16
+            }
+            """
+        TypeChecker(getAsg(testRight))
+    }
+
+    @TestCase
+    func typeFuncDecl_test() {
+        let testWrong: String = """
+            main() {
+                func a(): Int64 {
+                    "string"
+                }
+            }
+            """
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        let testRight: String = """
+            main() {
+                func a(): Int64 {
+                    10
+                }
+            }
+            """
+        TypeChecker(getAsg(testRight))
+    }
+
+    @TestCase
+    func typeMainDecl_test() {
+        let testWrong: String = """
+            main(): Int64 {
+                "string"
+            }
+            """
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        let testRight: String = """
+            main(): Int64 {
+                5
+            }
+            """
+        TypeChecker(getAsg(testRight))
+    }
+
+    @TestCase
+    func typeFuncParams_test() {
+        let testWrong: String = """
+            main() {
+                func a(b: String, c: Int64): Int64 {
+                    6
+                }
+                a(2, "1")
+            }
+            """
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        let testRight: String = """
+            main() {
+                func a(b: String, c: Int64): Int64 {
+                    6
+                }
+                a("1", 2)
+            }
+            """
+        TypeChecker(getAsg(testRight))
+    }
+
+    @TestCase
+    func typeInferenceIfElse_test() {
+        // TODO: If you're here because this failed, remember that this is not valid code LOL, when
+        // we made this test we didn't have all those fancy interfaces and keywords that you, people
+        // of the future have, so please don't get angry and just change this small piece of code :)
+        let testWrong: String = """
+            class a {}
+            class b {}
+            class c <: b & a {}
+            class d <: b & a {}
+            main() {
+                if (expression) {
+                    return c()
+                } else {
+                    return d()
+                }
+            }
+            """
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        let testRight: String = """
+            main() {
+                func a(b: String, c: Int64): Int64 {
+                    6
+                }
+                a("1", 2)
+            }
+            """
+        TypeChecker(getAsg(testRight))
+    }
+
     @TestCase
     func typeCheckTest1() {
         let test: String = """
@@ -214,11 +351,6 @@ class TypeCheckTests {
         @Assert(program.isSome())
         if(let Some(p) <- program) {
             let asg = asgMaker.resolve(p)
-            // initChecker.resolve(asg)
-
-            // @Assert(initChecker.notInitialized.isEmpty() && 
-            //         initChecker.cannotMutate.isEmpty())
-            
             @AssertThrows[Exception](TypeChecker(asg))
         }
     }

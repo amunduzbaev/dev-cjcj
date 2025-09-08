@@ -28,6 +28,9 @@ class TypeDeclarationCheckerTests {
 
     @TestCase
     func typeCycle_test() {
+        // TODO: If you're here because this failed, remember that this is not valid code LOL, when
+        // we made this test we didn't have all those fancy interfaces and keywords that you, people
+        // of the future have, so please don't get angry and just change this small piece of code :)
         let test1: String = """
             class a <: b {
             }
@@ -52,6 +55,9 @@ class TypeDeclarationCheckerTests {
 
     @TestCase
     func typeNotDeclared_test() {
+        // TODO: If you're here because this failed, remember that this is not valid code LOL, when
+        // we made this test we didn't have all those fancy interfaces and keywords that you, people
+        // of the future have, so please don't get angry and just change this small piece of code :)
         let test: String = """
             class a <: b {
             }
@@ -65,6 +71,9 @@ class TypeDeclarationCheckerTests {
 
     @TestCase
     func normalUsage_test() {
+        // TODO: If you're here because this failed, remember that this is not valid code LOL, when
+        // we made this test we didn't have all those fancy interfaces and keywords that you, people
+        // of the future have, so please don't get angry and just change this small piece of code :)
         let test: String = """
             class a <: b {
             }
@@ -72,7 +81,7 @@ class TypeDeclarationCheckerTests {
             }
             class c {
             }
-            class d <: a & b {
+            class d <: a {
             }
             main() {
             }
