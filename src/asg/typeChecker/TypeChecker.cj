@@ -3,9 +3,7 @@ package cjcj.asg.typeChecker
 import cjcj.visitor.*
 import cjcj.scanner.TokenKind
 
-import std.collection.Map
-import std.collection.ArrayList
-import std.collection.HashMap
+import std.collection.*
 
 /*
 * It will check that all the operation types and assignments are correct based on the types of the
@@ -15,6 +13,7 @@ public class TypeChecker <: Visitor<Type> {
     // Dummy type to return when I don't need to return an actual one.
     private static let DUMMY_TYPE = Type("")
     private let typeManager: TypeManager
+    private let expectedReturnType: ArrayStack<Type> = ArrayStack()
 
     public init(program: Program) {
         typeManager = TypeDeclarationChecker().resolve(program)
@@ -22,23 +21,19 @@ public class TypeChecker <: Visitor<Type> {
     }
 
     public override func visit(program: Program): Type {
-        let environmentTime = typeManager.record()
-
         program.decls.iterator().forEach({ d => d.traverse(this) })
-
-        typeManager.rollBack(environmentTime)
         DUMMY_TYPE
     }
 
     public override func visit(binaryExpr: BinaryExpr): Type {
         let left: Type = binaryExpr.left.traverse(this)
         let right: Type = binaryExpr.right.traverse(this)
-        typeManager.applyFunction(binaryExpr.oper.value, left, right)
+        typeManager.applyFunction(binaryExpr.oper.value, [left, right], expectedReturnType.peek())
     }
 
     public override func visit(unaryExpr: UnaryExpr): Type {
         let right: Type = unaryExpr.right.traverse(this)
-        typeManager.applyFunction(unaryExpr.oper.value, right)
+        typeManager.applyFunction(unaryExpr.oper.value, [right], expectedReturnType.peek())
     }
 
     public override func visit(parenExpr: ParenExpr): Type {
@@ -59,15 +54,21 @@ public class TypeChecker <: Visitor<Type> {
 
     public override func visit(assignExpr: AssignExpr): Type {
         let left: Type = assignExpr.left.traverse(this)
+
+        expectedReturnType.add(left)
+
         let right: Type = assignExpr.right.traverse(this)
         if (!left.isParent(right)) {
             throw Exception("Cannot assign ${right.name} to ${left.name}")
         }
+
+        expectedReturnType.remove()
+
         typeManager.get("Unit")
     }
 
     public override func visit(block: Block): Type {
-        let environmentTime = typeManager.record()
+        typeManager.beginScope()
 
         let lastId = block.nodes.last.getOrDefault({ => Expr() }).id
         let returnType = block.nodes.iterator()
@@ -77,7 +78,7 @@ public class TypeChecker <: Visitor<Type> {
             .reduce({ a,b => typeManager.smallestCommonSupertype(a, b) })
             .getOrDefault({ => typeManager.get("Unit")})
 
-        typeManager.rollBack(environmentTime)
+        typeManager.endScope()
         returnType
     }
 
@@ -122,6 +123,7 @@ public class TypeChecker <: Visitor<Type> {
     }
 
     public override func visit(varDeclWithRef: VarDeclWithRef): Type {
+        // TODO: Here set the expected return type of the initializer.
         let ref: Reference = varDeclWithRef.ref
         if (let Some(initzer) <- varDeclWithRef.initializer) {
             let initType: Type = initzer.traverse(this)
@@ -202,11 +204,12 @@ public class TypeChecker <: Visitor<Type> {
 
     public override func visit(callExpr: CallExpr): Type {
         let ref = (callExpr.callee as FuncReference).getOrThrow()
-
+        // TODO: change the reference to the right one.
         typeManager.applyFunction(
             ref.identifier.value,
             callExpr.arguments.iterator().fold<ArrayList<Type>>(ArrayList(),
-                { res, v => res.add(v.traverse(this)); res }).toArray()
+                { res, v => res.add(v.traverse(this)); res }).toArray(),
+            expectedReturnType.peek()
         )
     }
 
