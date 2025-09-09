@@ -6,24 +6,80 @@ import cjcj.scanner.Token
 import std.collection.*
 import std.sort.*
 
+/*
+* Defines an Environment in which every identifier has some data attached to it. Each environment
+* knows who was before him and is able to provide identifiers' references by going up the cactus.
+* (From every environment there's only one way to the root)
+*/
+private class Environment {
+    private let enclosing_: ?Environment
+
+    /*
+    * Contains all the functions defined. For each function we keep the concatenation of the hash
+    * of the type names and the relative return type. This works for exact match.
+    * We also keep the list of all the overloads to find a good target if there's no perfect match.
+    */
+    private let funcReferences: Map<String, (Map<String, Type>, ArrayStack<(Array<Type>, Type)>)>
+
+    public init(enclosing: ?Environment) {
+        enclosing_ = enclosing
+        funcReferences = HashMap()
+    }
+
+    public init() {
+        this(None)
+    }
+
+    // Looks for the identifier in this and all parent environments.
+    public func getGlobal(identifier: String): (Map<String, Type>,ArrayStack<(Array<Type>, Type)>) {
+        getLocal(identifier).getOrDefault({ =>
+            enclosing.getOrThrow({ =>
+                Exception("Undefined identifier '${identifier.toString()}'.")
+            }).getGlobal(identifier)
+        })
+    }
+
+    // Looks for the identifier in this environment.
+    public func getLocal(identifier: String): ?(Map<String, Type>, ArrayStack<(Array<Type>, Type)>){
+        funcReferences.get(identifier)
+    }
+
+    public func declareFunc(identifier: String, params: Array<Type>, returnType: Type,
+        stringify: (Array<Type>) -> String): Unit
+    {
+        if (let Some((fun, funList)) <- getLocal(identifier)) {
+            if (let Some(prec) <- fun.addIfAbsent(stringify(params), returnType)) {
+                let paramString: String = params.iterator().map({ t => t.name })
+                    .reduce({ a, b => a + "," + b }).getOrDefault({ => "" })
+                throw Exception("Multiple declaration of func ${identifier} (${paramString})")
+            }
+            funList.add((params, returnType))
+        } else {
+            funcReferences.add(identifier, (HashMap(), ArrayStack()))
+            declareFunc(identifier, params, returnType, stringify)
+        }
+    }
+
+    public prop enclosing: ?Environment {
+        get() { enclosing_ }
+    }
+
+    public prop isGlobal: Bool {
+        get() { return enclosing.isNone() }
+    }
+}
+
 public class TypeManager {
 
     // Returns the concatenation of the string representation of the hash of the name of the types.
-    private static func funcHashConcat(params: Array<Type>): String {
+    private static func paramHashConcat(params: Array<Type>): String {
         params.iterator().map({ t => t.name.hashCode().toString() })
         // TODO: Optimize string concatenation using string builder.
             .reduce({ a, b => a + b }).getOrDefault({ => "" })
     }
 
     private let nameToType: Map<String, Type> = HashMap()
-
-    /*
-    * Contains all the functions defined. For each function we keep the concatenation of the hash
-    * of the type names and the relative return type. This works for exact match.
-    */
-    private let definedFunctions: Map<String, Map<String, Type>> = HashMap()
-    private let definedFunctionsList: Map<String, ArrayList<Array<Type>>> = HashMap()
-    private let declStack: ArrayStack<(String, Array<Type>, Type)> = ArrayStack()
+    private var currentEnvironment: Environment = Environment()
 
     /*
     * Adds a type to the map if the type is not already defined.
@@ -62,124 +118,102 @@ public class TypeManager {
     * parameters at the same index in other functions and return its return type. If there is no 
     * such function, throw an error. 
     */
-    private func findClosestSuperType(funcName: String, params: Array<Type>): Type {
-        let paramsList = definedFunctionsList.get(funcName).getOrThrow({ =>
-            Exception("Function ${funcName} doesn't exist") })
-        
-        let candidates: ArrayList<Array<Type>> = params.iterator().enumerate().fold(paramsList, { 
-            consider: ArrayList<Array<Type>>, entry: (Int64, Type) => 
-                let (id, curType) = entry 
+    private func findClosestSuperType(funcName: String, params: Array<Type>,
+        expectedReturnType: ?Type): Type
+    {
+        findClosestSuperType(funcName, params, expectedReturnType, currentEnvironment)
+    }
 
-                consider.iterator().fold(ArrayList<Array<Type>>(), 
-                { acc: ArrayList<Array<Type>>, candidate: Array<Type> => 
-                    if( candidate.size == params.size && 
-                        (curType.ancestorSet.contains(candidate[id]) || curType == candidate[id])){
-                        acc.add(candidate)
-                    }
+    private func findClosestSuperType(funcName: String, params: Array<Type>,
+        expectedReturnType: ?Type, environment: Environment): Type
+    {
+        if (let Some((_, paramsList)) <- environment.getLocal(funcName)) {
+            let candidates: ArrayStack<(Array<Type>, Type)> = params.iterator().enumerate()
+                .fold(paramsList, { 
+                    consider: ArrayStack<(Array<Type>, Type)>, entry: (Int64, Type) =>
+                        let (id, curType) = entry 
 
-                    acc
+                        consider.iterator().fold<ArrayStack<(Array<Type>, Type)>>(ArrayStack(), 
+                        { acc: ArrayStack<(Array<Type>, Type)>, candidate: (Array<Type>, Type) =>
+                            let (candidateParams, candidateReturn) = candidate
+                            if (candidateParams.size == params.size && 
+                                (curType.ancestorSet.contains(candidateParams[id]) ||
+                                    curType == candidateParams[id])
+                            ){
+                                // TODO: Maybe this if can be rewritten better.
+                                if (let Some(expectedRet) <- expectedReturnType) {
+                                    if (expectedRet.isParent(candidateReturn)) {
+                                        acc.add(candidate)
+                                    }
+                                } else {
+                                    acc.add(candidate)
+                                }
+                            }
+                            acc
+                        })
                 })
-        })
 
-        if (candidates.isEmpty()) {
-            let paramString: String = params.iterator().map({ t => t.name })
-                .reduce({ a, b => a + "," + b }).getOrDefault({ => "" })
-            throw Exception("Function ${funcName} is not defined for (${paramString})")
-        }
-
-        let closest: Array<Type> = candidates.iterator().fold<?Array<Type>>(None, { 
-            closestOption: ?Array<Type>, candidate: Array<Type> =>
-                if(let Some(closest) <- closestOption) {
-                    return closest
+            if (candidates.isEmpty()) {
+                if (environment.enclosing.isSome()) {
+                    return findClosestSuperType(funcName, params, expectedReturnType,
+                        environment.enclosing.getOrThrow())
+                } else {
+                    let paramString: String = params.iterator().map({ t => t.name })
+                        .reduce({ a, b => a + "," + b }).getOrDefault({ => "" })
+                    throw Exception("Function ${funcName} is not defined for (${paramString})")
                 }
-                
-                let canReach = candidate.iterator().enumerate().all({ entry => 
-                    let (column, curType) = entry
-                    let curAncestors = curType.ancestorSet
+            }
 
-                    candidates.iterator().all({otherCandidate: Array<Type> => 
-                        curAncestors.contains(otherCandidate[column])
-                    })
+            let closests: ArrayList<Array<Type>> = candidates.iterator().map({ c => c[0] })
+                .fold<ArrayList<Array<Type>>>(ArrayList(), { 
+                    closestOptions: ArrayList<Array<Type>>, candidate: Array<Type> =>
+
+                        let canReach = candidate.iterator().enumerate().all({ entry => 
+                            let (column, curType) = entry
+                            let curAncestors = curType.ancestorSet
+                            candidates.iterator().map({ c => c[0] }).all({
+                                otherCandidate: Array<Type> =>
+                                    curAncestors.contains(otherCandidate[column])
+                            })
+                        })
+                        if(canReach) { closestOptions.add(candidate) }
+                        closestOptions
                 })
-                
-                if(canReach) { candidate } else { None }
-        }).getOrThrow({ => 
-            let paramString: String = params.iterator().map({ t => t.name })
-                .reduce({ a, b => a + "," + b }).getOrDefault({ => "" })
-            Exception("Function ${funcName} has ambiguous call options for ${paramString}")
-        })
+            if (closests.size != 1) {
+                let paramString: String = params.iterator().map({ t => t.name })
+                    .reduce({ a, b => a + "," + b }).getOrDefault({ => "" })
+                let candidates: String = closests.iterator().map({ p => p.iterator()
+                    .map({ t => t.name })
+                    .reduce({ a, b => a + "," + b }).getOrDefault({ => "" }) })
+                    .reduce({ a, b => a + "\n" + b }).getOrDefault({ => "" })
+                throw Exception("Function ${funcName} has ambiguous call options for " +
+                    "${paramString}, candidates:\n ${candidates}")
+            }
 
-        applyFunction(funcName, closest)
+            // I could also call it with expectedReturnType None because I know exactly the function
+            return applyFunction(funcName, closests[0], expectedReturnType)
+        }
+        findClosestSuperType(funcName, params, expectedReturnType,
+            environment.enclosing.getOrThrow())
     }
 
     /*
     * Returns the return type of the function called with the given parameters.
     */
-    public func applyFunction(funcName: String, params: Array<Type>): Type {
-        // TODO: right now we're checking only for exact match but we should not do that because a
-        // function parameter may be a supertype and we still want to be able to call the function.
-        
-        match (definedFunctions.get(funcName).getOrThrow({ =>
-            Exception("Function ${funcName} doesn't exist") }).get(funcHashConcat(params))) {
-                case Some(returnType) => returnType
-                case _ => findClosestSuperType(funcName, params)
+    public func applyFunction(funcName: String, params: Array<Type>,
+        expectedReturnType: ?Type): Type
+    {
+        // TODO: If there are candidates with parameters but not with expected return take the first
+        // and print something like (expected "this" found "that" where that is the first)
+        let (fun, _) = currentEnvironment.getGlobal(funcName)
+        match (fun.get(paramHashConcat(params))) {
+            case Some(returnType) => returnType
+            case _ => findClosestSuperType(funcName, params, expectedReturnType)
         }
     }
 
     public func addFunction(funcName: String, params: Array<Type>, returnType: Type): Unit {
-        if (let Some(fun) <- definedFunctions.get(funcName) && 
-            let Some(funList) <- definedFunctionsList.get(funcName)) {
-            
-            if (let Some(prev) <- fun.addIfAbsent(funcHashConcat(params), returnType)) {
-                throw Exception("Function ${funcName} with params: (" + 
-                    params.iterator().map({ t => t.name })
-                    .reduce({ a, b => a + ',' + b }).getOrDefault({ => ""}) +
-                        ") is already defined")
-            }
-
-            funList.add(params)
-        } else {
-            definedFunctionsList.add(funcName, ArrayList<Array<Type>>([params]))
-
-            let definitions: Map<String, Type> = HashMap()
-            definitions.add(funcHashConcat(params), returnType)
-            definedFunctions.add(funcName, definitions)
-        }
-
-        declStack.add((funcName, params, returnType))
-    }
-
-    public func removeFunction(funcName: String, params: Array<Type>, _: Type): Unit {
-        if (let Some(fun) <- definedFunctions.get(funcName) && 
-            let Some(funList) <- definedFunctionsList.get(funcName)) {
-            
-            fun.remove(funcHashConcat(params))
-            funList.remove(at: funList.size - 1)
-        } else {
-            throw Exception("Function ${funcName} is non exsistent in this environment")
-        }
-    }
-
-    /* 
-    * Returns the size of the Stack of functions which are available in current environment
-    */
-    public func record() {
-        declStack.size
-    }
-
-    /*
-    * Removes the functions which are added after the "time". Rolls back to the previouse
-    * environment
-    */
-    public func rollBack(time: Int64) {
-        if(time < 0) {
-            throw Exception("Illegal argument to rollBack, TIME CAN NOT BE NEGATIVE!!!")
-        }
-
-        while (declStack.size > time) {
-            let (funcName, params, returnType) = declStack.remove().getOrThrow()
-            removeFunction(funcName, params, returnType)
-        }
+        currentEnvironment.declareFunc(funcName, params, returnType, paramHashConcat)
     }
 
     /*
@@ -200,6 +234,18 @@ public class TypeManager {
         }
         return validCandidates[0]
     }
+
+    public func beginScope(): Unit {
+        currentEnvironment = Environment(currentEnvironment)
+        // lastKilledEnvironment = None
+    }
+
+    public func endScope(): Unit {
+        // lastKilledEnvironment = currentEnvironment
+        currentEnvironment = currentEnvironment.enclosing.getOrThrow({ =>
+            UnsupportedException("Trying to close the global scope") })
+    }
+
 
     /*
     * Returns the contiguous subsequens starting from 0 where all the elements are equal.

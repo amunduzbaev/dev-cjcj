@@ -131,7 +131,7 @@ class TypeCheckTests {
             class c <: b & a {}
             class d <: b & a {}
             main() {
-                if (expression) {
+                if (true) {
                     return c()
                 } else {
                     return d()
@@ -148,6 +148,24 @@ class TypeCheckTests {
             }
             """
         TypeChecker(getAsg(testRight))
+    }
+
+    @TestCase
+    func correctFunctionFinding_test() {
+        let testRight: String = """
+            main() {
+                func a(b: Int64, c: Int64): Unit {
+                    ()
+                }
+                if (true) {
+                    func a(b: Int64, c: Int64): Unit {
+                        ()
+                    }
+                }
+                a(1, 1)
+            }
+            """
+            TypeChecker(getAsg(testRight))
     }
 
     @TestCase
@@ -278,7 +296,6 @@ class TypeCheckTests {
             func A(a: Int64, b: Any): Int64 {
                 a
             }
-
 
             main(args: Int64) {
                 let a: Int64 = 1
