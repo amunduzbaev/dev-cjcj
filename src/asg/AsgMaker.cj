@@ -34,19 +34,24 @@ private enum ScopeType {
 */
 private class bodyDeclaror <: Visitor<?Reference> {
     private var currentEnvironment: Environment
+    private let currentScope: ScopeType
 
-    public init(environment: Environment) {
+    public init(environment: Environment, scopeType: ScopeType) {
         currentEnvironment = environment
+        currentScope = scopeType
     }
 
-    public override func visit(_: VarDecl): ?Reference {
-        None
+    public override func visit(varDecl: VarDecl): ?Reference {
         // TODO : Might change, TBD
-        // let ref: VariableReference = VariableReference(NodeIdManager.nextId(), 
-        //     varDecl.identifier, None, varDecl.keyword)
-        // currentEnvironment.declareVar(varDecl.identifier, ref)
-
-        // ref
+        match (currentScope) {
+            case BODY => 
+                let ref: VariableReference = VariableReference(NodeIdManager.nextId(), 
+                    varDecl.identifier, None, varDecl.keyword)
+                currentEnvironment.declareVar(varDecl.identifier, ref)
+                ref
+            case _ => 
+                None
+        }
     }
 
     public override func visit(funcDecl: FuncDecl): ?Reference {
@@ -105,7 +110,7 @@ public class AsgMaker <: Visitor<Node> {
     public override func visit(program: Program): Node {
         let decls: ArrayList<Decl> = ArrayList()
 
-        let topDecl = bodyDeclaror(currentEnvironment)
+        let topDecl = bodyDeclaror(currentEnvironment, currentScopeType)
         let refDecls = ArrayList<(Decl, ?Reference)>()
         program.decls.iterator().forEach({ d =>
             refDecls.add((d, d.traverse(topDecl)))
@@ -160,9 +165,7 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(block: Block): Node {
-        beginScope()
-        let precScopeType: ScopeType = currentScopeType
-        currentScopeType = ScopeType.BLOCK
+        let precScopeType = beginScope(ScopeType.BLOCK)
 
         while (let Some(last) <- waitingDeclarations.remove()) {
             declareVar(last.identifier, last)
@@ -170,10 +173,9 @@ public class AsgMaker <: Visitor<Node> {
         let nodes: ArrayList<Node> = ArrayList()
         block.nodes.iterator().forEach({ n => nodes.add(n.traverse(this)) })
 
-        currentScopeType = precScopeType
         let asgBlock = Block(NodeIdManager.nextId(), nodes)
 
-        endScope()
+        endScope(precScopeType)
         asgBlock
     }
 
@@ -215,7 +217,7 @@ public class AsgMaker <: Visitor<Node> {
     public override func visit(varDecl: VarDecl): Node {
         // Call the initializer first because there could be reference to
         // previous variables with the same identifier.
-        // let storedRef = refExists 
+        let storedRef = refExists 
         refExists = None
 
         var initializer: ?Expr = None
@@ -228,19 +230,25 @@ public class AsgMaker <: Visitor<Node> {
             declType = dt.traverse(this) as TypeNode
         }
 
-        let ref: VariableReference
+        let reference: VariableReference
 
         if (initializer.isSome() || declType.isSome()) {
-            ref = VariableReference(NodeIdManager.nextId(), varDecl.identifier,
-                declType, varDecl.keyword)
+            if (let Some(ref) <- storedRef) {
+                reference = (ref as VariableReference).getOrThrow({ => 
+                    Exception("Reference given to the variable declaration is not VariableReference")})
+                reference.declType = declType
+            } else {
+                reference = VariableReference(NodeIdManager.nextId(), varDecl.identifier,
+                    declType, varDecl.keyword)
+                declareVar(varDecl.identifier, reference)
+            }
         } else {
             println("No explicit type without initializer")
             throw VarDeclError()
         }
-        declareVar(varDecl.identifier, ref)
 
         let nodeId: NodeId = NodeIdManager.nextId()
-        VarDeclWithRef(nodeId, varDecl.keyword, varDecl.identifier, ref, initializer,
+        VarDeclWithRef(nodeId, varDecl.keyword, varDecl.identifier, reference, initializer,
             declType)
     }
 
@@ -374,10 +382,10 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(body: Body): Node {
-        beginScope()
+        let precScopeType = beginScope(ScopeType.BODY)
 
         let decls: ArrayList<Decl> = ArrayList()
-        let topDecl = bodyDeclaror(currentEnvironment)
+        let topDecl = bodyDeclaror(currentEnvironment, currentScopeType)
         let refDecls = ArrayList<(Decl, ?Reference)>()
         body.decls.iterator().forEach({ d =>
             refDecls.add((d, d.traverse(topDecl)))
@@ -389,7 +397,7 @@ public class AsgMaker <: Visitor<Node> {
             decls.add((d.traverse(this) as Decl).getOrThrow())
         })
 
-        endScope()
+        endScope(precScopeType)
         Body(NodeIdManager.nextId(), decls)
     }
 
@@ -399,12 +407,16 @@ public class AsgMaker <: Visitor<Node> {
         MemberAccess(NodeIdManager.nextId(), baseExpr, memberAccess.field)
     }
 
-    private func beginScope(): Unit {
+    private func beginScope(newScopeType: ScopeType): ScopeType{
+        let precScopeType = currentScopeType
+        currentScopeType = newScopeType
         currentEnvironment = Environment(currentEnvironment)
         lastKilledEnvironment = None
+        precScopeType
     }
 
-    private func endScope(): Unit {
+    private func endScope(precScopeType: ScopeType): Unit {
+        currentScopeType = precScopeType
         lastKilledEnvironment = currentEnvironment
         currentEnvironment = currentEnvironment.enclosing.getOrThrow({ =>
             UnsupportedException("Trying to close the global scope") })
