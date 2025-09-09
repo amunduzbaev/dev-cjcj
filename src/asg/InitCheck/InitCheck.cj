@@ -20,13 +20,13 @@ public class InitCheck <: Visitor< InitsRefs >{
     // time you enter visit (cleaner InitCheck, maybe worse Node implementation)
 
     // Return type of all visit functions in InitCheck is InitsRefs
-    // for explanation of members of InitsRefs, read above
+    // for explanation of members of InitsRefs, read InitCheckHelper.cj
     public func resolve(program: Program) : Unit {
         program.traverse(this)
     }
     
     // TODO : maybe traversing into some branches (TypeNode, ...) is not needed, 
-    // so we might remove them later (make sure they are not needed)
+    // so we might remove them later (make sure they are not needed before removing)
     
     public override func visit(program: Program) : InitsRefs{
         let prev = lastNode
@@ -43,7 +43,7 @@ public class InitCheck <: Visitor< InitsRefs >{
             if( let Some(varDecl) <- (decl as VarDeclWithRef) ){
                 notInitialized.add(all: current.isInitialized(varDecl.ref))
 
-                // If global variable is not initialized (error)
+                // Global variable is not initialized (error)
                 match (varDecl.initializer) {
                     case Some(initzer) => ()
                     case None => notInitialized.add((varDecl.ref, varDecl))
@@ -265,6 +265,33 @@ public class InitCheck <: Visitor< InitsRefs >{
         current
     }
 
+    public override func visit(classDecl: ClassDeclWithRef): InitsRefs {
+        let prev = lastNode
+        lastNode = classDecl
+
+        let current = InitsRefs()
+
+        classDecl.superTypes.iterator().forEach({ superType => 
+            let child = superType.traverse(this)
+            current.mergeL(child)
+        })
+
+        current.mergeL(classDecl.body.traverse(this))
+
+        lastNode = prev
+        current    
+    }
+
+    public override func visit(body: Body): InitsRefs {
+        let prev = lastNode
+        lastNode = body
+
+        // TODO : CHANGED        
+
+        lastNode = prev
+        InitsRefs()
+    }
+
     public override func visit(argument: Argument): InitsRefs {
         let prev = lastNode
         lastNode = argument
@@ -289,7 +316,7 @@ public class InitCheck <: Visitor< InitsRefs >{
         InitsRefs()
     }
 
-    public override func visit(_: ClassDecl) : InitsRefs {
+    public override func visit(_: ClassReference) : InitsRefs{
         InitsRefs()
     }
 
@@ -297,7 +324,7 @@ public class InitCheck <: Visitor< InitsRefs >{
         let current = InitsRefs()
         match (lastNode) {
             case Some(node) => current.referenced(varRef, node)
-            case _ => throw Exception("Not possible, program always has main")
+            case _ => throw Exception("Variable Reference Expression in global scope")
         }
         current
     }
