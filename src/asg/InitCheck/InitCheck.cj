@@ -145,7 +145,7 @@ public class InitCheck <: Visitor< InitsRefs >{
         let elseBranch = ifExpr.elseBranch.traverse(this)
         let condition = ifExpr.condition.traverse(this)
         condition.mergeL(ifExpr.ifBlock.traverse(this))
-        condition.bramchMerge(elseBranch)
+        condition.branchMerge(elseBranch)
 
         lastNode = prev
         condition
@@ -281,23 +281,121 @@ public class InitCheck <: Visitor< InitsRefs >{
         lastNode = prev
         current    
     }
+    
+    public func _visit(classVars: ArrayList<VariableReference>, initFuncDecl: FuncDeclWithRef): 
+            InitsRefs {
+        let prev = lastNode
+        lastNode = initFuncDecl
+        
+        let current = InitsRefs()
+        initFuncDecl.paramRef.iterator().forEach({ p => 
+            let child = p.traverse(this)
+
+            current.initialized(p, initFuncDecl)
+            current.mergeL(child)
+        })
+
+        match (initFuncDecl.declType) {
+            case Some(declType) => current.mergeL(declType.traverse(this))
+            case _ => ()
+        }
+
+        func visitBlock(block: Block): InitsRefs {
+            let prev = lastNode
+            lastNode = block
+            
+            block.nodes.reverse()
+
+            let current = InitsRefs()
+            for(node in block.nodes){
+                let child = node.traverse(this)
+                
+                current.mergeR(child)
+
+                if( let Some(varDecl) <- (node as VarDeclWithRef) ){
+                    notInitialized.add(all: current.isInitialized(varDecl.ref))
+
+                    if(varDecl.keyword.kind != TokenKind.VAR){
+                        cannotMutate.add(all: current.isMutated(varDecl.ref))
+                    }
+                }
+            }
+
+            block.nodes.reverse()
+            lastNode = prev
+            current
+        }
+        current.mergeL(visitBlock(initFuncDecl.block))
+
+        current.clearInits()
+        current.assignsMustBeInitialized()
+        lastNode = prev
+        current    
+    }
 
     public override func visit(body: Body): InitsRefs {
         let prev = lastNode
         lastNode = body
 
-        // TODO : CHANGED        
+        let currentInitsRefs = InitsRefs()
+        let classVars = ArrayList<VariableReference>()
+
+        // Handle variable declarations in the class
+        body.decls.iterator().forEach({decl => 
+            match (decl as VarDeclWithRef) {
+                case Some(varDecl) => 
+                    let varChildInitsRefs = varDecl.traverse(this)
+                    currentInitsRefs.mergeL(varChildInitsRefs)
+                    classVars.add((varDecl.ref as VariableReference).getOrThrow())
+                case _ => ()
+            }
+        })
+
+        // Handle secondary constructors in the class (init)
+        body.decls.iterator().forEach({decl => 
+            match (decl as FuncDeclWithRef) {
+                case Some(funcDecl) => if (funcDecl.identifier.kind == TokenKind.INIT) {
+                    let initChildInitsRefs = _visit(classVars, funcDecl)
+                    currentInitsRefs.mergeL(initChildInitsRefs)
+                }
+                case _ => ()
+            }
+        })
+
+        // Handle general functions in the class (not constructors)
+        body.decls.iterator().forEach({decl => 
+            match (decl as FuncDeclWithRef) {
+                case Some(funcDecl) => if (funcDecl.identifier.kind != TokenKind.INIT) {
+                    let funcChildInitsRefs = funcDecl.traverse(this)
+                    currentInitsRefs.mergeL(funcChildInitsRefs)
+                }
+                case _ => ()
+            }
+        })
+
+        // TODO 
+        // Curreny plan is to go through variable declarations first,
+        // and then handle constructor functions and then finally other functions
+        // VarDecl : we check the initialization and reference check between variables the usual way
+        // If variable is referenced before its initialization, then it is an error (in the body)
+        // 
+        // We need to check the constructor functions and other functions 
+        // Constructor fucntions: 
+        // For init functions, check if all unititalized variables declared in class's scope are 
+        // initialized inside the function. We can not call functions before we initialize all 
 
         lastNode = prev
-        InitsRefs()
+        currentInitsRefs
     }
 
     public override func visit(argument: Argument): InitsRefs {
         let prev = lastNode
         lastNode = argument
         
+        let current = argument.expr.traverse(this)
+
         lastNode = prev
-        argument.expr.traverse(this)
+        current
     }
 
     public override func visit(_: TypeNode): InitsRefs {

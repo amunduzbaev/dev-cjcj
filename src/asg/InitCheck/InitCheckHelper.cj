@@ -132,24 +132,6 @@ public class InitsRefs {
         (mapB, mapA)
     }
 
-    // private func merge<T, V>(mapA_: HashMap<T, V>, mapB_: HashMap<T, V>) : 
-    //         (HashMap<T, V>, HashMap<T, V>, HashMap<T, V>) 
-    //         where T <:Hashable & Equatable<T> {
-    //     var (mapA, mapB) = sswap(mapA_, mapB_)
-    //     var remaining: HashMap<T, V> = HashMap()
-    //     for(entry in mapA.toArray()){
-    //         var (ref, node) = entry
-
-    //         match (mapB.get(ref)) {
-    //             case Some(otherNode) => remaining.add(ref, node)
-    //             case _ => mapB.add(ref, node)
-    //         }
-    //     }
-    //     mapA.clear()
-
-    //     (mapB, mapA, remaining)
-    // }
-
     private func cancelInitlaizedReferences<T, V>(someSet: HashSet<T>, 
                 someMap: HashMap<T, ArrayList<V>>) :
                 (HashMap<T, ArrayList<V>>, HashMap<T, ArrayList<V>>) 
@@ -210,7 +192,7 @@ public class InitsRefs {
             seqMerge(other.inits, refs, assrefs, tmpInits)
         merge(other, newMutated)
     }
-    public func bramchMerge(other: InitsRefs) {
+    public func branchMerge(other: InitsRefs) {
         (_, other.inits, inits) = merge(inits, other.inits)
         merge(other, HashMap<Reference, ArrayList<Node>>())
     }

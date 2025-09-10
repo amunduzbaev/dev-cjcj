@@ -94,7 +94,7 @@ public class AsgMaker <: Visitor<Node> {
     */
 
     public func resolve(program: Program): Program {
-        // TODO: We need to declare Any and in the future all the other builtin interfaces / structs
+        // TODO: We need to declare Any and in the future all the other builtin interfaces/structs
         // because they're not primitive types, so they are considered as RefType.
         let builtinIdentifiers: Array<Token> = [
             Token(TokenKind.IDENTIFIER, "Any", Position()),
@@ -235,7 +235,7 @@ public class AsgMaker <: Visitor<Node> {
         if (initializer.isSome() || declType.isSome()) {
             if (let Some(ref) <- storedRef) {
                 reference = (ref as VariableReference).getOrThrow({ => 
-                    Exception("Reference given to the variable declaration is not VariableReference")})
+                    Exception("Reference given to variable declaration is not VariableReference")})
                 reference.declType = declType
             } else {
                 reference = VariableReference(NodeIdManager.nextId(), varDecl.identifier,
