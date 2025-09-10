@@ -4,6 +4,7 @@ import cjcj.visitor.*
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import cjcj.parser.NodeIdManager
+import cjcj.asg.declarators.*
 
 import std.env.getStdOut
 
@@ -21,73 +22,6 @@ import std.deriving.Derive
 @Derive[Equatable]
 private enum ScopeType {
     NIL | BLOCK | BODY
-}
-
-private open class BodyDeclarator <: Visitor<?Reference> {
-    private var funcEnvironment: Environment<String, FuncReference>
-    private var variableEnvironment: Environment<String, VariableReference>
-
-    public init(
-        funcEnvironment: Environment<String, FuncReference>,
-        variableEnvironment: Environment<String, VariableReference>
-    ) {
-        this.funcEnvironment = funcEnvironment
-        this.variableEnvironment = variableEnvironment
-    }
-
-    public open override func visit(varDecl: VarDecl): ?Reference {
-        let ref: VariableReference = VariableReference(NodeIdManager.nextId(), 
-            varDecl.identifier, varDecl.keyword)
-        if (canDeclare(varDecl.identifier.value)) {
-            variableEnvironment.declare(varDecl.identifier.value, ref)
-        }
-        ref
-    }
-
-    public override func visit(funcDecl: FuncDecl): ?Reference {
-        let ref: FuncReference = FuncReference(NodeIdManager.nextId(), funcDecl.identifier)
-        if (canDeclare(funcDecl.identifier.value)) {
-            funcEnvironment.declare(funcDecl.identifier.value, ref)
-        }
-        ref
-    }
-
-    public override func visit(_: MainDecl): ?Reference {
-        None
-    }
-
-    protected open func canDeclare(key: String): Bool {
-        funcEnvironment.getLocal(key).isNone() && variableEnvironment.getLocal(key).isNone()
-    }
-}
-
-private class GlobalDeclarator <: BodyDeclarator {
-    private var classEnvironment: Environment<String, ClassReference>
-    
-    public init(
-        funcEnvironment: Environment<String, FuncReference>,
-        variableEnvironment: Environment<String, VariableReference>,
-        classEnvironment: Environment<String, ClassReference>
-    ) {
-        super(funcEnvironment, variableEnvironment)
-        this.classEnvironment = classEnvironment
-    }
-
-    protected override func canDeclare(key: String): Bool {
-        super.canDeclare(key) && classEnvironment.getLocal(key).isNone()
-    }
-
-    public override func visit(classDecl: ClassDecl): ?Reference {
-        let ref = ClassReference(NodeIdManager.nextId(), classDecl.identifier)
-        if (canDeclare(classDecl.identifier.value)) {
-            classEnvironment.declare(classDecl.identifier.value, ref)
-        }
-        ref
-    }
-
-    public override func visit(_: VarDecl): ?Reference {
-        None
-    }
 }
 
 /*
