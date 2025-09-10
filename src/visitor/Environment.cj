@@ -10,19 +10,17 @@ import cjcj.scanner.TokenKind
 import std.collection.Map
 import std.collection.HashMap
 import std.collection.ArrayList
-/*
-* Defines an Environment in which every identifier has a reference object to
-* refer to. Each environment knows who was before him and is able to provide
-* identifiers' references by going up the cactus. (From every environment
-* there's only one way to the root)
-*/
-public class Environment {
-    private let enclosing_: ?Environment
-    private let varReferences: Map<String, Reference> = HashMap()
-    private let funcReferences: Map<String, Reference> = HashMap()
-    private let classReferences: Map<String, Reference> = HashMap()
 
-    public init(enclosing: ?Environment) {
+/*
+* Defines an Environment in which you can associate keys to values. Each environment knows who was
+* before him and is able to provide values' references by going up the cactus.
+* (From every environment there's only one way to the global one)
+*/
+public class Environment<K, V> where K <: Hashable & Equatable<K> & ToString {
+    private let enclosing_: ?Environment<K, V>
+    private let elements: Map<K, V> = HashMap()
+
+    public init(enclosing: ?Environment<K, V>) {
         enclosing_ = enclosing
     }
 
@@ -30,68 +28,34 @@ public class Environment {
         this(None)
     }
 
-    public func get(identifier: Token): Reference {
-        if (let Some(value) <- varReferences.get(identifier.value)) {
-            return value
-        } else if (let Some(value) <- funcReferences.get(identifier.value)) {
-            return value
-        } else if (let Some(value) <- classReferences.get(identifier.value)) {
-            return value
+    /*
+    * Looks for the identifier in this and all parent environments.
+    */
+    public func getGlobal(key: K): ?V {
+        if (let Some(local) <- getLocal(key)) {
+            return local
         }
-
-        // Go up the environments until something is found or an exception is
-        // thrown. (Recursion is clean but slow this may need optimization)
-        if (enclosing.isSome()) {
-            return enclosing.getOrThrow().get(identifier)
+        if (let Some(enc) <- enclosing) {
+            return enc.getGlobal(key)
         }
-
-        throw Exception("Undefined variable '" + identifier.value + "'.")
+        None
     }
 
-    public func declareClass(identifier: Token, value: Reference): Unit {
-        if(varReferences.contains(identifier.value)) {
-            throw Exception("Cannot define a class and a variable wirth the same name in the " + 
-                "same scope")
-        } else if(funcReferences.contains(identifier.value)) {
-            throw Exception("Cannot define a class and a function with the same name in the " + 
-                "same scope")
-        } else if(classReferences.addIfAbsent(identifier.value, value).isSome()){
-            throw Exception("Cannot redefine a class with the same name in the same scope")
+    public func getLocal(key: K): ?V {
+        elements.get(key)
+    }
+
+    public func declare(key: K, value: V): Unit {
+        if (let Some(prev) <- elements.addIfAbsent(key, value)) {
+            throw Exception("Multiple declaration of ${key.toString()}")
         }
     }
 
-    public func declareVar(identifier: Token, value: Reference): Unit {
-        if (funcReferences.contains(identifier.value)){
-            throw Exception("Cannot define a variable and a function with the" + 
-                " same name in the same scope")
-        } else if (classReferences.contains(identifier.value)) {
-            throw Exception("Cannot define a variable and a class with the" + 
-                " same name in the same scope")
-        } else if (varReferences.addIfAbsent(identifier.value, value).isSome()) {
-            throw Exception("Cannot redefine a variable with the in the same scope")
-        }
-    }
-
-    public func declareFunc(identifier: Token, value: Reference): Unit {
-        if(varReferences.contains(identifier.value)) {
-            throw Exception("Cannot define a function and variable with the same name in the " +
-                "same scope")
-        } else if(classReferences.contains(identifier.value)) {
-            throw Exception("Cannot define a function and class with the same name in the " +
-                "same scope")
-        } else {
-            funcReferences.add(identifier.value, value)
-        }
-    }
-
-    public func isTypeDeclared(typeName: Token) {
-        classReferences.contains(typeName.value)
-    }
-
-    public prop enclosing: ?Environment {
+    public prop enclosing: ?Environment<K, V> {
         get() { enclosing_ }
     }
+
     public prop isGlobal: Bool {
-        get() { return enclosing.isNone() }
+        get() { enclosing.isNone() }
     }
 }

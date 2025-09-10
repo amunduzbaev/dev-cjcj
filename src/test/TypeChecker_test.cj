@@ -258,4 +258,39 @@ class TypeCheckTests {
             """
         @AssertThrows[Exception](TypeChecker(getAsg(test)))
     }
+
+    @TestCase
+    func memberAccessFound_test() {
+        let testRight: String = """
+            class a {
+                let b: Int64
+            }
+            main(){
+                let b = a()
+                let c: Int64 = b.b
+            }"""
+        TypeChecker(getAsg(testRight))
+        let testWrong: String = """
+            class a {
+                let b: Int64
+            }
+            main(){
+                let b = a()
+                let c: String = b.b
+            }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+    }
+
+    @TestCase
+    func memberAccessNotFound_test() {
+        let test: String = """
+            class a {
+            }
+            main(){
+                let b = a()
+                let c: Int64 = b.b
+            }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(test)))
+    }
+
 }
