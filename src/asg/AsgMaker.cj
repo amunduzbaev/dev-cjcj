@@ -46,7 +46,7 @@ private class bodyDeclaror <: Visitor<?Reference> {
         match (currentScope) {
             case BODY => 
                 let ref: VariableReference = VariableReference(NodeIdManager.nextId(), 
-                    varDecl.identifier, None, varDecl.keyword)
+                    varDecl.identifier, varDecl.keyword)
                 currentEnvironment.declareVar(varDecl.identifier, ref)
                 ref
             case _ => 
@@ -55,8 +55,7 @@ private class bodyDeclaror <: Visitor<?Reference> {
     }
 
     public override func visit(funcDecl: FuncDecl): ?Reference {
-        let ref: FuncReference = FuncReference(NodeIdManager.nextId(),
-            funcDecl.identifier, None, Environment(), ArrayList<FuncParam>())
+        let ref: FuncReference = FuncReference(NodeIdManager.nextId(), funcDecl.identifier)
         currentEnvironment.declareFunc(funcDecl.identifier, ref)
         
         ref
@@ -82,11 +81,11 @@ public class AsgMaker <: Visitor<Node> {
     private var refExists: ?Reference = None
     
     /*
-    * Contains the references that are waiting for the next scope to begin
-    * before getting declared. An example is function parameters, they need to
-    * be declared inside the block and we need a way to tell him.
+    * Contains the variable references with declaration type that are waiting for the next scope to
+    * begin before getting declared. An example is function parameters, they need to be declared
+    * inside the block and we need a way to tell him.
     */
-    private let waitingDeclarations: ArrayStack<Reference> = ArrayStack()
+    private let waitingDeclarations: ArrayStack<(VariableReference, TypeNode)> = ArrayStack()
 
     /*
     * Resolves all of the function and variable references and returns the new
@@ -167,10 +166,12 @@ public class AsgMaker <: Visitor<Node> {
     public override func visit(block: Block): Node {
         let precScopeType = beginScope(ScopeType.BLOCK)
 
-        while (let Some(last) <- waitingDeclarations.remove()) {
+        let nodes: ArrayList<Node> = ArrayList()
+        while (let Some((last, declType)) <- waitingDeclarations.remove()) {
+            nodes.add(VarDeclWithRef(NodeIdManager.nextId(), last.keyword, last.identifier, last,
+                declType))
             declareVar(last.identifier, last)
         }
-        let nodes: ArrayList<Node> = ArrayList()
         block.nodes.iterator().forEach({ n => nodes.add(n.traverse(this)) })
 
         let asgBlock = Block(NodeIdManager.nextId(), nodes)
@@ -215,8 +216,8 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(varDecl: VarDecl): Node {
-        // Call the initializer first because there could be reference to
-        // previous variables with the same identifier.
+        // Call the initializer first because there could be reference to previous variables with
+        // the same identifier.
         let storedRef = refExists 
         refExists = None
 
@@ -236,10 +237,9 @@ public class AsgMaker <: Visitor<Node> {
             if (let Some(ref) <- storedRef) {
                 reference = (ref as VariableReference).getOrThrow({ => 
                     Exception("Reference given to variable declaration is not VariableReference")})
-                reference.declType = declType
             } else {
                 reference = VariableReference(NodeIdManager.nextId(), varDecl.identifier,
-                    declType, varDecl.keyword)
+                    varDecl.keyword)
                 declareVar(varDecl.identifier, reference)
             }
         } else {
@@ -253,8 +253,9 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(funcParam: FuncParam): Node {
-        FuncParam(NodeIdManager.nextId(), funcParam.keyword,
-            (funcParam.paramType.traverse(this) as TypeNode).getOrThrow({ => FuncParamError()}))
+        funcParam.paramType.traverse(this)
+        VariableReference(NodeIdManager.nextId(), funcParam.paramType.typeParameterName,
+            Token(TokenKind.LET, "let", Position()))
     }
 
     public override func visit(funcDecl: FuncDecl): Node {
@@ -270,38 +271,23 @@ public class AsgMaker <: Visitor<Node> {
         if (let Some(ref) <- storedRef) {
             reference = (ref as FuncReference).getOrThrow({ => 
                 Exception("Reference given to the function declaration is not FuncReference")})
-
-            reference.declType = declType
         } else {
-            reference = FuncReference(NodeIdManager.nextId(),
-                funcDecl.identifier, declType, Environment(), ArrayList<FuncParam>())
+            reference = FuncReference(NodeIdManager.nextId(), funcDecl.identifier)
             declareFunc(funcDecl.identifier, reference)
         }
 
-        let paramRefs: ArrayList<Reference> = ArrayList()
-        let params: ArrayList<FuncParam> = ArrayList()
+        let paramRefs: ArrayList<VariableReference> = ArrayList()
         funcDecl.params.iterator()
-            .map({ p => (p.traverse(this) as FuncParam).getOrThrow()})
+            .map({ p => ((p.traverse(this) as VariableReference).getOrThrow(), p.paramType)})
             .forEach({ p =>
-                params.add(p)
-                let pref = VariableReference(
-                    NodeIdManager.nextId(), p.name, p.paramType,
-                    // Using the LET keyword because parameters are not mutable.
-                    Token(TokenKind.LET, "", p.name.pos))
-                paramRefs.add(pref)
-                waitingDeclarations.add(pref)
+                paramRefs.add(p[0])
+                waitingDeclarations.add((p))
             })
-
+        reference.paramRef = paramRefs
         let block: Block = (funcDecl.block.traverse(this) as Block).getOrThrow()
 
-        reference.environment = lastKilledEnvironment.getOrThrow({ => 
-            Exception("BLock of a function is not in lastKilledEnvironment")})
-        reference.params = params
-
-        let nodeId: NodeId = NodeIdManager.nextId()
-
-        FuncDeclWithRef(nodeId, funcDecl.keyword, funcDecl.identifier,
-            block, params, declType, paramRefs, reference)
+        FuncDeclWithRef(NodeIdManager.nextId(), funcDecl.keyword, funcDecl.identifier, block,
+            funcDecl.params, declType, reference)
     }
 
     public override func visit(mainDecl: MainDecl): Node {
@@ -311,20 +297,14 @@ public class AsgMaker <: Visitor<Node> {
         if (let Some(dt) <- mainDecl.declType) {
             declType = dt.traverse(this) as TypeNode
         }
-        var param: ?FuncParam = None
-        var paramRef: ?Reference = None
+        let reference: MainReference = MainReference(NodeIdManager.nextId())
         if (let Some(p) <- mainDecl.param) {
-            let np: FuncParam = (p.traverse(this) as FuncParam).getOrThrow()
-            let pref = VariableReference(
-                NodeIdManager.nextId(), np.name, np.paramType,
-                Token(TokenKind.LET, "", np.name.pos))
-            param = np
-            waitingDeclarations.add(pref)
-            paramRef = pref
+            let pref: VariableReference = (p.traverse(this) as VariableReference).getOrThrow()
+            waitingDeclarations.add((pref, p.paramType))
+            reference.paramRef = pref
         }
-        let block = (mainDecl.block.traverse(this) as Block).getOrThrow()
-        let id = NodeIdManager.nextId()
-        MainDeclWithRef(id, block, param, declType, paramRef)
+        let block: Block = (mainDecl.block.traverse(this) as Block).getOrThrow()
+        MainDeclWithRef(NodeIdManager.nextId(), block, mainDecl.param, declType, reference)
     }
 
     public override func visit(argument: Argument): Node {

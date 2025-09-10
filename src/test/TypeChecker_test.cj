@@ -63,6 +63,26 @@ class TypeCheckTests {
     }
 
     @TestCase
+    func operatorsType_test() {
+        let testWrong: String = """
+            main() {
+                var a: Int64 = 5
+                let b: String = "5"
+                a = a + b
+            }
+            """
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        let testRight: String = """
+            main() {
+                var a: Int64 = 5
+                let b: Int64 = 10
+                a = a + b
+            }
+            """
+        TypeChecker(getAsg(testRight))
+    }
+
+    @TestCase
     func typeFuncDecl_test() {
         let testWrong: String = """
             main() {
@@ -165,142 +185,21 @@ class TypeCheckTests {
                 a(1, 1)
             }
             """
-            TypeChecker(getAsg(testRight))
+        TypeChecker(getAsg(testRight))
     }
 
     @TestCase
-    func typeCheckTest1() {
-        let test: String = """
-            main(args: Int64) {
-                func aa(b: Int64, h: Int64): Int64 {
-                    4
-                    return 6; 1 + 3
-                }
-                aa(2, "1")
-            }
-            """
-
-        let scanner = Scanner(test.toRuneArray())
-        let tokens = scanner.scanTokens().toArray()
-
-        let reporter = parser.Reporter(getStdErr(), tokens.toArray())
-        let parser: parser.Parser = parser.Parser(tokens.toArray(), reporter)
-        let program: ?Program = parser.parse()
-        let asgMaker = AsgMaker()
-        let initChecker = InitCheck()
-
-        @Assert(program.isSome())
-        if(let Some(p) <- program) {
-            let asg = asgMaker.resolve(p)
-            initChecker.resolve(asg)
-
-            @Assert(initChecker.notInitialized.isEmpty() && 
-                    initChecker.cannotMutate.isEmpty())
-
-            @AssertThrows[Exception](TypeChecker(asg))
-        }
-    }
-
-    @TestCase
-    func typeCheckTest2() {
-        let test: String = """
-            main () {
-                let A: Int32
-                let B: Int64 = 10
-
-                if(true) {
-                    A = 1
-
-                } else {
-                    if(true) {
-                        A = 1 + B
-                    } else {
-                    }
-                }
-
-                if(true) {
-                } else {
-                    A = 3
-                }
-
-                A = 4
-            }
-            """
-
-        let scanner = Scanner(test.toRuneArray())
-        let tokens = scanner.scanTokens().toArray()
-
-        let reporter = parser.Reporter(getStdErr(), tokens.toArray())
-        let parser: parser.Parser = parser.Parser(tokens.toArray(), reporter)
-        let program: ?Program = parser.parse()
-        let asgMaker = AsgMaker()
-        let initChecker = InitCheck()
-
-        @Assert(program.isSome())
-        if(let Some(p) <- program) {
-            let asg = asgMaker.resolve(p)
-            initChecker.resolve(asg)
-
-            @Assert(initChecker.notInitialized.isEmpty() && 
-                    initChecker.cannotMutate.isEmpty())
-
-            @AssertThrows[Exception](TypeChecker(asg))
-        }
-    }
-
-    @TestCase
-    func typeCheckTest3() {
-        let test: String = """
-            main(args: Int64) {
-                let a = if(true) {
-                    1
-                } else {
-                    2
-                }
-
-                let c: Int32 = 4
-
-                let b = a + c
-            }
-            """
-
-        let scanner = Scanner(test.toRuneArray())
-        let tokens = scanner.scanTokens().toArray()
-
-        let reporter = parser.Reporter(getStdErr(), tokens.toArray())
-        let parser: parser.Parser = parser.Parser(tokens.toArray(), reporter)
-        let program: ?Program = parser.parse()
-        let asgMaker = AsgMaker()
-        let initChecker = InitCheck()
-
-        @Assert(program.isSome())
-        if(let Some(p) <- program) {
-            let asg = asgMaker.resolve(p)
-            initChecker.resolve(asg)
-
-            @Assert(initChecker.notInitialized.isEmpty() && 
-                    initChecker.cannotMutate.isEmpty())
-
-            @AssertThrows[Exception](TypeChecker(asg))
-        }
-    }
-
-    // Overloading check
-    @TestCase
-    func typeCheckTest4() {
+    func differentScopeFunctionFinding_test() {
         let test: String = """
             func A(a: Any, b: Any): Any {
                 a
             }
-
             func A(a: Int64, b: Any): Int64 {
                 a
             }
-
             main(args: Int64) {
                 let a: Int64 = 1
                 let b: Int64 = 2
-
                 if (true) {
                     func A(a: Any, b: Int64): Int64 {
                         b
@@ -310,31 +209,11 @@ class TypeCheckTests {
                 let c = A(a, b)
             }
             """
-
-        let scanner = Scanner(test.toRuneArray())
-        let tokens = scanner.scanTokens().toArray()
-
-        let reporter = parser.Reporter(getStdErr(), tokens.toArray())
-        let parser: parser.Parser = parser.Parser(tokens.toArray(), reporter)
-        let program: ?Program = parser.parse()
-        let asgMaker = AsgMaker()
-        // let initChecker = InitCheck()
-
-        @Assert(program.isSome())
-        if(let Some(p) <- program) {
-            let asg = asgMaker.resolve(p)
-            // initChecker.resolve(asg)
-
-            // @Assert(initChecker.notInitialized.isEmpty() && 
-            //         initChecker.cannotMutate.isEmpty())
-            
-            TypeChecker(asg)
-        }
+        TypeChecker(getAsg(test))
     }
 
-
     @TestCase
-    func typeCheckTest5() {
+    func multipleCandidateFunction_test() {
         let test: String = """
             func A(a: Any, b: Any): Any {
                 a
@@ -356,21 +235,27 @@ class TypeCheckTests {
             }
             """
 
-        let scanner = Scanner(test.toRuneArray())
-        let tokens = scanner.scanTokens().toArray()
+        @AssertThrows[Exception](TypeChecker(getAsg(test)))
+    }
 
-        let reporter = parser.Reporter(getStdErr(), tokens.toArray())
-        let parser: parser.Parser = parser.Parser(tokens.toArray(), reporter)
-        let program: ?Program = parser.parse()
-        let asgMaker = AsgMaker()
-        // let initChecker = InitCheck()
+    @TestCase
+    func noSuitableFunctionReturnType_test() {
+        let test: String = """
+            func A(a: Any, b: Any): Any {
+                a
+            }
 
-        @Assert(program.isSome())
-        if(let Some(p) <- program) {
-            let asg = asgMaker.resolve(p)
-            @AssertThrows[Exception](TypeChecker(asg))
-        }
+            func A(a: Any, b: Int64): Int64 {
+                2
+            }
+            main(args: Int64) {
+                let a: Int64 = 1
+                let b: Int64 = 2
+
+                let c: String
+                c = A(a, b)
+            }
+            """
+        @AssertThrows[Exception](TypeChecker(getAsg(test)))
     }
 }
-
-
