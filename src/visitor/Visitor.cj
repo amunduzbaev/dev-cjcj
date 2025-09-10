@@ -50,6 +50,10 @@ public abstract class Visitor<R> {
         throw Exception("Unimplemented method for Visitor : Return Expression")
     }
 
+    protected open func visit(_: JumpExpr): R {
+        throw Exception("Unimplemented method for Visitor : Jump Expression")
+    }
+
     protected open func visit(_: VarDecl): R {
         throw Exception("Unimplemented method for Visitor : Variable Declaration")
     }

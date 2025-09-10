@@ -301,14 +301,161 @@ class AsgMakerTests {
         @Assert(m.block.nodes.iterator().all({ n => n is AssignExpr }))
     }
 
+    @TestCase
+    func refExpr_test() {
+        let test: String = """
+            let identifier = 1
+            main(){
+                identifier
+            }"""
+        let m: MainDeclWithRef = getMain(test)
+        @Assert(m.block.nodes.iterator().all({ n => n is VariableReference }))
+    }
+
+    @TestCase
+    func ifExpr_test() {
+        let test: String = """
+            main(){
+                if (1 == 2) {
+                    1
+                } else if (1 == 3) {
+                    2
+                } else {
+                    3
+                }
+            }"""
+        let m: MainDeclWithRef = getMain(test)
+        @Assert(m.block.nodes.iterator().all({ n => n is IfExpr }))
+    }
+
+    @TestCase
+    func ifExprDesugar_test() {
+        let test: String = """
+            main(){
+                if (1 == 2) {
+                    1
+                }
+            }"""
+        // Should add the else branch while parsing.
+        let m: MainDeclWithRef = getMain(test)
+        @Assert(m.block.nodes.iterator().all({ n => n is IfExpr }))
+    }
+
+    @TestCase
+    func whileExpr_test() {
+        let test: String = """
+            main(){
+                while (1 == 2) {
+                    1
+                }
+            }"""
+        // Should add the else branch while parsing.
+        let m: MainDeclWithRef = getMain(test)
+        @Assert(m.block.nodes.iterator().all({ n => n is WhileExpr }))
+    }
+
+    @TestCase
+    func callExpr_test() {
+        let test: String = """
+            func a() {
+            }
+            main(){
+                a()
+            }"""
+        // Should add the else branch while parsing.
+        let m: MainDeclWithRef = getMain(test)
+        @Assert(m.block.nodes.iterator().all({ n => n is CallExpr }))
+    }
+
+    @TestCase
+    func returnExpr_test() {
+        let test: String = """
+            main(){
+                return 1
+            }"""
+        // Should add the else branch while parsing.
+        let m: MainDeclWithRef = getMain(test)
+        @Assert(m.block.nodes.iterator().all({ n => n is ReturnExpr }))
+    }
+
+    @TestCase
+    func returnExprNoExpression_test() {
+        let test: String = """
+            main(){
+                return
+            }"""
+        let m: MainDeclWithRef = getMain(test)
+        @Assert(m.block.nodes.iterator().all({ n => n is ReturnExpr }))
+    }
+
+    @TestCase
+    func returnExprUnitFunc_test() {
+        let test: String = """
+            let a = 1
+            main(): Unit{
+                return a
+            }"""
+        let m: MainDeclWithRef = getMain(test)
+        @Assert(m.block.nodes.iterator().all({ n => n is ReturnExpr }))
+    }
+
+
+    @TestCase
+    func jumpExpr_test() {
+        let test: String = """
+            main(){
+                break
+                continue
+            }"""
+        let m: MainDeclWithRef = getMain(test)
+        @Assert(m.block.nodes.iterator().all({ n => n is JumpExpr }))
+    }
+
+    // @TestCase
+    // func primitiveTypeExpr_test() {
+    //     let test: String = """
+    //         main(){
+    //             Int64
+    //             Unit
+    //         }"""
+    //     let m: MainDeclWithRef = getMain(test)
+    //     @Assert(m.block.nodes.iterator().all({ n => n is PrimitiveTypeExpr }))
+    // }
+
+    @TestCase
+    func memberAccess_test() {
+        let test: String = """
+            class B {
+                let f = 1
+                func c() {
+                    B()
+                }
+            }
+            class A {
+                let b: B = B()
+            }
+            let a: A = A()
+            func c() {
+                A()
+            }
+            main(){
+                a.b.c().f
+                c().b
+            }
+            """
+
+        let m: MainDeclWithRef = getMain(test)
+        @Assert(m.block.nodes.iterator().all({ n => n is MemberAccess }))
+    }
+
     @TestCase 
-    func variableReference() {
+    func variableReference_test() {
         let testWrong: String = """
             main(){
                 let b = a
             }
         """
-        @AssertThrows[Exception](AsgMaker().resolve(getAst(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
 
         let testRight: String = """
             main(){
@@ -317,17 +464,17 @@ class AsgMakerTests {
             }
         """
 
-        AsgMaker().resolve(getAst(testRight))
+        getAsg(testRight)
     }
 
     @TestCase 
-    func functionReference() {
+    func functionReference_test() {
         let testWrong: String = """
             main(){
                 let b = f(1, 2)
             }
         """
-        @AssertThrows[Exception](AsgMaker().resolve(getAst(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
 
         let testRight: String = """
             main(){
@@ -338,11 +485,11 @@ class AsgMakerTests {
             }
         """
         
-        AsgMaker().resolve(getAst(testRight))
+        getAsg(testRight)
     }
 
     @TestCase 
-    func recursiveFunction() {
+    func recursiveFunction_test() {
         let testWrong: String = """
             main(){
                 func f() {
@@ -351,7 +498,7 @@ class AsgMakerTests {
                 }
             }
         """
-        @AssertThrows[Exception](AsgMaker().resolve(getAst(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
 
         let testRight: String = """
             main(){
@@ -362,11 +509,11 @@ class AsgMakerTests {
             }
         """
 
-        AsgMaker().resolve(getAst(testRight))
+        getAsg(testRight)
     }
 
     @TestCase 
-    func unorderedDeclarations() {
+    func unorderedDeclarations_test() {
         let testWrong: String = """
             func f(){
                 a
@@ -375,7 +522,7 @@ class AsgMakerTests {
             main(){
             }
         """
-        @AssertThrows[Exception](AsgMaker().resolve(getAst(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
 
         var testRight: String = """
             let a = f()
@@ -386,7 +533,7 @@ class AsgMakerTests {
             }
         """
 
-        AsgMaker().resolve(getAst(testRight))
+        getAsg(testRight)
 
         testRight = """
             func g() {
@@ -400,7 +547,7 @@ class AsgMakerTests {
             }
         """
 
-        AsgMaker().resolve(getAst(testRight))
+        getAsg(testRight)
 
         testRight = """
             func g() {
@@ -413,11 +560,11 @@ class AsgMakerTests {
             }
         """
 
-        AsgMaker().resolve(getAst(testRight))
+        getAsg(testRight)
     }
 
     @TestCase 
-    func selfInitClass() {
+    func selfInitClass_test() {
         var testRight: String = """
             class D{
                 func F() {
@@ -429,11 +576,11 @@ class AsgMakerTests {
             }
         """
 
-        AsgMaker().resolve(getAst(testRight))
+        getAsg(testRight)
     }
 
     @TestCase 
-    func unorderedClassDeclaration() {
+    func unorderedClassDeclaration_test() {
         var testRight: String = """
             class B <: A{
             }
@@ -443,7 +590,7 @@ class AsgMakerTests {
             }
         """
 
-        AsgMaker().resolve(getAst(testRight))
+        getAsg(testRight)
 
         // var testWrong: String = """
         //     class A {
@@ -454,11 +601,11 @@ class AsgMakerTests {
         //     }
         // """
 
-        // @AssertThrows[Exception](AsgMaker().resolve(getAst(testWrong)))
+        // @AssertThrows[Exception](getAsg(testWrong))
     }
 
     @TestCase
-    func referenceReuse() {
+    func referenceReuse_test() {
         var testRight: String = """
         func f() {
             func h() {
@@ -476,11 +623,11 @@ class AsgMakerTests {
         }
         """
 
-        AsgMaker().resolve(getAst(testRight))
+        getAsg(testRight)
     }
 
     @TestCase
-    func builtinTypes() {
+    func builtinTypes_test() {
         var testRight: String = """
         main() {
             func a(b: String, c: Any): Int64 {
@@ -491,7 +638,7 @@ class AsgMakerTests {
         }
         """
 
-        AsgMaker().resolve(getAst(testRight))
+        getAsg(testRight)
 
         var testWrong: String = """
         main() {
@@ -503,11 +650,11 @@ class AsgMakerTests {
         }
         """
 
-        @AssertThrows[Exception](AsgMaker().resolve(getAst(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
     }
 
     @TestCase
-    func customTypes() {
+    func customTypes_test() {
         var testRight: String = """
         class T{
         }
@@ -524,7 +671,7 @@ class AsgMakerTests {
         }
         """
 
-        AsgMaker().resolve(getAst(testRight))
+        getAsg(testRight)
 
         var testWrong: String = """
         class T{
@@ -538,29 +685,7 @@ class AsgMakerTests {
             f(T(), K())
         }
         """
-        @AssertThrows[Exception](AsgMaker().resolve(getAst(testWrong)))
-    }
-
-    @TestCase
-    func memberAccess_test() {
-        let testRight: String = """
-            class a {
-                let b: Int64
-            }
-            main(){
-                let b = a()
-                let c: Int64 = b.b
-            }"""
-        AsgMaker().resolve(getAst(testRight))
-        let testWrong: String = """
-            class a {
-                let b: Int64
-            }
-            main(){
-                let b = a()
-                let c: String = b.b
-            }"""
-        AsgMaker().resolve(getAst(testWrong))
+        @AssertThrows[Exception](getAsg(testWrong))
     }
 
     @TestCase
@@ -582,7 +707,7 @@ class AsgMakerTests {
                 aa(2, "1")
             } 
             """
-        AsgMaker().resolve(getAst(test))
+        getAsg(test)
     }
 
     @TestCase
@@ -628,7 +753,7 @@ class AsgMakerTests {
                 3(*&#@71I#(@))))))
             */
             """
-        AsgMaker().resolve(getAst(test))
+        getAsg(test)
     }
 }
 

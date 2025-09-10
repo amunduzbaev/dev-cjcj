@@ -244,6 +244,15 @@ public class AsgMaker <: Visitor<Node> {
         throw ReturnExprError()
     }
 
+    public override func visit(jumpExpr: JumpExpr): Node {
+        if (currentScopeType == ScopeType.BLOCK) {
+            return JumpExpr(NodeIdManager.nextId(), jumpExpr.keyword)
+        }
+
+        println("Jump statement not side a block")
+        throw Exception()
+    }
+
     public override func visit(varDecl: VarDecl): Node {
         // Call the initializer first because there could be reference to previous variables with
         // the same identifier.
@@ -412,6 +421,7 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(memberAccess: MemberAccess): Node {
+        // println("its here")
         let baseExpr = memberAccess.baseExpr.traverse(this)
         MemberAccess(NodeIdManager.nextId(), baseExpr, memberAccess.field)
     }
