@@ -437,14 +437,14 @@ public class JumpExpr <: Expr {
 }
 
 public class MemberAccess <: Expr {
-    private var baseExpr_: Expr
+    private var baseExpr_: Node
     private var field_: Token
 
     public init() {
         this(NodeId(), Expr(), Token())
     }
 
-    public MemberAccess(id: NodeId, baseExpr: Expr, field: Token) {
+    public MemberAccess(id: NodeId, baseExpr: Node, field: Token) {
         super(id)
         baseExpr_ = baseExpr
         field_ = field
@@ -459,7 +459,7 @@ public class MemberAccess <: Expr {
         v.visit(this)
     }
 
-    public mut prop baseExpr: Expr {
+    public mut prop baseExpr: Node {
         get() { baseExpr_ }
         set(v) { baseExpr_ = v }
     }

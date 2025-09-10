@@ -381,9 +381,8 @@ public class AsgMaker <: Visitor<Node> {
         Body(NodeIdManager.nextId(), decls)
     }
 
-    public override func visit(memberAccess:MemberAccess): Node {
-        let baseExpr = (memberAccess.baseExpr.traverse(this) as Expr).getOrThrow({ => 
-            Exception("BaseExpr in MemberAccess has to be Expr in ASG")})
+    public override func visit(memberAccess: MemberAccess): Node {
+        let baseExpr = memberAccess.baseExpr.traverse(this)
         MemberAccess(NodeIdManager.nextId(), baseExpr, memberAccess.field)
     }
 
