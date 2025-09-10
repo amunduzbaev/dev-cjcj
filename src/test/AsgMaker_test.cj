@@ -266,6 +266,28 @@ class AsgMakerTests {
     }
 
     @TestCase
+    func memberAccess_test() {
+        let testRight: String = """
+            class a {
+                let b: Int64
+            }
+            main(){
+                let b = a()
+                let c: Int64 = b.b
+            }"""
+        AsgMaker().resolve(getAst(testRight))
+        let testWrong: String = """
+            class a {
+                let b: Int64
+            }
+            main(){
+                let b = a()
+                let c: String = b.b
+            }"""
+        AsgMaker().resolve(getAst(testWrong))
+    }
+
+    @TestCase
     func asgMakerTest1() {
         let test: String = """
             main(args: Int64) {
