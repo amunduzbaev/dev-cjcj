@@ -23,6 +23,73 @@ private enum ScopeType {
     NIL | BLOCK | BODY
 }
 
+private open class BodyDeclarator <: Visitor<?Reference> {
+    private var funcEnvironment: Environment<String, FuncReference>
+    private var variableEnvironment: Environment<String, VariableReference>
+
+    public init(
+        funcEnvironment: Environment<String, FuncReference>,
+        variableEnvironment: Environment<String, VariableReference>
+    ) {
+        this.funcEnvironment = funcEnvironment
+        this.variableEnvironment = variableEnvironment
+    }
+
+    public open override func visit(varDecl: VarDecl): ?Reference {
+        let ref: VariableReference = VariableReference(NodeIdManager.nextId(), 
+            varDecl.identifier, varDecl.keyword)
+        if (canDeclare(varDecl.identifier.value)) {
+            variableEnvironment.declare(varDecl.identifier.value, ref)
+        }
+        ref
+    }
+
+    public override func visit(funcDecl: FuncDecl): ?Reference {
+        let ref: FuncReference = FuncReference(NodeIdManager.nextId(), funcDecl.identifier)
+        if (canDeclare(funcDecl.identifier.value)) {
+            funcEnvironment.declare(funcDecl.identifier.value, ref)
+        }
+        ref
+    }
+
+    public override func visit(_: MainDecl): ?Reference {
+        None
+    }
+
+    protected open func canDeclare(key: String): Bool {
+        funcEnvironment.getLocal(key).isNone() && variableEnvironment.getLocal(key).isNone()
+    }
+}
+
+private class GlobalDeclarator <: BodyDeclarator {
+    private var classEnvironment: Environment<String, ClassReference>
+    
+    public init(
+        funcEnvironment: Environment<String, FuncReference>,
+        variableEnvironment: Environment<String, VariableReference>,
+        classEnvironment: Environment<String, ClassReference>
+    ) {
+        super(funcEnvironment, variableEnvironment)
+        this.classEnvironment = classEnvironment
+    }
+
+    protected override func canDeclare(key: String): Bool {
+        super.canDeclare(key) && classEnvironment.getLocal(key).isNone()
+    }
+
+    public override func visit(classDecl: ClassDecl): ?Reference {
+        let ref = ClassReference(NodeIdManager.nextId(), classDecl.identifier)
+        if (canDeclare(classDecl.identifier.value)) {
+            classEnvironment.declare(classDecl.identifier.value, ref)
+        }
+        ref
+    }
+
+    public override func visit(_: VarDecl): ?Reference {
+        None
+    }
+}
+
 /*
 * Resolves a Program and retrieves the ASG root. Every variable and function
 * reference will be bound to the node of the initialization. (declaration maybe?)
@@ -32,51 +99,13 @@ private enum ScopeType {
 * catching them because it's impossible that the as didn't work except if
 * there's a bug in the as operator itself.
 */
-private class bodyDeclaror <: Visitor<?Reference> {
-    private var currentEnvironment: Environment
-    private let currentScope: ScopeType
-
-    public init(environment: Environment, scopeType: ScopeType) {
-        currentEnvironment = environment
-        currentScope = scopeType
-    }
-
-    public override func visit(varDecl: VarDecl): ?Reference {
-        // TODO : Might change, TBD
-        match (currentScope) {
-            case BODY => 
-                let ref: VariableReference = VariableReference(NodeIdManager.nextId(), 
-                    varDecl.identifier, varDecl.keyword)
-                currentEnvironment.declareVar(varDecl.identifier, ref)
-                ref
-            case _ => 
-                None
-        }
-    }
-
-    public override func visit(funcDecl: FuncDecl): ?Reference {
-        let ref: FuncReference = FuncReference(NodeIdManager.nextId(), funcDecl.identifier)
-        currentEnvironment.declareFunc(funcDecl.identifier, ref)
-        
-        ref
-    }
-
-    public override func visit(_: MainDecl): ?Reference {
-        None
-    }
-
-    public override func visit(classDecl: ClassDecl): ?Reference {
-        let ref = ClassReference(NodeIdManager.nextId(), classDecl.identifier)
-        currentEnvironment.declareClass(classDecl.identifier, ref)
-
-        ref
-    }
-}
-
 public class AsgMaker <: Visitor<Node> {
-    private var globalScope: Environment = Environment()
-    private var currentEnvironment: Environment = globalScope
-    private var lastKilledEnvironment: ?Environment = None
+    // private var globalScope: Environment = Environment()
+
+    private var classEnvironment: Environment<String, ClassReference> = Environment()
+    private var funcEnvironment: Environment<String, FuncReference> = Environment()
+    private var variableEnvironment: Environment<String, VariableReference> = Environment()
+
     private var currentScopeType: ScopeType = ScopeType.NIL
     private var refExists: ?Reference = None
     
@@ -101,7 +130,7 @@ public class AsgMaker <: Visitor<Node> {
         ]
 
         builtinIdentifiers.iterator().forEach({ t => 
-            currentEnvironment.declareClass(t, ClassReference(NodeIdManager.nextId(), t))
+            classEnvironment.declare(t.value, ClassReference(NodeIdManager.nextId(), t))
         })
         return (program.traverse(this) as Program).getOrThrow()
     }
@@ -109,7 +138,7 @@ public class AsgMaker <: Visitor<Node> {
     public override func visit(program: Program): Node {
         let decls: ArrayList<Decl> = ArrayList()
 
-        let topDecl = bodyDeclaror(currentEnvironment, currentScopeType)
+        let topDecl = GlobalDeclarator(funcEnvironment, variableEnvironment, classEnvironment)
         let refDecls = ArrayList<(Decl, ?Reference)>()
         program.decls.iterator().forEach({ d =>
             refDecls.add((d, d.traverse(topDecl)))
@@ -160,7 +189,7 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(refExpr: RefExpr): Node {
-        get(refExpr.identifier)
+        get(refExpr.identifier.value)
     }
 
     public override func visit(block: Block): Node {
@@ -334,7 +363,7 @@ public class AsgMaker <: Visitor<Node> {
         let storedRef = refExists
         refExists = None
 
-        if(!currentEnvironment.isGlobal) {
+        if(!isGlobal()) {
             throw Exception("Classes can be declared at topLevel only")
         }
 
@@ -361,11 +390,12 @@ public class AsgMaker <: Visitor<Node> {
         classDecl.identifier, body, superTypes, classReference)
     }
 
+    // TODO: Think about removing scopeType body.
     public override func visit(body: Body): Node {
         let precScopeType = beginScope(ScopeType.BODY)
 
         let decls: ArrayList<Decl> = ArrayList()
-        let topDecl = bodyDeclaror(currentEnvironment, currentScopeType)
+        let topDecl = BodyDeclarator(funcEnvironment, variableEnvironment)
         let refDecls = ArrayList<(Decl, ?Reference)>()
         body.decls.iterator().forEach({ d =>
             refDecls.add((d, d.traverse(topDecl)))
@@ -389,35 +419,62 @@ public class AsgMaker <: Visitor<Node> {
     private func beginScope(newScopeType: ScopeType): ScopeType{
         let precScopeType = currentScopeType
         currentScopeType = newScopeType
-        currentEnvironment = Environment(currentEnvironment)
-        lastKilledEnvironment = None
+        funcEnvironment = Environment(funcEnvironment)
+        variableEnvironment = Environment(variableEnvironment)
         precScopeType
     }
 
     private func endScope(precScopeType: ScopeType): Unit {
         currentScopeType = precScopeType
-        lastKilledEnvironment = currentEnvironment
-        currentEnvironment = currentEnvironment.enclosing.getOrThrow({ =>
+        funcEnvironment = funcEnvironment.enclosing.getOrThrow({ =>
+            UnsupportedException("Trying to close the global scope") })
+        variableEnvironment = variableEnvironment.enclosing.getOrThrow({ =>
             UnsupportedException("Trying to close the global scope") })
     }
 
-    private func declareVar(identifier: Token, value: Reference): Unit {
-        currentEnvironment.declareVar(identifier, value)
+    private func declareVar(identifier: Token, value: VariableReference): Unit {
+        variableEnvironment.declare(identifier.value, value)
     }
 
-    private func declareFunc(identifier: Token, value: Reference): Unit {
-        currentEnvironment.declareFunc(identifier, value)
+    private func declareFunc(identifier: Token, value: FuncReference): Unit {
+        funcEnvironment.declare(identifier.value, value)
     }
 
-    private func declareClass(identifier: Token, value: Reference): Unit {
-        currentEnvironment.declareClass(identifier, value)
-    }
-    private func isTypeDeclared(typeName: Token) {
-        globalScope.isTypeDeclared(typeName)
+    private func declareClass(identifier: Token, value: ClassReference): Unit {
+        classEnvironment.declare(identifier.value, value)
     }
 
-    private func get(identifier: Token): Reference {
-        currentEnvironment.get(identifier)
+    private func isTypeDeclared(typeName: Token): Bool {
+        classEnvironment.getGlobal(typeName.value).isSome()
+    }
+
+    private func get(key: String): Reference {
+        var tmpFuncEnv = funcEnvironment
+        var tmpVarEnv = variableEnvironment
+        while (!tmpFuncEnv.isGlobal && !tmpVarEnv.isGlobal) {
+            if (let Some(fun) <- tmpFuncEnv.getLocal(key)) {
+                return fun
+            }
+            if (let Some(va) <- tmpVarEnv.getLocal(key)) {
+                return va
+            }
+            tmpFuncEnv = tmpFuncEnv.enclosing.getOrThrow()
+            tmpVarEnv = tmpVarEnv.enclosing.getOrThrow()
+        }
+        if (let Some(clas) <- classEnvironment.getLocal(key)) {
+            return clas
+        }
+        if (let Some(fun) <- tmpFuncEnv.getLocal(key)) {
+            return fun
+        }
+        if (let Some(va) <- tmpVarEnv.getLocal(key)) {
+            return va
+        }
+        throw Exception("${key} is undefined.")
+    }
+
+    private func isGlobal(): Bool {
+        funcEnvironment.isGlobal && variableEnvironment.isGlobal
     }
 }
 
