@@ -262,7 +262,6 @@ class AsgMakerTests {
             f(T(), K())
         }
         """
-
         @AssertThrows[Exception](AsgMaker().resolve(getAst(testWrong)))
     }
 
@@ -285,19 +284,7 @@ class AsgMakerTests {
                 aa(2, "1")
             } 
             """
-
-        let scanner = Scanner(test.toRuneArray())
-        let tokens = scanner.scanTokens().toArray()
-
-        let reporter = parser.Reporter(getStdErr(), tokens.toArray())
-        let parser: parser.Parser = parser.Parser(tokens.toArray(), reporter)
-        let program: ?Program = parser.parse()
-        let asgMaker = AsgMaker()
-
-        @Assert(program.isSome())
-        if(let Some(p) <- program) {
-            asgMaker.resolve(p)
-        }
+        AsgMaker().resolve(getAst(test))
     }
 
     @TestCase
@@ -343,20 +330,7 @@ class AsgMakerTests {
                 3(*&#@71I#(@))))))
             */
             """
-
-        let scanner = Scanner(test.toRuneArray())
-        let tokens = scanner.scanTokens().toArray()
-
-        let reporter = parser.Reporter(getStdErr(), tokens.toArray())
-        let parser: parser.Parser = parser.Parser(tokens.toArray(), reporter)
-        let program: ?Program = parser.parse()
-        let asgMaker = AsgMaker()
-
-        @Assert(program.isSome())
-        if(let Some(p) <- program) {
-            asgMaker.resolve(p)
-            // @AssertThrows[Exception]()
-        }
+        AsgMaker().resolve(getAst(test))
     }
 }
 
