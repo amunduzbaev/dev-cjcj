@@ -4,28 +4,18 @@ import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 
-import std.collection.ArrayList
+import std.collection.*
 
 /*
-* Reference nodes represent references to variables, functions, . . . inside the
-* ASG.
+* Reference nodes represent references to variables, functions, . . . inside the ASG.
 */
 public open class Reference <: Expr & Hashable & Equatable<Reference> {
-    /*
-    TODO: the identifier will become an expression and in general all the
-    * references will be checked by hashing the toString of the expression that
-    * is calling, this is important because it can happen that I call a function
-    * from a member access (a.b()) and I need to differenciate between them
-    * (b() must be different from a.b()).
-    */
     private let identifier_: Token
-    private var declType_: ?TypeNode
     private var effectiveType_: ?Type
 
-    public Reference(id: NodeId, identifier: Token, declType: ?TypeNode, effectiveType: ?Type) {
+    public Reference(id: NodeId, identifier: Token, effectiveType: ?Type) {
         super(id)
         identifier_ = identifier
-        declType_ = declType
         effectiveType_ = effectiveType
     }
 
@@ -40,17 +30,12 @@ public open class Reference <: Expr & Hashable & Equatable<Reference> {
     public func hashCode(): Int64 {
         this.id.hashCode()
     }
-    public operator func == (rhs: Reference) :Bool{
+    public operator func ==(rhs: Reference): Bool{
         id.id == rhs.id.id
     }
 
     public prop identifier: Token {
         get() { identifier_ }
-    }
-
-    public mut prop declType: ?TypeNode {
-        get() { declType_ }
-        set(v) { declType_ = v}
     }
 
     public mut prop effectiveType: ?Type {
@@ -62,9 +47,8 @@ public open class Reference <: Expr & Hashable & Equatable<Reference> {
 public class VariableReference <: Reference {
     private let keyword_: Token
 
-    public init(id: NodeId, identifier: Token, declType: ?TypeNode,
-        keyword: Token) {
-        super(id, identifier, declType, None)
+    public init(id: NodeId, identifier: Token, keyword: Token) {
+        super(id, identifier, None)
         keyword_ = keyword
     }
 
@@ -78,15 +62,11 @@ public class VariableReference <: Reference {
 }
 
 public class FuncReference <: Reference {
-    // TODO: Maybe environment can be removed.
-    private var environment_: Environment
-    private var params_: ArrayList<FuncParam>
+    private var paramRef_: ?ArrayList<VariableReference> = None
 
-    public FuncReference(id: NodeId, identifier: Token, declType: ?TypeNode,
-        environment: Environment, params: ArrayList<FuncParam>) {
-        super(id, identifier, declType, None)
-        environment_ = environment
-        params_ = params
+    public FuncReference(id: NodeId, identifier: Token)
+    {
+        super(id, identifier, None)
     }
 
     public override func traverse<R>(v: Visitor<R>): R {
@@ -97,46 +77,54 @@ public class FuncReference <: Reference {
         super.prettyPrint(printer)
     }
 
-    public mut prop environment: Environment {
-        get() { environment_ }
-        set(v) { environment_ = v}
-    }
-
-    public mut prop params: ArrayList<FuncParam> {
-        get() { params_ }
-        set(v) { params_ = v}
+    public mut prop paramRef: ?ArrayList<VariableReference> {
+        get() { paramRef_ }
+        set(v) { paramRef_ = v}
     }
 }
 
 public class ClassReference <: Reference{
-    // I don't think we need to body here, because even if we include the body, we have to 
-    // process it in order to be able to check if the member exists or not
-    // So better alternative solution is to preprocess the members for each class at declaration 
-    public init(id: NodeId, identifier: Token, declType: ?TypeNode) {
-        super(id, identifier, declType, None)
-    }
+    private var decls_: ?Set<Reference> = None
     public init(id: NodeId, identifier: Token) {
-        super(id, identifier, None, None)
+        super(id, identifier, None)
     }
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
+
+    public mut prop decls: ?Set<Reference> {
+        get() { decls_ }
+        set(v) { decls_ = v }
+    }
 }
 
-/*
-    TODO: The following classes may be a temporary solution until we find a cleaner way to handle
-    this kind of problem.
-*/
+public class MainReference <: Reference {
+    private var paramRef_: ?Reference = None
+
+    public init(id: NodeId) {
+        super(id, Token(), None)
+    }
+
+    public mut prop paramRef: ?Reference {
+        get() { paramRef_ }
+        set(v) { paramRef_ = v }
+    }
+}
+
 public class VarDeclWithRef <: VarDecl {
     private let ref_: Reference
 
     public init (id: NodeId, keyword: Token, identifier: Token, ref: Reference) {
-        this(id, keyword, identifier, ref, None)
+        this(id, keyword, identifier, ref, None, None)
     }
 
-    public init(id: NodeId, keyword: Token, identifier: Token, ref: Reference, initializer: ?Expr) {
+    public init(id: NodeId, keyword: Token, identifier: Token, ref: Reference, initializer: Expr) {
         this(id, keyword, identifier, ref, initializer, None)
+    }
+
+    public init(id: NodeId, keyword: Token, identifier: Token, ref: Reference, declType: TypeNode) {
+        this(id, keyword, identifier, ref, None, declType)
     }
 
     public init(id: NodeId, keyword: Token, identifier: Token, ref: Reference, initializer: ?Expr,
@@ -149,35 +137,28 @@ public class VarDeclWithRef <: VarDecl {
         v.visit(this)
     }
 
-    public prop ref : Reference {
+    public prop ref: Reference {
         get() { ref_ }
     }
 }
 
 public class FuncDeclWithRef <: FuncDecl {
-    // TODO: Maybe the list of parameters can be removed
-    private let paramRef_: ArrayList<Reference>
     private let funcRef_: FuncReference
 
     public init(id: NodeId, keyword: Token, block: Block, params: ArrayList<FuncParam>,
-            paramRef: ArrayList<Reference>, funcRef: FuncReference) {
-        this(id, keyword, Token(), block, params, None, paramRef, funcRef)
+        funcRef: FuncReference)
+    {
+        this(id, keyword, Token(), block, params, None, funcRef)
     }
 
     public FuncDeclWithRef(id: NodeId, keyword: Token, identifier: Token, block: Block,
-                params: ArrayList<FuncParam>, declType: ?TypeNode, paramRef: ArrayList<Reference>,
-                funcRef: FuncReference) {
+                params: ArrayList<FuncParam>, declType: ?TypeNode, funcRef: FuncReference) {
         super(id, keyword, identifier, block, params, declType)
-        paramRef_ = paramRef
         funcRef_ = funcRef
     }
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-    }
-
-    public prop paramRef : ArrayList<Reference> {
-        get() { paramRef_ }
     }
 
     public prop funcRef: FuncReference {
@@ -186,29 +167,29 @@ public class FuncDeclWithRef <: FuncDecl {
 }
 
 public class MainDeclWithRef <: MainDecl {
-    private var paramRef_: ?Reference
+    private let mainRef_: MainReference
 
-    public MainDeclWithRef(id: NodeId, block: Block, param: ?FuncParam, 
-                    declType: ?TypeNode, paramRef: ?Reference) {
+    public MainDeclWithRef(id: NodeId, block: Block, param: ?FuncParam, declType: ?TypeNode,
+        mainRef: MainReference)
+    {
         super(id, block, param, declType)
-        paramRef_ = paramRef
+        mainRef_ = mainRef
     }
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 
-    public mut prop paramRef : ?Reference {
-        get() { paramRef_ }
-        set(v) { paramRef_ = v }
+    public prop mainRef: MainReference {
+        get() { mainRef_ }
     }
 }
 
 public class ClassDeclWithRef <: ClassDecl {
-    private let ref_: Reference
+    private let ref_: ClassReference
 
     public init(id: NodeId, keyword: Token, identifier: Token, body: Body,
-            superTypes: ArrayList<TypeNode>, ref: Reference) {
+            superTypes: ArrayList<TypeNode>, ref: ClassReference) {
         super(id, keyword, identifier, body, superTypes)
         ref_ = ref
     }
@@ -217,7 +198,7 @@ public class ClassDeclWithRef <: ClassDecl {
         v.visit(this)
     }
 
-    public prop ref : Reference {
+    public prop ref: ClassReference {
         get() { ref_ }
     }
 }

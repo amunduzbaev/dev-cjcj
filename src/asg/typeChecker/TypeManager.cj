@@ -1,6 +1,7 @@
 package cjcj.asg.typeChecker
 
 import cjcj.visitor.Type
+import cjcj.visitor.FuncReference
 import cjcj.scanner.Token
 
 import std.collection.*
@@ -19,7 +20,7 @@ private class Environment {
     * of the type names and the relative return type. This works for exact match.
     * We also keep the list of all the overloads to find a good target if there's no perfect match.
     */
-    private let funcReferences: Map<String, (Map<String, Type>, ArrayStack<(Array<Type>, Type)>)>
+    private let funcReferences: Map<String, (Map<String,  FuncReference>, ArrayStack< FuncReference>)>
 
     public init(enclosing: ?Environment) {
         enclosing_ = enclosing
@@ -31,7 +32,7 @@ private class Environment {
     }
 
     // Looks for the identifier in this and all parent environments.
-    public func getGlobal(identifier: String): (Map<String, Type>,ArrayStack<(Array<Type>, Type)>) {
+    public func getGlobal(identifier: String): (Map<String,  FuncReference>, ArrayStack< FuncReference>) {
         getLocal(identifier).getOrDefault({ =>
             enclosing.getOrThrow({ =>
                 Exception("Undefined identifier '${identifier.toString()}'.")
@@ -40,23 +41,25 @@ private class Environment {
     }
 
     // Looks for the identifier in this environment.
-    public func getLocal(identifier: String): ?(Map<String, Type>, ArrayStack<(Array<Type>, Type)>){
+    public func getLocal(identifier: String): ?(Map<String,  FuncReference>, ArrayStack< FuncReference>) {
         funcReferences.get(identifier)
     }
 
-    public func declareFunc(identifier: String, params: Array<Type>, returnType: Type,
-        stringify: (Array<Type>) -> String): Unit
-    {
+    public func declareFunc(reference: FuncReference, stringify: (Array<Type>) -> String): Unit {
+        let identifier: String = reference.identifier.value
+        let params: Array<Type> = reference.paramRef.getOrThrow().iterator()
+            .map({ p => p.effectiveType.getOrThrow() })
+            .fold<ArrayList<Type>>(ArrayList(), { res, v => res.add(v); res }).toArray()
         if (let Some((fun, funList)) <- getLocal(identifier)) {
-            if (let Some(prec) <- fun.addIfAbsent(stringify(params), returnType)) {
+            if (let Some(prec) <- fun.addIfAbsent(stringify(params), reference)) {
                 let paramString: String = params.iterator().map({ t => t.name })
                     .reduce({ a, b => a + "," + b }).getOrDefault({ => "" })
                 throw Exception("Multiple declaration of func ${identifier} (${paramString})")
             }
-            funList.add((params, returnType))
+            funList.add(reference)
         } else {
             funcReferences.add(identifier, (HashMap(), ArrayStack()))
-            declareFunc(identifier, params, returnType, stringify)
+            declareFunc(reference, stringify)
         }
     }
 
@@ -119,23 +122,26 @@ public class TypeManager {
     * such function, throw an error. 
     */
     private func findClosestSuperType(funcName: String, params: Array<Type>,
-        expectedReturnType: ?Type): Type
+        expectedReturnType: ?Type): FuncReference
     {
         findClosestSuperType(funcName, params, expectedReturnType, currentEnvironment)
     }
 
     private func findClosestSuperType(funcName: String, params: Array<Type>,
-        expectedReturnType: ?Type, environment: Environment): Type
+        expectedReturnType: ?Type, environment: Environment): FuncReference
     {
         if (let Some((_, paramsList)) <- environment.getLocal(funcName)) {
-            let candidates: ArrayStack<(Array<Type>, Type)> = params.iterator().enumerate()
+            let candidates: ArrayStack<FuncReference> = params.iterator().enumerate()
                 .fold(paramsList, { 
-                    consider: ArrayStack<(Array<Type>, Type)>, entry: (Int64, Type) =>
+                    consider: ArrayStack<FuncReference>, entry: (Int64, Type) =>
                         let (id, curType) = entry 
 
-                        consider.iterator().fold<ArrayStack<(Array<Type>, Type)>>(ArrayStack(), 
-                        { acc: ArrayStack<(Array<Type>, Type)>, candidate: (Array<Type>, Type) =>
-                            let (candidateParams, candidateReturn) = candidate
+                        consider.iterator().fold<ArrayStack<FuncReference>>(ArrayStack(), 
+                        { acc: ArrayStack<FuncReference>, candidate: FuncReference =>
+                            let candidateParams: ArrayList<Type> = candidate.paramRef.getOrThrow()
+                                .iterator().map({ c => c.effectiveType.getOrThrow() })
+                                .fold(ArrayList(), { acc, t => acc.add(t); acc })
+                            let candidateReturn: Type = candidate.effectiveType.getOrThrow()
                             if (candidateParams.size == params.size && 
                                 (curType.ancestorSet.contains(candidateParams[id]) ||
                                     curType == candidateParams[id])
@@ -164,14 +170,21 @@ public class TypeManager {
                 }
             }
 
-            let closests: ArrayList<Array<Type>> = candidates.iterator().map({ c => c[0] })
+            let closests: ArrayList<Array<Type>> = candidates.iterator()
+                .map({ c => c.paramRef.getOrThrow().iterator()
+                    .map({ v => v.effectiveType.getOrThrow() })
+                    .fold<ArrayList<Type>>(ArrayList(), { res, v => res.add(v); res }).toArray()
+                })
                 .fold<ArrayList<Array<Type>>>(ArrayList(), { 
                     closestOptions: ArrayList<Array<Type>>, candidate: Array<Type> =>
 
                         let canReach = candidate.iterator().enumerate().all({ entry => 
                             let (column, curType) = entry
                             let curAncestors = curType.ancestorSet
-                            candidates.iterator().map({ c => c[0] }).all({
+                            candidates.iterator().map({ c => c.paramRef.getOrThrow().iterator()
+                                .map({ v => v.effectiveType.getOrThrow() })
+                                .fold<ArrayList<Type>>(ArrayList(), { res, v => res.add(v); res }).toArray()
+                            }).all({
                                 otherCandidate: Array<Type> =>
                                     curAncestors.contains(otherCandidate[column])
                             })
@@ -198,10 +211,10 @@ public class TypeManager {
     }
 
     /*
-    * Returns the return type of the function called with the given parameters.
+    * Returns the reference of the function called with the given parameters.
     */
     public func applyFunction(funcName: String, params: Array<Type>,
-        expectedReturnType: ?Type): Type
+        expectedReturnType: ?Type): FuncReference
     {
         // TODO: If there are candidates with parameters but not with expected return take the first
         // and print something like (expected "this" found "that" where that is the first)
@@ -212,8 +225,8 @@ public class TypeManager {
         }
     }
 
-    public func addFunction(funcName: String, params: Array<Type>, returnType: Type): Unit {
-        currentEnvironment.declareFunc(funcName, params, returnType, paramHashConcat)
+    public func addFunction(reference: FuncReference): Unit {
+        currentEnvironment.declareFunc(reference, paramHashConcat)
     }
 
     /*

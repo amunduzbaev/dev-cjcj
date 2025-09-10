@@ -29,11 +29,13 @@ public class TypeChecker <: Visitor<Type> {
         let left: Type = binaryExpr.left.traverse(this)
         let right: Type = binaryExpr.right.traverse(this)
         typeManager.applyFunction(binaryExpr.oper.value, [left, right], expectedReturnType.peek())
+            .effectiveType.getOrThrow()
     }
 
     public override func visit(unaryExpr: UnaryExpr): Type {
         let right: Type = unaryExpr.right.traverse(this)
         typeManager.applyFunction(unaryExpr.oper.value, [right], expectedReturnType.peek())
+            .effectiveType.getOrThrow()
     }
 
     public override func visit(parenExpr: ParenExpr): Type {
@@ -123,7 +125,6 @@ public class TypeChecker <: Visitor<Type> {
     }
 
     public override func visit(varDeclWithRef: VarDeclWithRef): Type {
-        // TODO: Here set the expected return type of the initializer.
         let ref: Reference = varDeclWithRef.ref
         if (let Some(initzer) <- varDeclWithRef.initializer) {
             let initType: Type = initzer.traverse(this)
@@ -152,9 +153,10 @@ public class TypeChecker <: Visitor<Type> {
             returnType = decl.traverse(this)
         }
 
+        let params = funcDeclWithRef.params
         // Set effective type to parameters (= to declaration type)
-        funcDeclWithRef.paramRef.iterator()
-            .forEach({ p => p.effectiveType = p.declType.getOrThrow().traverse(this) })
+        funcDeclWithRef.funcRef.paramRef.getOrThrow().iterator()
+            .enumerate().forEach({ v => v[1].effectiveType = params[v[0]].paramType.traverse(this) })
         
         let infType: Type = funcDeclWithRef.block.traverse(this)
         if (let Some(retType) <- returnType) {
@@ -166,12 +168,7 @@ public class TypeChecker <: Visitor<Type> {
         } else {
             ref.effectiveType = infType
         }
-        
-        typeManager.addFunction(ref.identifier.value, ref.params.iterator()
-            .fold<ArrayList<Type>>(ArrayList(),
-                { res, v => res.add(v.traverse(this)); res}).toArray(),
-            ref.effectiveType.getOrThrow()
-        )
+        typeManager.addFunction(ref)
         typeManager.get("Unit")
     }
 
@@ -180,8 +177,8 @@ public class TypeChecker <: Visitor<Type> {
         if (let Some(decl) <- mainDeclWithRef.declType) {
             returnType = decl.traverse(this)
         }
-        if (let Some(param) <- mainDeclWithRef.paramRef) {
-            param.effectiveType = param.declType.getOrThrow().traverse(this)
+        if (let Some(ref) <- mainDeclWithRef.mainRef.paramRef) {
+            ref.effectiveType = mainDeclWithRef.param.getOrThrow().traverse(this)
         }
         let infType: Type = mainDeclWithRef.block.traverse(this)
         if (let Some(retType) <- returnType) {
@@ -203,14 +200,16 @@ public class TypeChecker <: Visitor<Type> {
     }
 
     public override func visit(callExpr: CallExpr): Type {
-        let ref = (callExpr.callee as FuncReference).getOrThrow()
-        // TODO: change the reference to the right one.
-        typeManager.applyFunction(
+        var ref: FuncReference = (callExpr.callee as FuncReference).getOrThrow()
+
+        ref = typeManager.applyFunction(
             ref.identifier.value,
             callExpr.arguments.iterator().fold<ArrayList<Type>>(ArrayList(),
                 { res, v => res.add(v.traverse(this)); res }).toArray(),
             expectedReturnType.peek()
         )
+        callExpr.callee = ref
+        ref.effectiveType.getOrThrow()
     }
 
     public override func visit(classDeclWithRef: ClassDeclWithRef): Type {

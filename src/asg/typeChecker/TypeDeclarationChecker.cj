@@ -1,7 +1,11 @@
 package cjcj.asg.typeChecker
 
 import cjcj.visitor.*
+import cjcj.parser.NodeIdManager
+import cjcj.scanner.Token
+import cjcj.scanner.TokenKind
 
+import std.ast.Position
 import std.collection.*
 
 /*
@@ -120,7 +124,20 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
                     typeManager.get(v[1])
                 )}))
             }).forEach({ v => v[1].iterator().forEach({ t =>
-                typeManager.addFunction(v[0], t[0].toArray(), t[1])
+                // Create a reference for each parameter and then create the func reference to pass.
+                let paramRef: ArrayList<VariableReference> = t[0].iterator()
+                    .fold(ArrayList(), { acc, v =>
+                        let ref: VariableReference = VariableReference(NodeIdManager.nextId(),
+                            Token(), Token(TokenKind.LET, "let", Position()))
+                        ref.effectiveType = v
+                        acc.add(ref); acc
+                    })
+
+                let ref = FuncReference(NodeIdManager.nextId(),
+                    Token(TokenKind.ILLEGAL, v[0], Position()))
+                ref.paramRef = paramRef
+                ref.effectiveType = t[1]
+                typeManager.addFunction(ref)
             })
         })
     }
