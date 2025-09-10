@@ -5,7 +5,6 @@ import cjcj.visitor.*
 import cjcj.parser
 import cjcj.scanner.*
 import cjcj.prettyPrinter.PrettyPrinter
-import cjcj.asg.InitCheck
 
 import std.env.*
 import std.collection.ArrayList
@@ -65,10 +64,13 @@ class ParserTests {
     @TestCase
     func funcDeclParams_test() {
         let test: String = """
+            class CustomType {
+            }
             main(){
                 func a(a: Int64, b: Unit, c: CustomType) {
                 }
-            }"""
+            }
+            """
 
         let m: MainDecl = getMain(test)
         @Assert(m.block.nodes.iterator().all({ n => n is FuncDecl }))
@@ -93,11 +95,13 @@ class ParserTests {
     @TestCase
     func funcDeclBlock_test() {
         let test: String = """
+            func f() {
+            }
             main(){
                 func a() {
                     let test = 3986
                     var b: String = "string"
-                    while (condition) {
+                    while (test == 5) {
                         f()
                     }
                     if (true) {
@@ -105,7 +109,8 @@ class ParserTests {
                     }
                     return 6347
                 }
-            }"""
+            }
+            """
 
         let m: MainDecl = getMain(test)
         @Assert(m.block.nodes.iterator().all({ n => n is FuncDecl }))
@@ -131,6 +136,7 @@ class ParserTests {
         let decl: FuncDecl = (m.block.nodes[0] as FuncDecl).getOrThrow()
         @Assert(decl.declType.isSome())
         @Assert(decl.params.size == 3)
+        @Assert(decl.block.nodes.size == 3)
     }
 
     @TestCase
@@ -204,6 +210,16 @@ class ParserTests {
         @Expect(decls[1].initializer.isSome())
         @Expect(decls[2].initializer.isNone())
         @Expect(decls[3].initializer.isSome())
+
+        @Expect(decls[0].declType.isSome())
+        @Expect(decls[1].declType.isSome())
+        @Expect(decls[2].declType.isSome())
+        @Expect(decls[3].declType.isNone())
+
+        @Expect(decls[0].keyword.kind == TokenKind.LET)
+        @Expect(decls[1].keyword.kind == TokenKind.LET)
+        @Expect(decls[2].keyword.kind == TokenKind.VAR)
+        @Expect(decls[3].keyword.kind == TokenKind.VAR)
     }
 
 
