@@ -386,7 +386,9 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     private func declareFunc(identifier: Token, value: FuncReference): Unit {
-        funcEnvironment.declare(identifier.value, value)
+        if (funcEnvironment.getLocal(identifier.value).isNone()) {
+            funcEnvironment.declare(identifier.value, value)
+        }
     }
 
     private func declareClass(identifier: Token, value: ClassReference): Unit {
@@ -402,6 +404,7 @@ public class AsgMaker <: Visitor<Node> {
         var tmpVarEnv = variableEnvironment
         while (!tmpFuncEnv.isGlobal && !tmpVarEnv.isGlobal) {
             if (let Some(fun) <- tmpFuncEnv.getLocal(key)) {
+                // THIS IS NOT THE REAL REFERENCE, IT'S JUST A WAY TO SAY THAT IT EXISTS.
                 return fun
             }
             if (let Some(va) <- tmpVarEnv.getLocal(key)) {
@@ -414,6 +417,7 @@ public class AsgMaker <: Visitor<Node> {
             return clas
         }
         if (let Some(fun) <- tmpFuncEnv.getLocal(key)) {
+            // THIS IS NOT THE REAL REFERENCE, IT'S JUST A WAY TO SAY THAT IT EXISTS.
             return fun
         }
         if (let Some(va) <- tmpVarEnv.getLocal(key)) {
