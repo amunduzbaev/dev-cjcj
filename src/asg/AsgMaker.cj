@@ -72,7 +72,9 @@ public class AsgMaker <: Visitor<Node> {
     public override func visit(program: Program): Node {
         let decls: ArrayList<Decl> = ArrayList()
 
-        let topDecl = GlobalDeclarator(funcEnvironment, variableEnvironment, classEnvironment)
+        let topDecl: Declarator = DeclaratorFactory.globalDeclarator(
+            funcEnvironment, classEnvironment
+        )
         let refDecls = ArrayList<(Decl, ?Reference)>()
         program.decls.iterator().forEach({ d =>
             refDecls.add((d, d.traverse(topDecl)))
@@ -329,7 +331,9 @@ public class AsgMaker <: Visitor<Node> {
         let precScopeType = beginScope(ScopeType.BODY)
 
         let decls: ArrayList<Decl> = ArrayList()
-        let topDecl = BodyDeclarator(funcEnvironment, variableEnvironment)
+        let topDecl: Declarator = DeclaratorFactory.bodyDeclarator(
+            funcEnvironment, variableEnvironment
+        )
         let refDecls = ArrayList<(Decl, ?Reference)>()
         body.decls.iterator().forEach({ d =>
             refDecls.add((d, d.traverse(topDecl)))
