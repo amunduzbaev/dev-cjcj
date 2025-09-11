@@ -30,6 +30,7 @@ public open class Reference <: Expr & Hashable & Equatable<Reference> {
     public func hashCode(): Int64 {
         this.id.hashCode()
     }
+
     public operator func ==(rhs: Reference): Bool{
         id.id == rhs.id.id
     }
@@ -63,10 +64,12 @@ public class VariableReference <: Reference {
 
 public class FuncReference <: Reference {
     private var paramRef_: ?ArrayList<VariableReference> = None
+    private let block_: Block
 
-    public FuncReference(id: NodeId, identifier: Token)
+    public FuncReference(id: NodeId, identifier: Token, block: Block)
     {
         super(id, identifier, None)
+        block_ = block
     }
 
     public override func traverse<R>(v: Visitor<R>): R {
@@ -77,6 +80,10 @@ public class FuncReference <: Reference {
         super.prettyPrint(printer)
     }
 
+    public prop block: Block {
+        get() { block }
+    }
+
     public mut prop paramRef: ?ArrayList<VariableReference> {
         get() { paramRef_ }
         set(v) { paramRef_ = v}
@@ -84,18 +91,25 @@ public class FuncReference <: Reference {
 }
 
 public class ClassReference <: Reference{
-    private var decls_: ?Set<Reference> = None
-    public init(id: NodeId, identifier: Token) {
+    private var parent_: ?ClassReference = None
+    private let body_: Body
+
+    public init(id: NodeId, identifier: Token, body: Body) {
         super(id, identifier, None)
+        body_ = body
     }
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 
-    public mut prop decls: ?Set<Reference> {
-        get() { decls_ }
-        set(v) { decls_ = v }
+    public prop body: Body {
+        get() { body_ }
+    }
+
+    public mut prop parent: ?ClassReference {
+        get() { parent_ }
+        set(v) { parent_ = v }
     }
 }
 
