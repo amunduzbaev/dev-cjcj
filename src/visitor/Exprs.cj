@@ -191,7 +191,7 @@ public class AssignExpr <: Expr {
     }
 }
 
-public class RefExpr <: Expr {
+public open class RefExpr <: Expr {
     private var identifier_: Token
 
     public RefExpr(id: NodeId, identifier: Token) {
@@ -199,7 +199,7 @@ public class RefExpr <: Expr {
         identifier_ = identifier
     }
 
-    public override func traverse<R>(v: Visitor<R>): R {
+    public override open func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 

@@ -309,7 +309,7 @@ class AsgMakerTests {
                 identifier
             }"""
         let m: MainDeclWithRef = getMain(test)
-        @Assert(m.block.nodes.iterator().all({ n => n is VariableReference }))
+        @Assert(m.block.nodes.iterator().all({ n => n is RefExprWithRef }))
     }
 
     @TestCase

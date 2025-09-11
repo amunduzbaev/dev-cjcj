@@ -111,8 +111,8 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(assignExpr: AssignExpr): Node {
-        let left: Reference
-        if (let Some(l) <- (assignExpr.left.traverse(this) as Reference)) {
+        let left: RefExprWithRef
+        if (let Some(l) <- (assignExpr.left.traverse(this) as RefExprWithRef)) {
             left = l
         } else {
             // TODO: This probably can never happen because it's an error caught
@@ -125,7 +125,8 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(refExpr: RefExpr): Node {
-        get(refExpr.identifier.value)
+        // get(refExpr.identifier.value)
+        RefExprWithRef(NodeIdManager.nextId(), refExpr.identifier, get(refExpr.identifier.value))
     }
 
     public override func visit(block: Block): Node {
