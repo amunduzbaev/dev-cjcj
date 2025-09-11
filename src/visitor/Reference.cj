@@ -202,3 +202,20 @@ public class ClassDeclWithRef <: ClassDecl {
         get() { ref_ }
     }
 }
+
+public class RefExprWithRef <: RefExpr {
+    private let ref_: Reference 
+
+    public init(id: NodeId, identifier: Token, ref: Reference) {
+        super(id, identifier)
+        ref_ = ref
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R{
+        v.visit(this)
+    }
+
+    public prop ref: Reference {
+        get() { ref_ }
+    }
+}
