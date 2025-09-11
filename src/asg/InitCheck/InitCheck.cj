@@ -145,7 +145,7 @@ public class InitCheck <: Visitor< InitsRefs >{
         let elseBranch = ifExpr.elseBranch.traverse(this)
         let condition = ifExpr.condition.traverse(this)
         condition.mergeL(ifExpr.ifBlock.traverse(this))
-        condition.bramchMerge(elseBranch)
+        condition.branchMerge(elseBranch)
 
         lastNode = prev
         condition
@@ -265,39 +265,14 @@ public class InitCheck <: Visitor< InitsRefs >{
         current
     }
 
-    public override func visit(classDecl: ClassDeclWithRef): InitsRefs {
-        let prev = lastNode
-        lastNode = classDecl
-
-        let current = InitsRefs()
-
-        classDecl.superTypes.iterator().forEach({ superType => 
-            let child = superType.traverse(this)
-            current.mergeL(child)
-        })
-
-        current.mergeL(classDecl.body.traverse(this))
-
-        lastNode = prev
-        current    
-    }
-
-    public override func visit(body: Body): InitsRefs {
-        let prev = lastNode
-        lastNode = body
-
-        // TODO : CHANGED        
-
-        lastNode = prev
-        InitsRefs()
-    }
-
     public override func visit(argument: Argument): InitsRefs {
         let prev = lastNode
         lastNode = argument
         
+        let current = argument.expr.traverse(this)
+
         lastNode = prev
-        argument.expr.traverse(this)
+        current
     }
 
     public override func visit(_: TypeNode): InitsRefs {

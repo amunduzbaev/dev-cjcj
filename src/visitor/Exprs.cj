@@ -430,6 +430,14 @@ public class JumpExpr <: Expr {
         keyword_ = keyword
     }
 
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        printer.append(keyword.value)
+    }
+
     public mut prop keyword: Token {
         get() { keyword_ }
         set(v) { keyword_ = v }

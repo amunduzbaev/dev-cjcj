@@ -5,7 +5,6 @@ import cjcj.visitor.*
 import cjcj.parser
 import cjcj.scanner.*
 import cjcj.prettyPrinter.PrettyPrinter
-import cjcj.asg.InitCheck
 
 import std.env.*
 import std.collection.ArrayList
@@ -65,10 +64,13 @@ class ParserTests {
     @TestCase
     func funcDeclParams_test() {
         let test: String = """
+            class CustomType {
+            }
             main(){
                 func a(a: Int64, b: Unit, c: CustomType) {
                 }
-            }"""
+            }
+            """
 
         let m: MainDecl = getMain(test)
         @Assert(m.block.nodes.iterator().all({ n => n is FuncDecl }))
@@ -93,11 +95,13 @@ class ParserTests {
     @TestCase
     func funcDeclBlock_test() {
         let test: String = """
+            func f() {
+            }
             main(){
                 func a() {
                     let test = 3986
                     var b: String = "string"
-                    while (condition) {
+                    while (test == 5) {
                         f()
                     }
                     if (true) {
@@ -105,7 +109,8 @@ class ParserTests {
                     }
                     return 6347
                 }
-            }"""
+            }
+            """
 
         let m: MainDecl = getMain(test)
         @Assert(m.block.nodes.iterator().all({ n => n is FuncDecl }))
@@ -116,10 +121,12 @@ class ParserTests {
     @TestCase
     func funcDeclGeneral_test() {
         let test: String = """
+            class CustomType {
+            }
             main(){
                 func a(a: Int64, b: Unit, c: CustomType): Int64 {
                     let bo = 5
-                    if (condition) {
+                    if (bo == 7) {
                         return 4
                     }
                     return 10
@@ -131,6 +138,7 @@ class ParserTests {
         let decl: FuncDecl = (m.block.nodes[0] as FuncDecl).getOrThrow()
         @Assert(decl.declType.isSome())
         @Assert(decl.params.size == 3)
+        @Assert(decl.block.nodes.size == 3)
     }
 
     @TestCase
@@ -152,6 +160,12 @@ class ParserTests {
         let test: String = """
             class a <: b & c & d {
             }
+            class b {
+            }
+            class c {
+            }
+            class d {
+            }
             main(){
             }"""
 
@@ -169,10 +183,12 @@ class ParserTests {
             class a {
                 let a = 6
                 let b: Int64 = 347
-                func a() {
+                func c() {
                 }
                 init(a: CustomType) {
                 }
+            }
+            class CustomType {
             }
             main(){
             }"""
@@ -191,8 +207,8 @@ class ParserTests {
             main(){
                 let a: Int32
                 let b: Int64 = 567
-                var a: Int32
-                var b = 567
+                var c: Int32
+                var d = 567
             }"""
 
         let m: MainDecl = getMain(test)
@@ -204,6 +220,16 @@ class ParserTests {
         @Expect(decls[1].initializer.isSome())
         @Expect(decls[2].initializer.isNone())
         @Expect(decls[3].initializer.isSome())
+
+        @Expect(decls[0].declType.isSome())
+        @Expect(decls[1].declType.isSome())
+        @Expect(decls[2].declType.isSome())
+        @Expect(decls[3].declType.isNone())
+
+        @Expect(decls[0].keyword.kind == TokenKind.LET)
+        @Expect(decls[1].keyword.kind == TokenKind.LET)
+        @Expect(decls[2].keyword.kind == TokenKind.VAR)
+        @Expect(decls[3].keyword.kind == TokenKind.VAR)
     }
 
 
@@ -238,6 +264,7 @@ class ParserTests {
     @TestCase
     func parenExpr_test() {
         let test: String = """
+            let a = 2
             main(){
                 (-134)
                 (134 + (5486 - 12) + a)
@@ -266,6 +293,8 @@ class ParserTests {
     @TestCase
     func assignExpr_test() {
         let test: String = """
+            var a: Int64 = 1
+            var b: Int64 = 2
             main(){
                 a = 1231 + 8735
                 b = a
@@ -277,6 +306,7 @@ class ParserTests {
     @TestCase
     func refExpr_test() {
         let test: String = """
+            let identifier = 1
             main(){
                 identifier
             }"""
@@ -288,12 +318,12 @@ class ParserTests {
     func ifExpr_test() {
         let test: String = """
             main(){
-                if (expression) {
-                    expression
-                } else if (expression) {
-                    expression
+                if (1 == 2) {
+                    1
+                } else if (1 == 3) {
+                    2
                 } else {
-                    expression
+                    3
                 }
             }"""
         let m: MainDecl = getMain(test)
@@ -304,8 +334,8 @@ class ParserTests {
     func ifExprDesugar_test() {
         let test: String = """
             main(){
-                if (expression) {
-                    expression
+                if (1 == 2) {
+                    1
                 }
             }"""
         // Should add the else branch while parsing.
@@ -317,8 +347,8 @@ class ParserTests {
     func whileExpr_test() {
         let test: String = """
             main(){
-                while (expression) {
-                    expression
+                while (1 == 2) {
+                    1
                 }
             }"""
         // Should add the else branch while parsing.
@@ -329,6 +359,8 @@ class ParserTests {
     @TestCase
     func callExpr_test() {
         let test: String = """
+            func a() {
+            }
             main(){
                 a()
             }"""
@@ -341,7 +373,7 @@ class ParserTests {
     func returnExpr_test() {
         let test: String = """
             main(){
-                return expression
+                return 1
             }"""
         // Should add the else branch while parsing.
         let m: MainDecl = getMain(test)
@@ -362,6 +394,7 @@ class ParserTests {
     @TestCase
     func returnExprUnitFunc_test() {
         let test: String = """
+            let a = 1
             main(): Unit{
                 return a
             }"""
@@ -383,10 +416,22 @@ class ParserTests {
     @TestCase
     func memberAccess_test() {
         let test: String = """
+            class B {
+                let f = 1
+                func c() {
+                    B()
+                }
+            }
+            class A {
+                let b: B = B()
+            }
+            let a: A = A()
+            func c() {
+                A()
+            }
             main(){
                 a.b.c().f
                 c().b
-                Int64(a).c
             }"""
         let m: MainDecl = getMain(test)
         @Assert(m.block.nodes.iterator().all({ n => n is MemberAccess }))
@@ -402,8 +447,6 @@ class ParserTests {
         let m: MainDecl = getMain(test)
         @Assert(m.block.nodes.iterator().all({ n => n is PrimitiveTypeExpr }))
     }
-
-
 
     @TestCase
     func parseTest2() {

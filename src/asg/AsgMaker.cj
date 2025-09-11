@@ -56,7 +56,7 @@ public class AsgMaker <: Visitor<Node> {
     */
 
     public func resolve(program: Program): Program {
-        // TODO: We need to declare Any and in the future all the other builtin interfaces / structs
+        // TODO: We need to declare Any and in the future all the other builtin interfaces/structs
         // because they're not primitive types, so they are considered as RefType.
         let builtinIdentifiers: Array<Token> = [
             Token(TokenKind.IDENTIFIER, "Any", Position()),
@@ -180,6 +180,15 @@ public class AsgMaker <: Visitor<Node> {
         throw ReturnExprError()
     }
 
+    public override func visit(jumpExpr: JumpExpr): Node {
+        if (currentScopeType == ScopeType.BLOCK) {
+            return JumpExpr(NodeIdManager.nextId(), jumpExpr.keyword)
+        }
+
+        println("Jump statement not side a block")
+        throw Exception()
+    }
+
     public override func visit(varDecl: VarDecl): Node {
         // Call the initializer first because there could be reference to previous variables with
         // the same identifier.
@@ -201,7 +210,7 @@ public class AsgMaker <: Visitor<Node> {
         if (initializer.isSome() || declType.isSome()) {
             if (let Some(ref) <- storedRef) {
                 reference = (ref as VariableReference).getOrThrow({ => 
-                    Exception("Reference given to the variable declaration is not VariableReference")})
+                    Exception("Reference given to variable declaration is not VariableReference")})
             } else {
                 reference = VariableReference(NodeIdManager.nextId(), varDecl.identifier,
                     varDecl.keyword)
@@ -350,6 +359,7 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(memberAccess: MemberAccess): Node {
+        // println("its here")
         let baseExpr = memberAccess.baseExpr.traverse(this)
         MemberAccess(NodeIdManager.nextId(), baseExpr, memberAccess.field)
     }
