@@ -12,14 +12,18 @@ import std.sort.*
 public class TypeManager {
 
     // Returns the concatenation of the string representation of the hash of the name of the types.
-    private static func paramHashConcat(params: Array<Type>): String {
-        params.iterator().map({ t => t.name.hashCode().toString() })
-        // TODO: Optimize string concatenation using string builder.
+    public static func funcHashConcat(funcName: String, params: Array<Type>): String {
+        // let funcName: String = funcRef.identifier.value
+        // let params: Iterator<Type> = funcRef.paramRef.getOrThrow().iterator()
+        //     .map({ pr => pr.effectiveType.getOrThrow() })
+        funcName.hashCode().toString() + params.iterator()
+            .map({ t => t.name.hashCode().toString() })
+            // TODO: Optimize string concatenation using string builder.
             .reduce({ a, b => a + b }).getOrDefault({ => "" })
     }
 
     private let nameToType: Map<String, Type> = HashMap()
-    private var immediateFuncEnvironment: Environment<String, Map<String, FuncReference>> = Environment()
+    private var immediateFuncEnvironment: Environment<String, FuncReference> = Environment()
     private var totalFuncEnvironment: Environment<String, ArrayStack<FuncReference>> = Environment()
 
     /*
@@ -59,16 +63,10 @@ public class TypeManager {
     * parameters at the same index in other functions and return its return type. If there is no 
     * such function, throw an error. 
     */
-    private func findClosestSuperType(funcName: String, params: Array<Type>,
-        expectedReturnType: ?Type): FuncReference
-    {
-        findClosestSuperType(funcName, params, expectedReturnType, totalFuncEnvironment)
-    }
-
-    private func findClosestSuperType(funcName: String, params: Array<Type>,
-        expectedReturnType: ?Type,
-        environment: Environment<String, ArrayStack<FuncReference>>): FuncReference
-    {
+    private func findClosestSuperType(
+        funcName: String, params: Array<Type>, expectedReturnType: ?Type,
+        environment: Environment<String, ArrayStack<FuncReference>>
+    ): ?FuncReference {
         if (let Some(paramsList) <- environment.getLocal(funcName)) {
             let candidates: ArrayStack<FuncReference> = params.iterator().enumerate()
                 .fold(paramsList, { 
@@ -99,14 +97,7 @@ public class TypeManager {
                 })
 
             if (candidates.isEmpty()) {
-                if (environment.enclosing.isSome()) {
-                    return findClosestSuperType(funcName, params, expectedReturnType,
-                        environment.enclosing.getOrThrow())
-                } else {
-                    let paramString: String = params.iterator().map({ t => t.name })
-                        .reduce({ a, b => a + "," + b }).getOrDefault({ => "" })
-                    throw Exception("Function ${funcName} is not defined for (${paramString})")
-                }
+                return None
             }
 
             let closests: ArrayList<Array<Type>> = candidates.iterator()
@@ -145,8 +136,7 @@ public class TypeManager {
             // I could also call it with expectedReturnType None because I know exactly the function
             return applyFunction(funcName, closests[0], expectedReturnType)
         }
-        findClosestSuperType(funcName, params, expectedReturnType,
-            environment.enclosing.getOrThrow())
+        None
     }
 
     /*
@@ -155,14 +145,30 @@ public class TypeManager {
     public func applyFunction(funcName: String, params: Array<Type>,
         expectedReturnType: ?Type): FuncReference
     {
+        var tmpImmediateFuncEnvironment = immediateFuncEnvironment
+        var tmpTotalFuncEnvironment = totalFuncEnvironment
+        var res: ?FuncReference = None
         // TODO: If there are candidates with parameters but not with expected return take the first
         // and print something like (expected "this" found "that" where that is the first)
-        let fun = immediateFuncEnvironment.getGlobal(funcName).getOrThrow({ =>
-            Exception("Function ${funcName} is not defined")})
-        match (fun.get(paramHashConcat(params))) {
-            case Some(returnType) => returnType
-            case _ => findClosestSuperType(funcName, params, expectedReturnType)
+        while(let Some(enclosingImmediate) <- tmpImmediateFuncEnvironment.enclosing &&
+            let Some(enclosingTotal) <- tmpTotalFuncEnvironment.enclosing &&
+            res.isNone()
+        ) {
+            res = match (tmpImmediateFuncEnvironment.getLocal(funcHashConcat(funcName, params))) {
+                case Some(funcRef) => funcRef
+                case _ => findClosestSuperType(funcName, params, expectedReturnType, tmpTotalFuncEnvironment)
+            }
+            tmpImmediateFuncEnvironment = enclosingImmediate
+            tmpTotalFuncEnvironment = enclosingTotal
         }
+        if (res.isNone()) {
+            res = match (tmpImmediateFuncEnvironment.getLocal(funcHashConcat(funcName, params))) {
+                case Some(returnType) => returnType
+                case _ => findClosestSuperType(funcName, params, expectedReturnType, tmpTotalFuncEnvironment)
+            }
+        }
+        res.getOrThrow({ => Exception("Function ${funcName} doesn't exist and couldn't find a " +
+            "right candidate based on params and returntype") })
     }
 
     public func addFunction(reference: FuncReference): Unit {
@@ -171,21 +177,19 @@ public class TypeManager {
             .map({ p => p.effectiveType.getOrThrow() })
             .fold<ArrayList<Type>>(ArrayList(), { res, v => res.add(v); res }).toArray()
 
-        if (let Some(fun) <- immediateFuncEnvironment.getLocal(funcName) &&
-            let Some(funList) <- totalFuncEnvironment.getLocal(funcName))
+        if (let Some(fun) <- immediateFuncEnvironment.getLocal(funcHashConcat(funcName, params)))
         {
-            if (let Some(prec) <- fun.addIfAbsent(paramHashConcat(params), reference)) {
-                let paramString: String = params.iterator().map({ t => t.name })
-                    .reduce({ a, b => a + "," + b }).getOrDefault({ => "" })
+            let paramString: String = params.iterator().map({ t => t.name })
+                .reduce({ a, b => a + "," + b }).getOrDefault({ => "" })
 
-                throw Exception("Multiple declaration of func ${funcName} (${paramString})")
-            }
+            throw Exception("Multiple declaration of func ${funcName} (${paramString})")
+        }
+
+        immediateFuncEnvironment.declare(funcHashConcat(funcName, params), reference)
+        if (let Some(funList) <- totalFuncEnvironment.getLocal(funcName)) {
             funList.add(reference)
             return
         }
-        let map: Map<String, FuncReference> = HashMap()
-        map.add(paramHashConcat(params), reference)
-        immediateFuncEnvironment.declare(funcName, map)
 
         let stack: ArrayStack<FuncReference> = ArrayStack()
         stack.add(reference)
