@@ -14,7 +14,7 @@ public class TypeManager {
     // Returns the concatenation of the string representation of the hash of the funcName and of the
     // name of the types.
     public static func funcHashConcat(funcName: String, params: Array<Type>): String {
-        funcName.hashCode().toString() + params.iterator()
+        funcName + params.iterator()
             .map({ t => t.name.hashCode().toString() })
             .fold(StringBuilder(), { acc, v => acc.append(v); acc }).toString()
     }
