@@ -67,20 +67,21 @@ public class AsgMaker <: Visitor<Node> {
         builtinIdentifiers.iterator().forEach({ t => 
             classEnvironment.declare(t.value, ClassReference(NodeIdManager.nextId(), t))
         })
-        let functionDeclarator: Declarator = DeclaratorFactory.functionDeclarator(funcEnvironment)
-        program.decls.iterator().forEach({ d => d.traverse(functionDeclarator) })
+
         return (program.traverse(this) as Program).getOrThrow()
     }
 
     public override func visit(program: Program): Node {
         let decls: ArrayList<Decl> = ArrayList()
-
-        let topDecl: Declarator = DeclaratorFactory.globalDeclarator(
+        
+        // Declare global function and classes.
+        let globalDeclarator: Declarator = DeclaratorFactory.globalDeclarator(
             funcEnvironment, classEnvironment
         )
+
         let refDecls = ArrayList<(Decl, ?Reference)>()
         program.decls.iterator().forEach({ d =>
-            refDecls.add((d, d.traverse(topDecl)))
+            refDecls.add((d, d.traverse(globalDeclarator)))
         })
         
         refDecls.iterator().forEach({ entry =>
@@ -321,8 +322,8 @@ public class AsgMaker <: Visitor<Node> {
             classReference = (ref as ClassReference).getOrThrow({ => 
                 Exception("Reference given to the class declaration is not ClassReference")})
         } else {
-            classReference = ClassReference(NodeIdManager.nextId(), classDecl.identifier)
-            declareClass(classDecl.identifier, classReference)
+            throw Exception("Class ${classDecl.identifier.value} should've been declared " +
+                "with the global declarator")
         }
 
         let body = (classDecl.body.traverse(this) as Body).getOrThrow({ => 
@@ -385,6 +386,12 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     private func declareVar(identifier: Token, value: VariableReference): Unit {
+        let name: String = identifier.value
+        if ((variableEnvironment.isGlobal && classEnvironment.getLocal(name).isSome()) ||
+            funcEnvironment.getLocal(name).isSome())
+        {
+            throw Exception("Redefinition of declaration ${name}")
+        }
         variableEnvironment.declare(identifier.value, value)
     }
 
@@ -392,10 +399,6 @@ public class AsgMaker <: Visitor<Node> {
         if (funcEnvironment.getLocal(identifier.value).isNone()) {
             funcEnvironment.declare(identifier.value, value)
         }
-    }
-
-    private func declareClass(identifier: Token, value: ClassReference): Unit {
-        classEnvironment.declare(identifier.value, value)
     }
 
     private func isTypeDeclared(typeName: Token): Bool {

@@ -19,8 +19,9 @@ public class TypeChecker <: Visitor<Type> {
 
     public init(program: Program) {
         typeManager = TypeDeclarationChecker().resolve(program)
-        let functionDeclarator: Declarator = DeclaratorFactory.functionTypeDeclarator(
-            funcEnvironment, typeManager)
+        let functionDeclarator: Declarator = DeclaratorFactory.globalTypeDeclarator(
+            funcEnvironment, Environment(), typeManager
+        )
         program.decls.iterator().forEach({ d => d.traverse(functionDeclarator) })
         // funcEnvironment.elements.values().iterator().forEach({ funcRef => typeManager.addFunction(funcRef) })
         TypeAssigner(program, funcEnvironment, typeManager)
