@@ -7,6 +7,7 @@ import cjcj.scanner.TokenKind
 
 import std.ast.Position
 import std.collection.*
+import std.deriving.Derive
 
 /*
 * Used to represent a type of which we don't know all the information needed, for example we may not
@@ -62,7 +63,8 @@ private class TypePrecursor <: Equatable<TypePrecursor> & Hashable {
 }
 
 // TODO: Maybe create a generic Graph class that contains all the graph functions.
-private enum Status {
+@Derive[Equatable]
+public enum Status {
     IN | VIS
 }
 
