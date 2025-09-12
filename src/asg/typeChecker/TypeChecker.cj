@@ -2,6 +2,7 @@ package cjcj.asg.typeChecker
 
 import cjcj.visitor.*
 import cjcj.scanner.TokenKind
+import cjcj.asg.declarator.*
 
 import std.collection.*
 
@@ -14,9 +15,16 @@ public class TypeChecker <: Visitor<Type> {
     private static let DUMMY_TYPE = Type("")
     private let typeManager: TypeManager
     private let expectedReturnType: ArrayStack<Type> = ArrayStack()
+    private var funcEnvironment: Environment<String, FuncReference> = Environment()
+    private var variableEnvironment: Environment<String, VariableReference> = Environment()
 
     public init(program: Program) {
         typeManager = TypeDeclarationChecker().resolve(program)
+        let functionDeclarator: Declarator = DeclaratorFactory.functionTypeDeclarator(
+            funcEnvironment, typeManager)
+        program.decls.iterator().forEach({ d => d.traverse(functionDeclarator) })
+        // funcEnvironment.elements.values().iterator().forEach({ funcRef => typeManager.addFunction(funcRef) })
+        TypeAssigner(program, funcEnvironment, typeManager)
         program.traverse(this)
     }
 
@@ -71,6 +79,8 @@ public class TypeChecker <: Visitor<Type> {
 
     public override func visit(block: Block): Type {
         typeManager.beginScope()
+        funcEnvironment = Environment(funcEnvironment)
+        variableEnvironment = Environment(variableEnvironment)
 
         let lastId = block.nodes.last.getOrDefault({ => Expr() }).id
         let returnType = block.nodes.iterator()
@@ -81,6 +91,8 @@ public class TypeChecker <: Visitor<Type> {
             .getOrDefault({ => typeManager.get("Unit")})
 
         typeManager.endScope()
+        funcEnvironment = funcEnvironment.enclosing.getOrThrow()
+        variableEnvironment = variableEnvironment.enclosing.getOrThrow()
         returnType
     }
 
@@ -126,66 +138,43 @@ public class TypeChecker <: Visitor<Type> {
 
     public override func visit(varDeclWithRef: VarDeclWithRef): Type {
         let ref: Reference = varDeclWithRef.ref
+        let assignedType: Type = ref.effectiveType
+            .getOrThrow({ => Exception("Type not yet assigned!")})
         if (let Some(initzer) <- varDeclWithRef.initializer) {
             let initType: Type = initzer.traverse(this)
-            if (let Some(t) <- varDeclWithRef.declType) {
-                let dType: Type = t.traverse(this)
-                if (!dType.isParent(initType)) {
-                    throw Exception("Assigned type not correct, expected ${dType.name} " +
-                        "found ${initType.name}")
-                }
-                ref.effectiveType = dType
-            } else {
-                ref.effectiveType = initType
+            if (!assignedType.isParent(initType)) {
+                throw Exception("Assigned type not correct, expected ${assignedType.name} " +
+                    "found ${initType.name}")
             }
-        } else {
-            ref.effectiveType = varDeclWithRef.declType.getOrThrow({ =>
-                Exception("No initializer and no declType in typeChecking, should've been checked" +
-                    " before") }).traverse(this)
         }
         typeManager.get("Unit")
     }
 
     public override func visit(funcDeclWithRef: FuncDeclWithRef): Type {
         let ref: FuncReference = funcDeclWithRef.funcRef
-        var returnType: ?Type = None
-        if (let Some(decl) <- funcDeclWithRef.declType) {
-            returnType = decl.traverse(this)
-        }
-
-        let params = funcDeclWithRef.params
-        // Set effective type to parameters (= to declaration type)
-        funcDeclWithRef.funcRef.paramRef.getOrThrow().iterator()
-            .enumerate().forEach({ v => v[1].effectiveType = params[v[0]].paramType.traverse(this) })
+        let assignedType: Type = ref.effectiveType
+            .getOrThrow({ => Exception("Type not yet assigned!")})
         
         let infType: Type = funcDeclWithRef.block.traverse(this)
-        if (let Some(retType) <- returnType) {
-            if (!retType.isParent(infType)) {
-                throw Exception("Type of function not correct, defined ${retType.name}, found: " +
-                    "${infType.name}")
-            }
-            ref.effectiveType = retType
-        } else {
-            ref.effectiveType = infType
+        if (!assignedType.isParent(infType)) {
+            throw Exception("Type of function not correct, expected ${assignedType.name}, found: " +
+                "${infType.name}")
         }
-        typeManager.addFunction(ref)
+        if (!funcEnvironment.isGlobal) {
+            typeManager.addFunction(ref)
+        }
         typeManager.get("Unit")
     }
 
     public override func visit(mainDeclWithRef: MainDeclWithRef): Type {
-        var returnType: ?Type = None
-        if (let Some(decl) <- mainDeclWithRef.declType) {
-            returnType = decl.traverse(this)
-        }
-        if (let Some(ref) <- mainDeclWithRef.mainRef.paramRef) {
-            ref.effectiveType = mainDeclWithRef.param.getOrThrow().traverse(this)
-        }
+        let ref: MainReference = mainDeclWithRef.mainRef
+        let assignedType: Type = ref.effectiveType
+            .getOrThrow({ => Exception("Type not yet assigned!")})
+
         let infType: Type = mainDeclWithRef.block.traverse(this)
-        if (let Some(retType) <- returnType) {
-            if (!retType.isParent(infType)) {
-                throw Exception("Type of function not correct, defined ${retType.name}, found: " +
-                    "${infType.name}")
-            }
+        if (!assignedType.isParent(infType)) {
+            throw Exception("Type of function not correct, expected ${assignedType.name}, found: " +
+                "${infType.name}")
         }
         typeManager.get("Unit")
     }
@@ -194,9 +183,12 @@ public class TypeChecker <: Visitor<Type> {
         varReference.effectiveType.getOrThrow()
     }
 
-    public override func visit(_: FuncReference): Type{
-        // This will return the lambda type in the future.
-        throw Exception("Unimplemented method for Visitor : Function Reference (ASG)")
+    public override func visit(funcReference: FuncReference): Type{
+        funcReference.effectiveType.getOrThrow()
+    }
+
+    public override func visit(refExprWithRef: RefExprWithRef): Type {
+        refExprWithRef.ref.traverse(this)
     }
 
     public override func visit(callExpr: CallExpr): Type {
