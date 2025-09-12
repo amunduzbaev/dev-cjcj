@@ -11,15 +11,12 @@ import std.sort.*
 
 public class TypeManager {
 
-    // Returns the concatenation of the string representation of the hash of the name of the types.
+    // Returns the concatenation of the string representation of the hash of the funcName and of the
+    // name of the types.
     public static func funcHashConcat(funcName: String, params: Array<Type>): String {
-        // let funcName: String = funcRef.identifier.value
-        // let params: Iterator<Type> = funcRef.paramRef.getOrThrow().iterator()
-        //     .map({ pr => pr.effectiveType.getOrThrow() })
         funcName.hashCode().toString() + params.iterator()
             .map({ t => t.name.hashCode().toString() })
-            // TODO: Optimize string concatenation using string builder.
-            .reduce({ a, b => a + b }).getOrDefault({ => "" })
+            .fold(StringBuilder(), { acc, v => acc.append(v); acc }).toString()
     }
 
     private let nameToType: Map<String, Type> = HashMap()
@@ -83,7 +80,6 @@ public class TypeManager {
                                 (curType.ancestorSet.contains(candidateParams[id]) ||
                                     curType == candidateParams[id])
                             ){
-                                // TODO: Maybe this if can be rewritten better.
                                 if (let Some(expectedRet) <- expectedReturnType) {
                                     if (expectedRet.isParent(candidateReturn)) {
                                         acc.add(candidate)
