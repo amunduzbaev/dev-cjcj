@@ -64,12 +64,11 @@ public class VariableReference <: Reference {
 
 public class FuncReference <: Reference {
     private var paramRef_: ?ArrayList<VariableReference> = None
-    private let block_: Block
+    private var block_: ?Block = None
 
-    public FuncReference(id: NodeId, identifier: Token, block: Block)
+    public FuncReference(id: NodeId, identifier: Token)
     {
         super(id, identifier, None)
-        block_ = block
     }
 
     public override func traverse<R>(v: Visitor<R>): R {
@@ -80,8 +79,9 @@ public class FuncReference <: Reference {
         super.prettyPrint(printer)
     }
 
-    public prop block: Block {
-        get() { block }
+    public mut prop block: ?Block {
+        get() { block_ }
+        set(v) { block_ = v}
     }
 
     public mut prop paramRef: ?ArrayList<VariableReference> {
@@ -92,19 +92,19 @@ public class FuncReference <: Reference {
 
 public class ClassReference <: Reference{
     private var parent_: ?ClassReference = None
-    private let body_: Body
+    private var body_: ?Body = None
 
-    public init(id: NodeId, identifier: Token, body: Body) {
+    public init(id: NodeId, identifier: Token) {
         super(id, identifier, None)
-        body_ = body
     }
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 
-    public prop body: Body {
+    public mut prop body: ?Body {
         get() { body_ }
+        set(v) { body_ = v }
     }
 
     public mut prop parent: ?ClassReference {
