@@ -2,7 +2,6 @@ package cjcj.asg.typeChecker
 
 import cjcj.visitor.*
 import cjcj.scanner.TokenKind
-import cjcj.asg.declarator.*
 
 import std.collection.*
 

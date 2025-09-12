@@ -4,7 +4,6 @@ import cjcj.visitor.*
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import cjcj.parser.NodeIdManager
-import cjcj.asg.declarator.Declarator
 
 import std.env.getStdOut
 

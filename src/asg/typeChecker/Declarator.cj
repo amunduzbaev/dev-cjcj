@@ -1,4 +1,4 @@
-package cjcj.asg.declarator
+package cjcj.asg.typeChecker
 
 import cjcj.visitor.*
 import cjcj.scanner.Token
