@@ -4,7 +4,8 @@ import cjcj.visitor.*
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import cjcj.parser.NodeIdManager
-import cjcj.asg.declarators.*
+import cjcj.asg.declarator.Declarator
+import cjcj.asg.typeChecker.DeclaratorFactory
 
 import std.env.getStdOut
 
@@ -66,6 +67,8 @@ public class AsgMaker <: Visitor<Node> {
         builtinIdentifiers.iterator().forEach({ t => 
             classEnvironment.declare(t.value, ClassReference(NodeIdManager.nextId(), t))
         })
+        let functionDeclarator: Declarator = DeclaratorFactory.functionDeclarator(funcEnvironment)
+        program.decls.iterator().forEach({ d => d.traverse(functionDeclarator) })
         return (program.traverse(this) as Program).getOrThrow()
     }
 
