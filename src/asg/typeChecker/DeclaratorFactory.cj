@@ -136,10 +136,6 @@ public abstract class DeclaratorFactory {
         { funcDecl: FuncDecl =>
             let ref: FuncReference = FuncReference(NodeIdManager.nextId(), funcDecl.identifier)
             let funcName: String = funcDecl.identifier.value
-            // let params: Array<Type> = funcDecl.params.iterator()
-            //     .map({ p => Type(p.paramType.typeName.value) })
-            //     .fold<ArrayList<Type>>(ArrayList(), { acc, v => acc.add(v); acc }).toArray()
-            // let funcHashParamName: String = TypeManager.funcHashConcat(funcName, params)
             if (canDeclare({ k => environment.getLocal(k).isNone() })(funcName)) {
                 environment.declare(funcName, ref)
             }
@@ -154,12 +150,11 @@ public abstract class DeclaratorFactory {
         { funcDeclWithRef: FuncDeclWithRef =>
             let ref: FuncReference = funcDeclWithRef.funcRef
             let funcName: String = ref.identifier.value
-            // TODO: ADD AN HELPER CLASS WITH FUNCPARAM TO PARAMREF
-            ref.paramRef.getOrThrow().iterator().enumerate().forEach({ p =>
-                p[1].effectiveType = typeManager.get(funcDeclWithRef.params[p[0]].paramType.typeName.value) })
-            let params: Array<Type> = ref.paramRef.getOrThrow().iterator()
-                .map({ p => p.effectiveType.getOrThrow() })
-                .fold<ArrayList<Type>>(ArrayList(), { acc, v => acc.add(v); acc }).toArray()
+            let paramRef: ArrayList<VariableReference> = ref.paramRef.getOrThrow()
+            TypeCheckerHelper.funcParamToParamRef(
+                funcDeclWithRef.params, ref.paramRef.getOrThrow(), typeManager
+            )
+            let params: Array<Type> = TypeCheckerHelper.refToType(paramRef)
             let funcHashParamName: String = TypeManager.funcHashConcat(funcName, params)
             typeManager.addFunction(ref)
             if (canDeclare({ k => environment.getLocal(k).isNone() })(funcHashParamName)) {

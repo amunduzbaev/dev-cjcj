@@ -97,13 +97,9 @@ public class TypeManager {
             }
 
             let closests: ArrayList<Array<Type>> = candidates.iterator()
-                .map({ c => c.paramRef.getOrThrow().iterator()
-                    .map({ v => v.effectiveType.getOrThrow() })
-                    .fold<ArrayList<Type>>(ArrayList(), { res, v => res.add(v); res }).toArray()
-                })
+                .map({ c => TypeCheckerHelper.refToType(c.paramRef.getOrThrow()) })
                 .fold<ArrayList<Array<Type>>>(ArrayList(), { 
                     closestOptions: ArrayList<Array<Type>>, candidate: Array<Type> =>
-
                         let canReach = candidate.iterator().enumerate().all({ entry => 
                             let (column, curType) = entry
                             let curAncestors = curType.ancestorSet
@@ -169,9 +165,7 @@ public class TypeManager {
 
     public func addFunction(reference: FuncReference): Unit {
         let funcName: String = reference.identifier.value
-        let params: Array<Type> = reference.paramRef.getOrThrow().iterator()
-            .map({ p => p.effectiveType.getOrThrow() })
-            .fold<ArrayList<Type>>(ArrayList(), { res, v => res.add(v); res }).toArray()
+        let params: Array<Type> = TypeCheckerHelper.refToType(reference.paramRef.getOrThrow())
 
         if (let Some(fun) <- immediateFuncEnvironment.getLocal(funcHashConcat(funcName, params)))
         {
