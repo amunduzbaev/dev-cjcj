@@ -1,4 +1,4 @@
-package cjcj.asg.declarators
+package cjcj.asg.declarator
 
 import cjcj.visitor.*
 import cjcj.scanner.Token
