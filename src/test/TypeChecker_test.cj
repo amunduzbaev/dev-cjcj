@@ -263,15 +263,24 @@ class TypeCheckTests {
         let testRight: String = """
             class a {
                 let b: Int64
+                init() {
+                }
+                func f() {
+                }
             }
             main(){
                 let b = a()
-                let c: Int64 = b.b
+                let c: Int64 = a().b
+                let f: Unit = b.f()
             }"""
         TypeChecker(getAsg(testRight))
         let testWrong: String = """
             class a {
                 let b: Int64
+                init() {
+                }
+                func f() {
+                }
             }
             main(){
                 let b = a()
@@ -287,9 +296,20 @@ class TypeCheckTests {
             }
             main(){
                 let b = a()
-                let c: Int64 = b.b
+                let c: Int64 = a().b
             }"""
         @AssertThrows[Exception](TypeChecker(getAsg(test)))
     }
 
+    @TestCase
+    func memberAccessCannotCallClass_test() {
+        let test: String = """
+            class a {
+            }
+            main(){
+                let b: a = a()
+                let c: Int64 = b()
+            }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(test)))
+    }
 }

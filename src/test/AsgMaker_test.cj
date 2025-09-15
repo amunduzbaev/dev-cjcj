@@ -201,6 +201,29 @@ class AsgMakerTests {
     }
 
     @TestCase
+    func classDeclFuncConflict_test() {
+        let test: String = """
+            class a {
+            }
+            func a() {
+            }
+            main(){
+            }"""
+        @AssertThrows[Exception](getAsg(test))
+    }
+
+    @TestCase
+    func classDeclVarConflict_test() {
+        let test: String = """
+            class a {
+            }
+            let a = 5
+            main(){
+            }"""
+        @AssertThrows[Exception](getAsg(test))
+    }
+
+    @TestCase
     func varDecl_test() {
         let test: String = """
             main(){

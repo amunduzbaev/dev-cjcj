@@ -4,7 +4,6 @@ import cjcj.visitor.*
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import cjcj.parser.NodeIdManager
-import cjcj.asg.declarators.*
 
 import std.env.getStdOut
 
@@ -20,7 +19,7 @@ import std.deriving.Derive
 * example a return expression.
 */
 @Derive[Equatable]
-private enum ScopeType {
+public enum ScopeType {
     NIL | BLOCK | BODY
 }
 
@@ -34,8 +33,6 @@ private enum ScopeType {
 * there's a bug in the as operator itself.
 */
 public class AsgMaker <: Visitor<Node> {
-    // private var globalScope: Environment = Environment()
-
     private var classEnvironment: Environment<String, ClassReference> = Environment()
     private var funcEnvironment: Environment<String, FuncReference> = Environment()
     private var variableEnvironment: Environment<String, VariableReference> = Environment()
@@ -54,7 +51,6 @@ public class AsgMaker <: Visitor<Node> {
     * Resolves all of the function and variable references and returns the new
     * Program node that is the ASG root.
     */
-
     public func resolve(program: Program): Program {
         // TODO: We need to declare Any and in the future all the other builtin interfaces/structs
         // because they're not primitive types, so they are considered as RefType.
@@ -66,18 +62,21 @@ public class AsgMaker <: Visitor<Node> {
         builtinIdentifiers.iterator().forEach({ t => 
             classEnvironment.declare(t.value, ClassReference(NodeIdManager.nextId(), t))
         })
+
         return (program.traverse(this) as Program).getOrThrow()
     }
 
     public override func visit(program: Program): Node {
         let decls: ArrayList<Decl> = ArrayList()
-
-        let topDecl: Declarator = DeclaratorFactory.globalDeclarator(
+        
+        // Declare global function and classes.
+        let globalDeclarator: Declarator = DeclaratorFactory.globalAstDeclarator(
             funcEnvironment, classEnvironment
         )
+
         let refDecls = ArrayList<(Decl, ?Reference)>()
         program.decls.iterator().forEach({ d =>
-            refDecls.add((d, d.traverse(topDecl)))
+            refDecls.add((d, d.traverse(globalDeclarator)))
         })
         
         refDecls.iterator().forEach({ entry =>
@@ -318,8 +317,8 @@ public class AsgMaker <: Visitor<Node> {
             classReference = (ref as ClassReference).getOrThrow({ => 
                 Exception("Reference given to the class declaration is not ClassReference")})
         } else {
-            classReference = ClassReference(NodeIdManager.nextId(), classDecl.identifier)
-            declareClass(classDecl.identifier, classReference)
+            throw Exception("Class ${classDecl.identifier.value} should've been declared " +
+                "with the global declarator")
         }
 
         let body = (classDecl.body.traverse(this) as Body).getOrThrow({ => 
@@ -341,7 +340,7 @@ public class AsgMaker <: Visitor<Node> {
         let precScopeType = beginScope(ScopeType.BODY)
 
         let decls: ArrayList<Decl> = ArrayList()
-        let topDecl: Declarator = DeclaratorFactory.bodyDeclarator(
+        let topDecl: Declarator = DeclaratorFactory.bodyAstDeclarator(
             funcEnvironment, variableEnvironment
         )
         let refDecls = ArrayList<(Decl, ?Reference)>()
@@ -360,7 +359,6 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(memberAccess: MemberAccess): Node {
-        // println("its here")
         let baseExpr = memberAccess.baseExpr.traverse(this)
         MemberAccess(NodeIdManager.nextId(), baseExpr, memberAccess.field)
     }
@@ -382,15 +380,19 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     private func declareVar(identifier: Token, value: VariableReference): Unit {
+        let name: String = identifier.value
+        if ((variableEnvironment.isGlobal && classEnvironment.getLocal(name).isSome()) ||
+            funcEnvironment.getLocal(name).isSome())
+        {
+            throw Exception("Redefinition of declaration ${name}")
+        }
         variableEnvironment.declare(identifier.value, value)
     }
 
     private func declareFunc(identifier: Token, value: FuncReference): Unit {
-        funcEnvironment.declare(identifier.value, value)
-    }
-
-    private func declareClass(identifier: Token, value: ClassReference): Unit {
-        classEnvironment.declare(identifier.value, value)
+        if (funcEnvironment.getLocal(identifier.value).isNone()) {
+            funcEnvironment.declare(identifier.value, value)
+        }
     }
 
     private func isTypeDeclared(typeName: Token): Bool {
@@ -402,6 +404,7 @@ public class AsgMaker <: Visitor<Node> {
         var tmpVarEnv = variableEnvironment
         while (!tmpFuncEnv.isGlobal && !tmpVarEnv.isGlobal) {
             if (let Some(fun) <- tmpFuncEnv.getLocal(key)) {
+                // THIS IS NOT THE REAL REFERENCE, IT'S JUST A WAY TO SAY THAT IT EXISTS.
                 return fun
             }
             if (let Some(va) <- tmpVarEnv.getLocal(key)) {
@@ -414,6 +417,7 @@ public class AsgMaker <: Visitor<Node> {
             return clas
         }
         if (let Some(fun) <- tmpFuncEnv.getLocal(key)) {
+            // THIS IS NOT THE REAL REFERENCE, IT'S JUST A WAY TO SAY THAT IT EXISTS.
             return fun
         }
         if (let Some(va) <- tmpVarEnv.getLocal(key)) {

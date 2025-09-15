@@ -17,7 +17,7 @@ import std.collection.ArrayList
 * (From every environment there's only one way to the global one)
 */
 public class Environment<K, V> where K <: Hashable & Equatable<K> & ToString {
-    private let enclosing_: ?Environment<K, V>
+    private var enclosing_: ?Environment<K, V>
     private let elements_: Map<K, V> = HashMap()
 
     public init(enclosing: ?Environment<K, V>) {
@@ -51,8 +51,9 @@ public class Environment<K, V> where K <: Hashable & Equatable<K> & ToString {
         }
     }
 
-    public prop enclosing: ?Environment<K, V> {
+    public mut prop enclosing: ?Environment<K, V> {
         get() { enclosing_ }
+        set(v) { enclosing_ = v }
     }
 
     public prop elements: Map<K, V> {

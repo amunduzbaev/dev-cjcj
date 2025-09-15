@@ -1,4 +1,4 @@
-package cjcj.asg.typeChecker
+package cjcj.asg
 
 import cjcj.visitor.Type
 import cjcj.visitor.FuncReference
@@ -11,16 +11,39 @@ import std.sort.*
 
 public class TypeManager {
 
-    // Returns the concatenation of the string representation of the hash of the name of the types.
-    private static func paramHashConcat(params: Array<Type>): String {
-        params.iterator().map({ t => t.name.hashCode().toString() })
-        // TODO: Optimize string concatenation using string builder.
-            .reduce({ a, b => a + b }).getOrDefault({ => "" })
+    // Returns the concatenation of the string representation of the hash of the funcName and of the
+    // name of the types.
+    public static func funcHashConcat(funcName: String, params: Array<Type>): String {
+        funcName + params.iterator()
+            .map({ t => t.name.hashCode().toString() })
+            .fold(StringBuilder(), { acc, v => acc.append(v); acc }).toString()
     }
 
-    private let nameToType: Map<String, Type> = HashMap()
-    private var immediateFuncEnvironment: Environment<String, Map<String, FuncReference>> = Environment()
-    private var totalFuncEnvironment: Environment<String, ArrayStack<FuncReference>> = Environment()
+    private var nameToType_: Map<String, Type> = HashMap()
+    private var immediateFuncEnvironment_: Environment<String, FuncReference> = Environment()
+    private var totalFuncEnvironment_: Environment<String, ArrayStack<FuncReference>> = Environment()
+
+    public prop nameToType: Map<String, Type> {
+        get() { nameToType_ }
+    }
+
+    public prop immediateFuncEnvironment: Environment<String, FuncReference> {
+        get() { immediateFuncEnvironment_ }
+    }
+
+    public prop totalFuncEnvironment: Environment<String, ArrayStack<FuncReference>> {
+        get() { totalFuncEnvironment_ }
+    }
+
+    public init() {
+
+    }
+
+    public init(typeManager: TypeManager) {
+        immediateFuncEnvironment_ = typeManager.immediateFuncEnvironment
+        totalFuncEnvironment_ = typeManager.totalFuncEnvironment
+        nameToType_ = typeManager.nameToType_
+    }
 
     /*
     * Adds a type to the map if the type is not already defined.
@@ -59,16 +82,10 @@ public class TypeManager {
     * parameters at the same index in other functions and return its return type. If there is no 
     * such function, throw an error. 
     */
-    private func findClosestSuperType(funcName: String, params: Array<Type>,
-        expectedReturnType: ?Type): FuncReference
-    {
-        findClosestSuperType(funcName, params, expectedReturnType, totalFuncEnvironment)
-    }
-
-    private func findClosestSuperType(funcName: String, params: Array<Type>,
-        expectedReturnType: ?Type,
-        environment: Environment<String, ArrayStack<FuncReference>>): FuncReference
-    {
+    private func findClosestSuperType(
+        funcName: String, params: Array<Type>, expectedReturnType: ?Type,
+        environment: Environment<String, ArrayStack<FuncReference>>
+    ): ?FuncReference {
         if (let Some(paramsList) <- environment.getLocal(funcName)) {
             let candidates: ArrayStack<FuncReference> = params.iterator().enumerate()
                 .fold(paramsList, { 
@@ -85,7 +102,6 @@ public class TypeManager {
                                 (curType.ancestorSet.contains(candidateParams[id]) ||
                                     curType == candidateParams[id])
                             ){
-                                // TODO: Maybe this if can be rewritten better.
                                 if (let Some(expectedRet) <- expectedReturnType) {
                                     if (expectedRet.isParent(candidateReturn)) {
                                         acc.add(candidate)
@@ -99,24 +115,13 @@ public class TypeManager {
                 })
 
             if (candidates.isEmpty()) {
-                if (environment.enclosing.isSome()) {
-                    return findClosestSuperType(funcName, params, expectedReturnType,
-                        environment.enclosing.getOrThrow())
-                } else {
-                    let paramString: String = params.iterator().map({ t => t.name })
-                        .reduce({ a, b => a + "," + b }).getOrDefault({ => "" })
-                    throw Exception("Function ${funcName} is not defined for (${paramString})")
-                }
+                return None
             }
 
             let closests: ArrayList<Array<Type>> = candidates.iterator()
-                .map({ c => c.paramRef.getOrThrow().iterator()
-                    .map({ v => v.effectiveType.getOrThrow() })
-                    .fold<ArrayList<Type>>(ArrayList(), { res, v => res.add(v); res }).toArray()
-                })
+                .map({ c => TypeCheckerHelper.refToType(c.paramRef.getOrThrow()) })
                 .fold<ArrayList<Array<Type>>>(ArrayList(), { 
                     closestOptions: ArrayList<Array<Type>>, candidate: Array<Type> =>
-
                         let canReach = candidate.iterator().enumerate().all({ entry => 
                             let (column, curType) = entry
                             let curAncestors = curType.ancestorSet
@@ -145,8 +150,7 @@ public class TypeManager {
             // I could also call it with expectedReturnType None because I know exactly the function
             return applyFunction(funcName, closests[0], expectedReturnType)
         }
-        findClosestSuperType(funcName, params, expectedReturnType,
-            environment.enclosing.getOrThrow())
+        None
     }
 
     /*
@@ -155,37 +159,49 @@ public class TypeManager {
     public func applyFunction(funcName: String, params: Array<Type>,
         expectedReturnType: ?Type): FuncReference
     {
+        var tmpImmediateFuncEnvironment = immediateFuncEnvironment
+        var tmpTotalFuncEnvironment = totalFuncEnvironment
+        var res: ?FuncReference = None
         // TODO: If there are candidates with parameters but not with expected return take the first
         // and print something like (expected "this" found "that" where that is the first)
-        let fun = immediateFuncEnvironment.getGlobal(funcName).getOrThrow({ =>
-            Exception("Function ${funcName} is not defined")})
-        match (fun.get(paramHashConcat(params))) {
-            case Some(returnType) => returnType
-            case _ => findClosestSuperType(funcName, params, expectedReturnType)
+        while(let Some(enclosingImmediate) <- tmpImmediateFuncEnvironment.enclosing &&
+            let Some(enclosingTotal) <- tmpTotalFuncEnvironment.enclosing &&
+            res.isNone()
+        ) {
+            res = match (tmpImmediateFuncEnvironment.getLocal(funcHashConcat(funcName, params))) {
+                case Some(funcRef) => funcRef
+                case _ => findClosestSuperType(funcName, params, expectedReturnType, tmpTotalFuncEnvironment)
+            }
+            tmpImmediateFuncEnvironment = enclosingImmediate
+            tmpTotalFuncEnvironment = enclosingTotal
         }
+        if (res.isNone()) {
+            res = match (tmpImmediateFuncEnvironment.getLocal(funcHashConcat(funcName, params))) {
+                case Some(returnType) => returnType
+                case _ => findClosestSuperType(funcName, params, expectedReturnType, tmpTotalFuncEnvironment)
+            }
+        }
+        res.getOrThrow({ => Exception("Function ${funcName} doesn't exist and couldn't find a " +
+            "right candidate based on params and returntype") })
     }
 
     public func addFunction(reference: FuncReference): Unit {
         let funcName: String = reference.identifier.value
-        let params: Array<Type> = reference.paramRef.getOrThrow().iterator()
-            .map({ p => p.effectiveType.getOrThrow() })
-            .fold<ArrayList<Type>>(ArrayList(), { res, v => res.add(v); res }).toArray()
+        let params: Array<Type> = TypeCheckerHelper.refToType(reference.paramRef.getOrThrow())
 
-        if (let Some(fun) <- immediateFuncEnvironment.getLocal(funcName) &&
-            let Some(funList) <- totalFuncEnvironment.getLocal(funcName))
+        if (let Some(fun) <- immediateFuncEnvironment.getLocal(funcHashConcat(funcName, params)))
         {
-            if (let Some(prec) <- fun.addIfAbsent(paramHashConcat(params), reference)) {
-                let paramString: String = params.iterator().map({ t => t.name })
-                    .reduce({ a, b => a + "," + b }).getOrDefault({ => "" })
+            let paramString: String = params.iterator().map({ t => t.name })
+                .reduce({ a, b => a + "," + b }).getOrDefault({ => "" })
 
-                throw Exception("Multiple declaration of func ${funcName} (${paramString})")
-            }
+            throw Exception("Multiple declaration of func ${funcName} (${paramString})")
+        }
+
+        immediateFuncEnvironment.declare(funcHashConcat(funcName, params), reference)
+        if (let Some(funList) <- totalFuncEnvironment.getLocal(funcName)) {
             funList.add(reference)
             return
         }
-        let map: Map<String, FuncReference> = HashMap()
-        map.add(paramHashConcat(params), reference)
-        immediateFuncEnvironment.declare(funcName, map)
 
         let stack: ArrayStack<FuncReference> = ArrayStack()
         stack.add(reference)
@@ -212,14 +228,14 @@ public class TypeManager {
     }
 
     public func beginScope(): Unit {
-        immediateFuncEnvironment = Environment(immediateFuncEnvironment)
-        totalFuncEnvironment = Environment(totalFuncEnvironment)
+        immediateFuncEnvironment_ = Environment(immediateFuncEnvironment)
+        totalFuncEnvironment_ = Environment(totalFuncEnvironment)
     }
 
     public func endScope(): Unit {
-        immediateFuncEnvironment = immediateFuncEnvironment.enclosing.getOrThrow({ =>
+        immediateFuncEnvironment_ = immediateFuncEnvironment.enclosing.getOrThrow({ =>
             UnsupportedException("Trying to close the global scope") })
-        totalFuncEnvironment = totalFuncEnvironment.enclosing.getOrThrow({ =>
+        totalFuncEnvironment_ = totalFuncEnvironment.enclosing.getOrThrow({ =>
             UnsupportedException("Trying to close the global scope") })
     }
 
@@ -250,5 +266,14 @@ public class TypeManager {
             }
         }
         res
+    }
+
+    public prop isGlobal: Bool {
+        get() { totalFuncEnvironment.isGlobal }
+    }
+
+    public func deleteHistory(): Unit {
+        totalFuncEnvironment.enclosing = None
+        immediateFuncEnvironment.enclosing = None
     }
 }

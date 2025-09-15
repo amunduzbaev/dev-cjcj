@@ -133,4 +133,8 @@ public abstract class Visitor<R> {
     protected open func visit(_: PrimitiveTypeExpr): R {
         throw Exception("Unimplemented method for Visitor : Primitive type expression")
     }
+
+    protected open func visit(_: RefExprWithRef): R {
+        throw Exception("Unimplemented method for Visitor : Reference expression with reference")
+    }
 }

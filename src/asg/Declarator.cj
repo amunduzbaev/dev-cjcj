@@ -1,4 +1,4 @@
-package cjcj.asg.declarators
+package cjcj.asg
 
 import cjcj.visitor.*
 import cjcj.scanner.Token
@@ -14,6 +14,9 @@ import std.collection.Map
 import std.collection.HashMap
 import std.deriving.Derive
 
+/*
+* Declarator for the AST, allows to handle all declarations by visiting them.
+*/
 public open class Declarator <: Visitor<?Reference> {
 
     public Declarator(
