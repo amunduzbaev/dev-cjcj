@@ -56,11 +56,11 @@ public class Environment<K, V> where K <: Hashable & Equatable<K> & ToString {
         set(v) { enclosing_ = v }
     }
 
-    public prop elements: Map<K, V> {
-        get() { elements_ }
-    }
-
     public prop isGlobal: Bool {
         get() { enclosing.isNone() }
+    }
+
+    public prop elements: Map<K, V> {
+        get() { elements_ }
     }
 }

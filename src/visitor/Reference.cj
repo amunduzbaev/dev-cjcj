@@ -3,14 +3,13 @@ package cjcj.visitor
 import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
-
 import std.collection.*
 
 /*
 * Reference nodes represent references to variables, functions, . . . inside the ASG.
 */
-public open class Reference <: Expr & Hashable & Equatable<Reference> & ToString {
-    private let identifier_: Token
+public open class Reference <: Expr & Hashable & Equatable<Reference> {
+    private var identifier_: Token
     private var effectiveType_: ?Type
 
     public Reference(id: NodeId, identifier: Token, effectiveType: ?Type) {
@@ -30,15 +29,14 @@ public open class Reference <: Expr & Hashable & Equatable<Reference> & ToString
     public func hashCode(): Int64 {
         this.id.hashCode()
     }
+
     public operator func ==(rhs: Reference): Bool{
         id.id == rhs.id.id
     }
-    public func toString() {
-        identifier.value
-    }
 
-    public prop identifier: Token {
+    public mut prop identifier: Token {
         get() { identifier_ }
+        set(v) { identifier_ = v }
     }
 
     public mut prop effectiveType: ?Type {
@@ -66,6 +64,7 @@ public class VariableReference <: Reference {
 
 public class FuncReference <: Reference {
     private var paramRef_: ?ArrayList<VariableReference> = None
+    private var block_: ?Block = None
 
     public FuncReference(id: NodeId, identifier: Token)
     {
@@ -80,25 +79,31 @@ public class FuncReference <: Reference {
         super.prettyPrint(printer)
     }
 
+    public mut prop block: ?Block {
+        get() { block_ }
+        set(v) { block_ = v}
+    }
+
     public mut prop paramRef: ?ArrayList<VariableReference> {
         get() { paramRef_ }
         set(v) { paramRef_ = v}
     }
 }
 
-public class ClassReference <: Reference{
-    private var decls_: ?Set<Reference> = None
+public open class ClassReference <: Reference{
+    private var parent_: ?ClassReference = None
+
     public init(id: NodeId, identifier: Token) {
         super(id, identifier, None)
     }
 
-    public override func traverse<R>(v: Visitor<R>): R {
+    public open override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 
-    public mut prop decls: ?Set<Reference> {
-        get() { decls_ }
-        set(v) { decls_ = v }
+    public mut prop parent: ?ClassReference {
+        get() { parent_ }
+        set(v) { parent_ = v }
     }
 }
 
@@ -122,18 +127,22 @@ public class VarDeclWithRef <: VarDecl {
         this(id, keyword, identifier, ref, None, None)
     }
 
-    public init(id: NodeId, keyword: Token, identifier: Token, ref: VariableReference, 
-            initializer: Expr) {
+    public init(
+        id: NodeId, keyword: Token, identifier: Token, ref: VariableReference, initializer: Expr
+    ) {
         this(id, keyword, identifier, ref, initializer, None)
     }
 
-    public init(id: NodeId, keyword: Token, identifier: Token, ref: VariableReference, 
-            declType: TypeNode) {
+    public init(
+        id: NodeId, keyword: Token, identifier: Token, ref: VariableReference, declType: TypeNode
+    ) {
         this(id, keyword, identifier, ref, None, declType)
     }
 
-    public init(id: NodeId, keyword: Token, identifier: Token, ref: VariableReference, 
-            initializer: ?Expr, declType: ?TypeNode) {
+    public init(
+        id: NodeId, keyword: Token, identifier: Token, ref: VariableReference, initializer: ?Expr,
+            declType: ?TypeNode
+    ) {
         super(id, keyword, identifier, initializer, declType)
         ref_ = ref
     }
