@@ -6,7 +6,7 @@ import cjcj.visitor.Program
 import cjcj.parser.*
 import cjcj.scanner.*
 import cjcj.prettyPrinter.PrettyPrinter
-import cjcj.asg.InitCheck.InitCheck
+import cjcj.asg.initChecker.InitChecker
 
 import std.env.*
 import std.io.*
@@ -37,7 +37,7 @@ public class Cj {
         let asg: Program
         parser.logErrors()
 
-        let initChecker = InitCheck()
+        let initChecker = InitChecker()
         if (let Some(p) <- program) {
             // p.prettyPrint(printer)
             asg = asgMaker.resolve(p)
