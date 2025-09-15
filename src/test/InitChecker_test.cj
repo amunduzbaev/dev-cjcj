@@ -2,7 +2,7 @@ package cjcj.test
 
 import cjcj.asg.typeChecker.TypeChecker
 import cjcj.asg.AsgMaker
-import cjcj.asg.InitChecker.*
+import cjcj.asg.initChecker.*
 import cjcj.visitor.Program
 import cjcj.parser
 import cjcj.scanner.*
@@ -12,7 +12,7 @@ import std.env.*
 import std.collection.ArrayList
 
 @Test
-class InitCheckTests {
+class InitCheckerTests {
     private func scan(test: String): Array<Token> {
         Scanner(test.toRuneArray()).scanTokens().toArray()  
     }
