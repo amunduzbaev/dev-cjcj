@@ -3,14 +3,13 @@ package cjcj.visitor
 import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
-
 import std.collection.*
 
 /*
 * Reference nodes represent references to variables, functions, . . . inside the ASG.
 */
 public open class Reference <: Expr & Hashable & Equatable<Reference> {
-    private let identifier_: Token
+    private var identifier_: Token
     private var effectiveType_: ?Type
 
     public Reference(id: NodeId, identifier: Token, effectiveType: ?Type) {
@@ -35,8 +34,9 @@ public open class Reference <: Expr & Hashable & Equatable<Reference> {
         id.id == rhs.id.id
     }
 
-    public prop identifier: Token {
+    public mut prop identifier: Token {
         get() { identifier_ }
+        set(v) { identifier_ = v }
     }
 
     public mut prop effectiveType: ?Type {
@@ -90,21 +90,15 @@ public class FuncReference <: Reference {
     }
 }
 
-public class ClassReference <: Reference{
+public open class ClassReference <: Reference{
     private var parent_: ?ClassReference = None
-    private var body_: ?Body = None
 
     public init(id: NodeId, identifier: Token) {
         super(id, identifier, None)
     }
 
-    public override func traverse<R>(v: Visitor<R>): R {
+    public open override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
-    }
-
-    public mut prop body: ?Body {
-        get() { body_ }
-        set(v) { body_ = v }
     }
 
     public mut prop parent: ?ClassReference {
@@ -127,21 +121,21 @@ public class MainReference <: Reference {
 }
 
 public class VarDeclWithRef <: VarDecl {
-    private let ref_: Reference
+    private let ref_: VariableReference
 
-    public init (id: NodeId, keyword: Token, identifier: Token, ref: Reference) {
+    public init (id: NodeId, keyword: Token, identifier: Token, ref: VariableReference) {
         this(id, keyword, identifier, ref, None, None)
     }
 
-    public init(id: NodeId, keyword: Token, identifier: Token, ref: Reference, initializer: Expr) {
+    public init(id: NodeId, keyword: Token, identifier: Token, ref: VariableReference, initializer: Expr) {
         this(id, keyword, identifier, ref, initializer, None)
     }
 
-    public init(id: NodeId, keyword: Token, identifier: Token, ref: Reference, declType: TypeNode) {
+    public init(id: NodeId, keyword: Token, identifier: Token, ref: VariableReference, declType: TypeNode) {
         this(id, keyword, identifier, ref, None, declType)
     }
 
-    public init(id: NodeId, keyword: Token, identifier: Token, ref: Reference, initializer: ?Expr,
+    public init(id: NodeId, keyword: Token, identifier: Token, ref: VariableReference, initializer: ?Expr,
             declType: ?TypeNode) {
         super(id, keyword, identifier, initializer, declType)
         ref_ = ref
@@ -151,7 +145,7 @@ public class VarDeclWithRef <: VarDecl {
         v.visit(this)
     }
 
-    public prop ref: Reference {
+    public prop ref: VariableReference {
         get() { ref_ }
     }
 }
