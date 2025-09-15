@@ -11,20 +11,27 @@ import cjcj.asg.DeclaratorFactory
 import std.collection.*
 
 /*
-* It will check that all the operation types and assignments are correct based on the types of the
-* elements and based on the defined operations.
+* Visitor that will assign all the types to all the references. When it's visiting a reference it
+* will see if there is a declaration type, in that case it will just assume that it's correct and it
+* will assign it as the effective type. If the type is not defined it will infer it from the context
+* that can be an assignment for variables or the type of the block for a function definition.
 */
 public class TypeAssigner <: Visitor<Type> {
     // Dummy type to return when I don't need to return an actual one.
     private static let DUMMY_TYPE = Type("")
     private let expectedReturnType: ArrayStack<Type> = ArrayStack()
-    private var variableEnvironment: Environment<String, VariableReference> = Environment()
+    // Used to know if there are cycles.
     private let referenceStatus: Map<Reference, Status> = HashMap()
 
+    // Contains the name of the last callable field if there is some.
     private var callableField: ?String = None
     private var currentClass: ?ClassReferenceForTC = None
     private var scopeType: ScopeType = ScopeType.NIL
 
+    /*
+    * It expects already to have every class declared and a typeManager to query and insert
+    * new functions that are not declared in the global scope.
+    */
     public TypeAssigner(
         program: Program, private var classEnvironment: Environment<String, ClassReferenceForTC>,
         private let typeManager: TypeManager
@@ -83,9 +90,9 @@ public class TypeAssigner <: Visitor<Type> {
 
     public override func visit(block: Block): Type {
         typeManager.beginScope()
-        variableEnvironment = Environment(variableEnvironment)
 
         let lastId = block.nodes.last.getOrDefault({ => Expr() }).id
+        // TODO: Unroll and make it faster.
         let returnType = block.nodes.iterator()
             .map({ n => (n, n.traverse(this)) })
             .filter({ n => n[0] is ReturnExpr || n[0].id == lastId })
@@ -94,13 +101,11 @@ public class TypeAssigner <: Visitor<Type> {
             .getOrDefault({ => typeManager.get("Unit")})
 
         typeManager.endScope()
-        variableEnvironment = variableEnvironment.enclosing.getOrThrow()
         returnType
     }
 
     /*
-    * Here we want to find the lowest common supertype of all the branches, if an ifExpr doesn't
-    * have an else branch then the return type is Unit.
+    * Here we want to find the lowest common supertype of all the branches.
     */
     public override func visit(ifExpr: IfExpr): Type {
         ifExpr.condition.traverse(this)
@@ -198,14 +203,17 @@ public class TypeAssigner <: Visitor<Type> {
 
     public override func visit(mainDeclWithRef: MainDeclWithRef): Type {
         let ref: MainReference = mainDeclWithRef.mainRef
-        if (let Some(decl) <- mainDeclWithRef.declType) {
-            ref.effectiveType = decl.traverse(this)
-            return typeManager.get("Unit")
-        }
+
         // Set effective type to parameter (= to declaration type)
         if (let Some(paramRef) <- ref.paramRef) {
             paramRef.effectiveType = mainDeclWithRef.param.getOrThrow().traverse(this)
         }
+
+        if (let Some(decl) <- mainDeclWithRef.declType) {
+            ref.effectiveType = decl.traverse(this)
+            return typeManager.get("Unit")
+        }
+
         let infType: Type = mainDeclWithRef.block.traverse(this)
         ref.effectiveType = infType
         typeManager.get("Unit")
@@ -221,13 +229,13 @@ public class TypeAssigner <: Visitor<Type> {
     }
 
     public override func visit(classReference: ClassReference): Type {
+        // Class reference can be called, it will call the init function that has no name.
         callableField = ""
         classReference.effectiveType.getOrThrow()
     }
 
     public override func visit(refExprWithRef: RefExprWithRef): Type {
-        let tp: Type = refExprWithRef.ref.traverse(this)
-        tp
+        refExprWithRef.ref.traverse(this)
     }
 
     public override func visit(callExpr: CallExpr): Type {
@@ -272,9 +280,10 @@ public class TypeAssigner <: Visitor<Type> {
     }
 
     public override func visit(body: Body): Type {
-        beginScope()
+        typeManager.beginScope()
         scopeType = ScopeType.BODY
 
+        let variableEnvironment: Environment<String, VariableReference> = Environment()
         let bodyDeclarator: Declarator =
             DeclaratorFactory.bodyAsgDeclarator(variableEnvironment, typeManager)
         body.decls.iterator().forEach({ decl => decl.traverse(bodyDeclarator) })
@@ -283,7 +292,7 @@ public class TypeAssigner <: Visitor<Type> {
         currentClass.getOrThrow().typeManager = TypeManager(typeManager)
         currentClass.getOrThrow().variableEnvironment = variableEnvironment
 
-        endScope()
+        typeManager.endScope()
         scopeType = ScopeType.NIL
 
         currentClass.getOrThrow().typeManager.getOrThrow().deleteHistory()
@@ -307,15 +316,5 @@ public class TypeAssigner <: Visitor<Type> {
         }
         callableField = field    
         typeManager.get(baseClass.classReference.identifier.value)
-    }
-
-    private func beginScope(): Unit {
-        typeManager.beginScope()
-        variableEnvironment = Environment(variableEnvironment)
-    }
-
-    private func endScope(): Unit {
-        typeManager.endScope()
-        variableEnvironment = variableEnvironment.enclosing.getOrThrow()
     }
 }
