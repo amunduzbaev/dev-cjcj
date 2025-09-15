@@ -184,7 +184,8 @@ public class TypeAssigner <: Visitor<Type> {
 
         if (ref.identifier.kind == TokenKind.ILLEGAL) {
             referenceStatus.add(ref, Status.VIS)
-            ref.effectiveType = typeManager.get(currentClass.getOrThrow().classReference.identifier.value)
+            ref.effectiveType = typeManager.get(currentClass.getOrThrow()
+                .classReference.identifier.value)
             return typeManager.get("Unit")
         }
         
@@ -231,13 +232,15 @@ public class TypeAssigner <: Visitor<Type> {
 
     public override func visit(callExpr: CallExpr): Type {
         let calleeType: Type = callExpr.callee.traverse(this)
-        let identifier = callableField.getOrThrow({ => Exception("Left of call expression not callable") })
+        let identifier = callableField.getOrThrow({ =>
+            Exception("Left of call expression not callable") })
         let params = callExpr.arguments.iterator().fold<ArrayList<Type>>(ArrayList(),
                     { res, v => res.add(v.traverse(this)); res }).toArray()
 
         let ref: FuncReference
         if (let Some(classRef) <- classEnvironment.getGlobal(calleeType.name)) {
-            ref = classRef.typeManager.getOrThrow().applyFunction(identifier, params, expectedReturnType.peek())
+            ref = classRef.typeManager.getOrThrow()
+                .applyFunction(identifier, params, expectedReturnType.peek())
         } else {
             ref = typeManager.applyFunction(identifier, params, expectedReturnType.peek())
         }

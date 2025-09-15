@@ -127,16 +127,22 @@ public class VarDeclWithRef <: VarDecl {
         this(id, keyword, identifier, ref, None, None)
     }
 
-    public init(id: NodeId, keyword: Token, identifier: Token, ref: VariableReference, initializer: Expr) {
+    public init(
+        id: NodeId, keyword: Token, identifier: Token, ref: VariableReference, initializer: Expr
+    ) {
         this(id, keyword, identifier, ref, initializer, None)
     }
 
-    public init(id: NodeId, keyword: Token, identifier: Token, ref: VariableReference, declType: TypeNode) {
+    public init(
+        id: NodeId, keyword: Token, identifier: Token, ref: VariableReference, declType: TypeNode
+    ) {
         this(id, keyword, identifier, ref, None, declType)
     }
 
-    public init(id: NodeId, keyword: Token, identifier: Token, ref: VariableReference, initializer: ?Expr,
-            declType: ?TypeNode) {
+    public init(
+        id: NodeId, keyword: Token, identifier: Token, ref: VariableReference, initializer: ?Expr,
+            declType: ?TypeNode
+    ) {
         super(id, keyword, identifier, initializer, declType)
         ref_ = ref
     }

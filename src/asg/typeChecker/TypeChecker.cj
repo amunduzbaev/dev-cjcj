@@ -162,8 +162,8 @@ public class TypeChecker <: Visitor<Type> {
         if (ref.identifier.kind != TokenKind.ILLEGAL) {
             let infType: Type = funcDeclWithRef.block.traverse(this)
             if (!assignedType.isParent(infType)) {
-                throw Exception("Type of function not correct, expected ${assignedType.name}, found: " +
-                    "${infType.name}")
+                throw Exception("Type of function not correct, expected ${assignedType.name}, " +
+                    "found: ${infType.name}")
             }
         }
         if (!typeManager.isGlobal) {
