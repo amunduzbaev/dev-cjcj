@@ -104,7 +104,9 @@ public class TypeChecker <: Visitor<Type> {
     * have an else branch then the return type is Unit.
     */
     public override func visit(ifExpr: IfExpr): Type {
-        ifExpr.condition.traverse(this)
+        if (ifExpr.condition.traverse(this) != typeManager.get("Bool")) {
+            throw Exception("If condition must be bool.")
+        }
         let ifType: Type = ifExpr.ifBlock.traverse(this)
         let elseType: Type = ifExpr.elseBranch.traverse(this)
         return typeManager.smallestCommonSupertype(ifType, elseType)

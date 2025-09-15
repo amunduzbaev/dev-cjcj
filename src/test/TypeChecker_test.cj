@@ -170,6 +170,27 @@ class TypeCheckTests {
     }
 
     @TestCase
+    func ifConditionBool_test() {
+        // TODO: If you're here because this failed, remember that this is not valid code LOL, when
+        // we made this test we didn't have all those fancy interfaces and keywords that you, people
+        // of the future have, so please don't get angry and just change this small piece of code :)
+        let testWrong: String = """
+            main() {
+                if (1 + 2) {
+                }
+            }
+            """
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        let testRight: String = """
+            main() {
+                if(true) {
+                }
+            }
+            """
+        TypeChecker(getAsg(testRight))
+    }
+
+    @TestCase
     func correctFunctionFinding_test() {
         let testRight: String = """
             main() {
