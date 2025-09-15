@@ -264,6 +264,8 @@ class TypeCheckTests {
         let testRight: String = """
             class a {
                 let b: Int64
+                init() {
+                }
             }
             main(){
                 let b = a()
@@ -273,6 +275,8 @@ class TypeCheckTests {
         let testWrong: String = """
             class a {
                 let b: Int64
+                init() {
+                }
             }
             main(){
                 let b = a()
