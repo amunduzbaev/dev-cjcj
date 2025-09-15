@@ -2,7 +2,6 @@ package cjcj.test
 
 import cjcj.asg.typeChecker.TypeChecker
 import cjcj.asg.AsgMaker
-import cjcj.asg.InitCheck.*
 import cjcj.visitor.Program
 import cjcj.parser
 import cjcj.scanner.*

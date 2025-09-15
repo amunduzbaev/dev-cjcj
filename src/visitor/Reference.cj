@@ -9,7 +9,7 @@ import std.collection.*
 /*
 * Reference nodes represent references to variables, functions, . . . inside the ASG.
 */
-public open class Reference <: Expr & Hashable & Equatable<Reference> {
+public open class Reference <: Expr & Hashable & Equatable<Reference> & ToString {
     private let identifier_: Token
     private var effectiveType_: ?Type
 
@@ -32,6 +32,9 @@ public open class Reference <: Expr & Hashable & Equatable<Reference> {
     }
     public operator func ==(rhs: Reference): Bool{
         id.id == rhs.id.id
+    }
+    public func toString() {
+        identifier.value
     }
 
     public prop identifier: Token {
