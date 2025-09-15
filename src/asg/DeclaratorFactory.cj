@@ -1,4 +1,4 @@
-package cjcj.asg.typeChecker
+package cjcj.asg
 
 import cjcj.visitor.*
 import cjcj.scanner.Token
@@ -14,6 +14,9 @@ import std.collection.Map
 import std.collection.HashMap
 import std.deriving.Derive
 
+/*
+* Declarator for the ASG, allows to handle all declarations with references.
+*/
 private class ReferenceDeclarator <: Declarator {
     public ReferenceDeclarator(
         canDeclare!: (String) -> Bool = { _ => true },
@@ -42,9 +45,15 @@ private class ReferenceDeclarator <: Declarator {
     }
 }
 
-// TODO: THE CAN DECLARE SEEMS TO BE WRONG LOOK AT IT.
+/*
+* Factory for declarators, can retrieve declarators with different behaviors.
+*/
 public abstract class DeclaratorFactory {
-    public static func bodyDeclarator(
+
+    /*
+    * Declarator for the class, struct... bodies in the AST, declares all function and variables. 
+    */
+    public static func bodyAstDeclarator(
         funcEnvironment: Environment<String, FuncReference>,
         variableEnvironment: Environment<String, VariableReference>
     ): Declarator {
@@ -52,13 +61,16 @@ public abstract class DeclaratorFactory {
             { k => variableEnvironment.getLocal(k).isNone() }
         ])
         Declarator(
-            visitFunc: functionDeclaration(funcEnvironment, canDeclare),
-            visitVar: variableDeclaration(variableEnvironment, canDeclare),
+            visitFunc: functionAstDeclaration(funcEnvironment, canDeclare),
+            visitVar: variableAstDeclaration(variableEnvironment, canDeclare),
             canDeclare: canDeclare
         )
     }
 
-    public static func globalDeclarator(
+    /*
+    * Declarator for the global scope in the AST, declares all function and classes.
+    */
+    public static func globalAstDeclarator(
         funcEnvironment: Environment<String, FuncReference>,
         classEnvironment: Environment<String, ClassReference>
     ): Declarator {
@@ -66,102 +78,49 @@ public abstract class DeclaratorFactory {
             { k => classEnvironment.getLocal(k).isNone() }
         ])
         Declarator(
-            visitFunc: functionDeclaration(funcEnvironment, canDeclare),
-            visitClass: classDeclaration(classEnvironment, canDeclare),
+            visitFunc: functionAstDeclaration(funcEnvironment, canDeclare),
+            visitClass: classAstDeclaration(classEnvironment, canDeclare),
             canDeclare: canDeclare
         )
     }
 
-    public static func globalTypeDeclarator(
-        funcEnvironment: Environment<String, FuncReference>,
-        classEnvironment: Environment<String, ClassReference>,
-        typeManager: TypeManager
-    ): Declarator {
-        let canDeclare: (String) -> Bool = canDeclare([
-            { k => funcEnvironment.getLocal(k).isNone() },
-            { k => classEnvironment.getLocal(k).isNone() }
-        ])
-        ReferenceDeclarator(
-            visitFunc: functionTypeDeclaration(funcEnvironment, typeManager, canDeclare),
-            canDeclare: canDeclare
-        )
-    }
-
-    public static func functionDeclarator(
-        funcEnvironment: Environment<String, FuncReference>
-    ): Declarator {
-        functionDeclarator(
-            funcEnvironment, canDeclare([{ k => funcEnvironment.getLocal(k).isNone() }])
-        )
-    }
-
-    public static func functionDeclarator(
-        funcEnvironment: Environment<String, FuncReference>,
-        canDeclare: (String) -> Bool
-    ): Declarator {
-        Declarator(
-            visitFunc: functionDeclaration(funcEnvironment, canDeclare),
-            canDeclare: canDeclare
-        )
-    }
-
-    public static func functionTypeDeclarator(
-        funcEnvironment: Environment<String, FuncReference>,
-        typeManager: TypeManager
-    ): Declarator {
-        functionTypeDeclarator(funcEnvironment, typeManager, canDeclare([
-            { k => funcEnvironment.getLocal(k).isNone() }
-        ]))
-    }
-
-    public static func functionTypeDeclarator(
-        funcEnvironment: Environment<String, FuncReference>,
-        typeManager: TypeManager,
-        canDeclare: (String) -> Bool
-    ): Declarator {
-        ReferenceDeclarator(
-            visitFunc: functionTypeDeclaration(funcEnvironment, typeManager, canDeclare),
-            canDeclare: canDeclare
-        )
-    }
-
-    public static func variableDeclarator(
-        variableEnvironment: Environment<String, VariableReference>
-    ): Declarator {
-        variableDeclarator(
-            variableEnvironment, canDeclare([{ k => variableEnvironment.getLocal(k).isNone() }])
-        )
-    }
-
-    public static func variableDeclarator(
+    /*
+    * Declarator for the class, struct... bodies in the ASG, declares all functions and variables.
+    * Functions signatures are checked based on the name and the type of the parameters.
+    */
+    public static func bodyAsgDeclarator(
         variableEnvironment: Environment<String, VariableReference>,
-        canDeclare: (String) -> Bool
+        typeManager: TypeManager
     ): Declarator {
-        Declarator(
-            visitVar: variableDeclaration(variableEnvironment, canDeclare),
+        let canDeclare: (String) -> Bool = canDeclare([
+            { k => variableEnvironment.getLocal(k).isNone() }
+        ])
+        ReferenceDeclarator(
+            visitFunc: functionAsgDeclaration(typeManager, canDeclare),
+            visitVar: variableAsgDeclaration(variableEnvironment, canDeclare),
             canDeclare: canDeclare
         )
     }
 
-    public static func classDeclarator(
-        classEnvironment: Environment<String, ClassReference>
-    ): Declarator {
-        classDeclarator(
-            classEnvironment, canDeclare([{ k => classEnvironment.getLocal(k).isNone() }])
-        )
-    }
-
-    public static func classDeclarator(
+    /*
+    * Declarator for the global scope in the ASG, declares all function and classes.
+    * Functions signatures are checked based on the name and the type of the parameters.
+    */
+    public static func globalAsgDeclarator(
         classEnvironment: Environment<String, ClassReference>,
-        canDeclare: (String) -> Bool
+        typeManager: TypeManager
     ): Declarator {
-        Declarator(
-            visitClass: classDeclaration(classEnvironment, canDeclare),
+        let canDeclare: (String) -> Bool = canDeclare([
+            { k => classEnvironment.getLocal(k).isNone() }
+        ])
+        ReferenceDeclarator(
+            visitFunc: functionAsgDeclaration(typeManager, canDeclare),
+            visitClass: classAsgDeclaration(classEnvironment, canDeclare),
             canDeclare: canDeclare
         )
     }
 
-    private static func variableDeclaration(
+    private static func variableAstDeclaration(
         environment: Environment<String, VariableReference>,
         canDeclare: (String) -> Bool
     ): (VarDecl) -> ?Reference {
@@ -176,7 +135,21 @@ public abstract class DeclaratorFactory {
         }
     }
 
-    private static func functionDeclaration(
+    private static func variableAsgDeclaration(
+        environment: Environment<String, VariableReference>,
+        canDeclare: (String) -> Bool
+    ): (VarDeclWithRef) -> ?Reference {
+        { varDeclWithRef: VarDeclWithRef =>
+            let ref: VariableReference = varDeclWithRef.ref
+            if (canDeclare(varDeclWithRef.identifier.value)) {
+                environment.declare(varDeclWithRef.identifier.value, ref)
+                return ref
+            }
+            throw declareError(varDeclWithRef.identifier.value)
+        }
+    }
+
+    private static func functionAstDeclaration(
         environment: Environment<String, FuncReference>,
         canDeclare: (String) -> Bool
     ): (FuncDecl) -> ?Reference {
@@ -193,8 +166,7 @@ public abstract class DeclaratorFactory {
         }
     }
 
-    private static func functionTypeDeclaration(
-        environment: Environment<String, FuncReference>,
+    private static func functionAsgDeclaration(
         typeManager: TypeManager,
         canDeclare: (String) -> Bool
     ): (FuncDeclWithRef) -> ?Reference {
@@ -207,9 +179,8 @@ public abstract class DeclaratorFactory {
             )
             let params: Array<Type> = TypeCheckerHelper.refToType(paramRef)
             let funcHashParamName: String = TypeManager.funcHashConcat(funcName, params)
-            typeManager.addFunction(ref)
             if (canDeclare(funcHashParamName)) {
-                environment.declare(funcHashParamName, ref)
+                typeManager.addFunction(ref)
                 return ref
             }
             throw declareError(
@@ -220,7 +191,7 @@ public abstract class DeclaratorFactory {
         }
     }
 
-    private static func classDeclaration(
+    private static func classAstDeclaration(
         environment: Environment<String, ClassReference>,
         canDeclare: (String) -> Bool
     ): (ClassDecl) -> ?Reference {
@@ -228,8 +199,23 @@ public abstract class DeclaratorFactory {
             let ref: ClassReference = ClassReference(NodeIdManager.nextId(), classDecl.identifier)
             if (canDeclare(classDecl.identifier.value)) {
                 environment.declare(classDecl.identifier.value, ref)
+                return ref
             }
-            ref
+            throw declareError(ref.identifier.value)
+        }
+    }
+
+    private static func classAsgDeclaration(
+        environment: Environment<String, ClassReference>,
+        canDeclare: (String) -> Bool
+    ): (ClassDeclWithRef) -> ?Reference {
+        { classDecl: ClassDeclWithRef =>
+            let ref: ClassReference = classDecl.ref
+            if (canDeclare(classDecl.identifier.value)) {
+                environment.declare(classDecl.identifier.value, ref)
+                return ref
+            }
+            throw declareError(ref.identifier.value)
         }
     }
 

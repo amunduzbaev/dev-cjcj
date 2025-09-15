@@ -4,6 +4,7 @@ import cjcj.visitor.*
 import cjcj.parser.NodeIdManager
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
+import cjcj.asg.TypeManager
 
 import std.ast.Position
 import std.collection.*

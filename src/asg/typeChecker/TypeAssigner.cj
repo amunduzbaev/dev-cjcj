@@ -2,6 +2,11 @@ package cjcj.asg.typeChecker
 
 import cjcj.visitor.*
 import cjcj.scanner.TokenKind
+import cjcj.scanner.Token
+import cjcj.asg.ScopeType
+import cjcj.asg.TypeManager
+import cjcj.asg.Declarator
+import cjcj.asg.DeclaratorFactory
 
 import std.collection.*
 
@@ -16,8 +21,12 @@ public class TypeAssigner <: Visitor<Type> {
     private var variableEnvironment: Environment<String, VariableReference> = Environment()
     private let referenceStatus: Map<Reference, Status> = HashMap()
 
+    private var callableField: ?String = None
+    private var currentClass: ?ClassReferenceForTC = None
+    private var scopeType: ScopeType = ScopeType.NIL
+
     public TypeAssigner(
-        program: Program, private var funcEnvironment: Environment<String, FuncReference>,
+        program: Program, private var classEnvironment: Environment<String, ClassReferenceForTC>,
         private let typeManager: TypeManager
     ) {
         program.traverse(this)
@@ -74,7 +83,6 @@ public class TypeAssigner <: Visitor<Type> {
 
     public override func visit(block: Block): Type {
         typeManager.beginScope()
-        funcEnvironment = Environment(funcEnvironment)
         variableEnvironment = Environment(variableEnvironment)
 
         let lastId = block.nodes.last.getOrDefault({ => Expr() }).id
@@ -86,7 +94,6 @@ public class TypeAssigner <: Visitor<Type> {
             .getOrDefault({ => typeManager.get("Unit")})
 
         typeManager.endScope()
-        funcEnvironment = funcEnvironment.enclosing.getOrThrow()
         variableEnvironment = variableEnvironment.enclosing.getOrThrow()
         returnType
     }
@@ -165,13 +172,19 @@ public class TypeAssigner <: Visitor<Type> {
         ref.paramRef.getOrThrow().iterator().enumerate()
             .forEach({ v => v[1].effectiveType = params[v[0]].paramType.traverse(this) })
 
-        if (!funcEnvironment.isGlobal) {
+        if (!typeManager.isGlobal && scopeType != ScopeType.BODY) {
             typeManager.addFunction(ref)
         }
 
         if (let Some(decl) <- funcDeclWithRef.declType) {
             referenceStatus.add(ref, Status.VIS)
             ref.effectiveType = decl.traverse(this)
+            return typeManager.get("Unit")
+        }
+
+        if (ref.identifier.kind == TokenKind.ILLEGAL) {
+            referenceStatus.add(ref, Status.VIS)
+            ref.effectiveType = typeManager.get(currentClass.getOrThrow().classReference.identifier.value)
             return typeManager.get("Unit")
         }
         
@@ -202,25 +215,35 @@ public class TypeAssigner <: Visitor<Type> {
     }
 
     public override func visit(funcReference: FuncReference): Type {
+        callableField = funcReference.identifier.value
         funcReference.effectiveType.getOrThrow()
     }
 
+    public override func visit(classReference: ClassReference): Type {
+        callableField = ""
+        classReference.effectiveType.getOrThrow()
+    }
+
     public override func visit(refExprWithRef: RefExprWithRef): Type {
-        refExprWithRef.ref.traverse(this)
+        let tp: Type = refExprWithRef.ref.traverse(this)
+        tp
     }
 
     public override func visit(callExpr: CallExpr): Type {
-        var ref: FuncReference = (
-            (callExpr.callee as RefExprWithRef).getOrThrow().ref as FuncReference
-        ).getOrThrow()
+        let calleeType: Type = callExpr.callee.traverse(this)
+        let identifier = callableField.getOrThrow({ => Exception("Left of call expression not callable") })
+        let params = callExpr.arguments.iterator().fold<ArrayList<Type>>(ArrayList(),
+                    { res, v => res.add(v.traverse(this)); res }).toArray()
 
-        ref = typeManager.applyFunction(
-            ref.identifier.value,
-            callExpr.arguments.iterator().fold<ArrayList<Type>>(ArrayList(),
-                { res, v => res.add(v.traverse(this)); res }).toArray(),
-            expectedReturnType.peek()
-        )
-        callExpr.callee = ref
+        let ref: FuncReference
+        if (let Some(classRef) <- classEnvironment.getGlobal(calleeType.name)) {
+            ref = classRef.typeManager.getOrThrow().applyFunction(identifier, params, expectedReturnType.peek())
+        } else {
+            ref = typeManager.applyFunction(identifier, params, expectedReturnType.peek())
+        }
+
+        // TODO: Change this with lambdas.
+        callableField = None
 
         if (let Some(t) <- ref.effectiveType) {
             return t
@@ -237,12 +260,59 @@ public class TypeAssigner <: Visitor<Type> {
     }
 
     public override func visit(classDeclWithRef: ClassDeclWithRef): Type {
+        currentClass = classEnvironment.getGlobal(classDeclWithRef.identifier.value)
+
         classDeclWithRef.body.traverse(this)
+        classDeclWithRef.ref.effectiveType = typeManager.get(classDeclWithRef.identifier.value)
+        currentClass = None
         typeManager.get("Unit")
     }
 
-    public override func visit(_: Body): Type {
-        // body.decls.iterator().forEach({ decl => decl.traverse(this) })
-        typeManager.get("Unit")
+    public override func visit(body: Body): Type {
+        beginScope()
+        scopeType = ScopeType.BODY
+
+        let bodyDeclarator: Declarator =
+            DeclaratorFactory.bodyAsgDeclarator(variableEnvironment, typeManager)
+        body.decls.iterator().forEach({ decl => decl.traverse(bodyDeclarator) })
+        body.decls.iterator().forEach({ decl => decl.traverse(this) })
+
+        currentClass.getOrThrow().typeManager = TypeManager(typeManager)
+        currentClass.getOrThrow().variableEnvironment = variableEnvironment
+
+        endScope()
+        scopeType = ScopeType.NIL
+
+        currentClass.getOrThrow().typeManager.getOrThrow().deleteHistory()
+        currentClass.getOrThrow().variableEnvironment.getOrThrow().enclosing = None
+
+        DUMMY_TYPE
+    }
+
+    public override func visit(memberAccess: MemberAccess): Type {
+        // TODO: Remember to change this when we add other class-like structures.
+        let baseClass: ClassReferenceForTC =
+            classEnvironment.getGlobal((memberAccess.baseExpr.traverse(this).name))
+                .getOrThrow({ => Exception("Base of member access is not a class!") })
+        let field: String = memberAccess.field.value
+        var tmpBaseClassVariableEnv: Environment<String, VariableReference> =
+            baseClass.variableEnvironment.getOrThrow()
+
+        if (let Some(varRef) <- tmpBaseClassVariableEnv.getLocal(field)) {
+            callableField = None
+            return varRef.effectiveType.getOrThrow()
+        }
+        callableField = field    
+        typeManager.get(baseClass.classReference.identifier.value)
+    }
+
+    private func beginScope(): Unit {
+        typeManager.beginScope()
+        variableEnvironment = Environment(variableEnvironment)
+    }
+
+    private func endScope(): Unit {
+        typeManager.endScope()
+        variableEnvironment = variableEnvironment.enclosing.getOrThrow()
     }
 }

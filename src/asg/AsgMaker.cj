@@ -4,8 +4,6 @@ import cjcj.visitor.*
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import cjcj.parser.NodeIdManager
-import cjcj.asg.typeChecker.Declarator
-import cjcj.asg.typeChecker.DeclaratorFactory
 
 import std.env.getStdOut
 
@@ -21,7 +19,7 @@ import std.deriving.Derive
 * example a return expression.
 */
 @Derive[Equatable]
-private enum ScopeType {
+public enum ScopeType {
     NIL | BLOCK | BODY
 }
 
@@ -35,8 +33,6 @@ private enum ScopeType {
 * there's a bug in the as operator itself.
 */
 public class AsgMaker <: Visitor<Node> {
-    // private var globalScope: Environment = Environment()
-
     private var classEnvironment: Environment<String, ClassReference> = Environment()
     private var funcEnvironment: Environment<String, FuncReference> = Environment()
     private var variableEnvironment: Environment<String, VariableReference> = Environment()
@@ -55,7 +51,6 @@ public class AsgMaker <: Visitor<Node> {
     * Resolves all of the function and variable references and returns the new
     * Program node that is the ASG root.
     */
-
     public func resolve(program: Program): Program {
         // TODO: We need to declare Any and in the future all the other builtin interfaces/structs
         // because they're not primitive types, so they are considered as RefType.
@@ -75,7 +70,7 @@ public class AsgMaker <: Visitor<Node> {
         let decls: ArrayList<Decl> = ArrayList()
         
         // Declare global function and classes.
-        let globalDeclarator: Declarator = DeclaratorFactory.globalDeclarator(
+        let globalDeclarator: Declarator = DeclaratorFactory.globalAstDeclarator(
             funcEnvironment, classEnvironment
         )
 
@@ -345,7 +340,7 @@ public class AsgMaker <: Visitor<Node> {
         let precScopeType = beginScope(ScopeType.BODY)
 
         let decls: ArrayList<Decl> = ArrayList()
-        let topDecl: Declarator = DeclaratorFactory.bodyDeclarator(
+        let topDecl: Declarator = DeclaratorFactory.bodyAstDeclarator(
             funcEnvironment, variableEnvironment
         )
         let refDecls = ArrayList<(Decl, ?Reference)>()
@@ -364,7 +359,6 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(memberAccess: MemberAccess): Node {
-        // println("its here")
         let baseExpr = memberAccess.baseExpr.traverse(this)
         MemberAccess(NodeIdManager.nextId(), baseExpr, memberAccess.field)
     }

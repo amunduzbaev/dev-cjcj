@@ -1,4 +1,4 @@
-package cjcj.asg.typeChecker
+package cjcj.asg
 
 import cjcj.visitor.Type
 import cjcj.visitor.FuncReference
@@ -19,9 +19,31 @@ public class TypeManager {
             .fold(StringBuilder(), { acc, v => acc.append(v); acc }).toString()
     }
 
-    private let nameToType: Map<String, Type> = HashMap()
-    private var immediateFuncEnvironment: Environment<String, FuncReference> = Environment()
-    private var totalFuncEnvironment: Environment<String, ArrayStack<FuncReference>> = Environment()
+    private var nameToType_: Map<String, Type> = HashMap()
+    private var immediateFuncEnvironment_: Environment<String, FuncReference> = Environment()
+    private var totalFuncEnvironment_: Environment<String, ArrayStack<FuncReference>> = Environment()
+
+    public prop nameToType: Map<String, Type> {
+        get() { nameToType_ }
+    }
+
+    public prop immediateFuncEnvironment: Environment<String, FuncReference> {
+        get() { immediateFuncEnvironment_ }
+    }
+
+    public prop totalFuncEnvironment: Environment<String, ArrayStack<FuncReference>> {
+        get() { totalFuncEnvironment_ }
+    }
+
+    public init() {
+
+    }
+
+    public init(typeManager: TypeManager) {
+        immediateFuncEnvironment_ = typeManager.immediateFuncEnvironment
+        totalFuncEnvironment_ = typeManager.totalFuncEnvironment
+        nameToType_ = typeManager.nameToType_
+    }
 
     /*
     * Adds a type to the map if the type is not already defined.
@@ -206,14 +228,14 @@ public class TypeManager {
     }
 
     public func beginScope(): Unit {
-        immediateFuncEnvironment = Environment(immediateFuncEnvironment)
-        totalFuncEnvironment = Environment(totalFuncEnvironment)
+        immediateFuncEnvironment_ = Environment(immediateFuncEnvironment)
+        totalFuncEnvironment_ = Environment(totalFuncEnvironment)
     }
 
     public func endScope(): Unit {
-        immediateFuncEnvironment = immediateFuncEnvironment.enclosing.getOrThrow({ =>
+        immediateFuncEnvironment_ = immediateFuncEnvironment.enclosing.getOrThrow({ =>
             UnsupportedException("Trying to close the global scope") })
-        totalFuncEnvironment = totalFuncEnvironment.enclosing.getOrThrow({ =>
+        totalFuncEnvironment_ = totalFuncEnvironment.enclosing.getOrThrow({ =>
             UnsupportedException("Trying to close the global scope") })
     }
 
@@ -244,5 +266,14 @@ public class TypeManager {
             }
         }
         res
+    }
+
+    public prop isGlobal: Bool {
+        get() { totalFuncEnvironment.isGlobal }
+    }
+
+    public func deleteHistory(): Unit {
+        totalFuncEnvironment.enclosing = None
+        immediateFuncEnvironment.enclosing = None
     }
 }

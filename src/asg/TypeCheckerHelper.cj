@@ -1,4 +1,4 @@
-package cjcj.asg.typeChecker
+package cjcj.asg
 
 import cjcj.visitor.*
 
