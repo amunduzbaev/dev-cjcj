@@ -271,7 +271,7 @@ class TypeCheckTests {
             }
             main(){
                 let b = a()
-                let c: Int64 = b.b
+                let c: Int64 = a().b
                 let f: Unit = b.f()
             }"""
         TypeChecker(getAsg(testRight))
@@ -297,7 +297,7 @@ class TypeCheckTests {
             }
             main(){
                 let b = a()
-                let c: Int64 = b.b
+                let c: Int64 = a().b
             }"""
         @AssertThrows[Exception](TypeChecker(getAsg(test)))
     }
