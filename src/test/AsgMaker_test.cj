@@ -614,17 +614,6 @@ class AsgMakerTests {
         """
 
         getAsg(testRight)
-
-        // var testWrong: String = """
-        //     class A {
-        //     }
-        //     main(){
-        //         class B <: A{
-        //         }
-        //     }
-        // """
-
-        // @AssertThrows[Exception](getAsg(testWrong))
     }
 
     @TestCase
@@ -712,6 +701,25 @@ class AsgMakerTests {
     }
 
     @TestCase
+    func thisSuperExpression_test() {
+        var testRight: String = """
+        class T{
+            let a = this
+        }
+        main() {
+        }
+        """
+        getAsg(testRight)
+
+        var testWrong: String = """
+        main() {
+            this
+        }
+        """
+        @AssertThrows[Exception](getAsg(testWrong))
+    }
+
+    @TestCase
     func asgMakerTest1() {
         let test: String = """
             main(args: Int64) {
@@ -779,5 +787,3 @@ class AsgMakerTests {
         getAsg(test)
     }
 }
-
-

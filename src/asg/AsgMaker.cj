@@ -363,6 +363,13 @@ public class AsgMaker <: Visitor<Node> {
         MemberAccess(NodeIdManager.nextId(), baseExpr, memberAccess.field)
     }
 
+    public override func visit(thisSuperExpr: ThisSuperExpr): Node {
+        if (currentScopeType != ScopeType.BODY) {
+            throw Exception("Cannot invoke ${thisSuperExpr.keyword.value} outside of a class")
+        }
+        thisSuperExpr
+    }
+
     private func beginScope(newScopeType: ScopeType): ScopeType{
         let precScopeType = currentScopeType
         currentScopeType = newScopeType
