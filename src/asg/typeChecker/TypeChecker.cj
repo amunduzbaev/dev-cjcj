@@ -193,6 +193,7 @@ public class TypeChecker <: Visitor<Type> {
     }
 
     public override func visit(classReference: ClassReference): Type {
+        callableField = ""
         classReference.effectiveType.getOrThrow()
     }
 
@@ -203,9 +204,6 @@ public class TypeChecker <: Visitor<Type> {
 
     public override func visit(refExprWithRef: RefExprWithRef): Type {
         let tp: Type = refExprWithRef.ref.traverse(this)
-        if (classEnvironment.getGlobal(refExprWithRef.ref.identifier.value).isSome()) {
-            callableField = ""
-        }
         tp
     }
 
