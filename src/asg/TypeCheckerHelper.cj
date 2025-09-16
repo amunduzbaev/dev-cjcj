@@ -17,7 +17,7 @@ abstract class TypeCheckerHelper {
         typeManager: TypeManager
     ): Unit {
         paramRef.iterator().enumerate().forEach({ p =>
-            p[1].effectiveType = typeManager.get(funcParams[p[0]].paramType.typeName.value) })
+            p[1].effectiveType = typeManager.getType(funcParams[p[0]].paramType.typeName.value) })
     }
 
     /*

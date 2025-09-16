@@ -63,11 +63,11 @@ public class TypeAssigner <: Visitor<Type> {
 
     public override func visit(litConstExpr: LitConstExpr): Type {
         match (litConstExpr.literal.kind) {
-            case TokenKind.INTEGER_LITERAL => return typeManager.get("Int64")
-            case TokenKind.FLOAT_LITERAL => return typeManager.get("Float64")
-            case TokenKind.BOOL_LITERAL => return typeManager.get("Bool")
-            case TokenKind.STRING_LITERAL => return typeManager.get("String")
-            case TokenKind.UNIT_LITERAL => return typeManager.get("Unit")
+            case TokenKind.INTEGER_LITERAL => return typeManager.getType("Int64")
+            case TokenKind.FLOAT_LITERAL => return typeManager.getType("Float64")
+            case TokenKind.BOOL_LITERAL => return typeManager.getType("Bool")
+            case TokenKind.STRING_LITERAL => return typeManager.getType("String")
+            case TokenKind.UNIT_LITERAL => return typeManager.getType("Unit")
             // TODO: Add all other literals.
             case _ => return DUMMY_TYPE
         }
@@ -85,7 +85,7 @@ public class TypeAssigner <: Visitor<Type> {
 
         expectedReturnType.remove()
 
-        typeManager.get("Unit")
+        typeManager.getType("Unit")
     }
 
     public override func visit(block: Block): Type {
@@ -98,7 +98,7 @@ public class TypeAssigner <: Visitor<Type> {
             .filter({ n => n[0] is ReturnExpr || n[0].id == lastId })
             .map({ n => n[1] })
             .reduce({ a,b => typeManager.smallestCommonSupertype(a, b) })
-            .getOrDefault({ => typeManager.get("Unit")})
+            .getOrDefault({ => typeManager.getType("Unit")})
 
         typeManager.endScope()
         returnType
@@ -117,14 +117,14 @@ public class TypeAssigner <: Visitor<Type> {
     public override func visit(whileExpr: WhileExpr): Type {
         whileExpr.condition.traverse(this)
         whileExpr.block.traverse(this)
-        typeManager.get("Unit")
+        typeManager.getType("Unit")
     }
 
     public override func visit(returnExpr: ReturnExpr): Type {
         if (let Some(expr) <- returnExpr.expr) {
             return expr.traverse(this)
         }
-        typeManager.get("Unit")
+        typeManager.getType("Unit")
     }
 
     public override func visit(funcParam: FuncParam): Type {
@@ -136,11 +136,11 @@ public class TypeAssigner <: Visitor<Type> {
     }
 
     public override func visit(primitiveType: PrimitiveType): Type {
-        typeManager.get(primitiveType.typeName.value)
+        typeManager.getType(primitiveType.typeName.value)
     }
 
     public override func visit(refType: RefType): Type {
-        typeManager.get(refType.typeName.value)
+        typeManager.getType(refType.typeName.value)
     }
 
     public override func visit(varDeclWithRef: VarDeclWithRef): Type {
@@ -152,7 +152,7 @@ public class TypeAssigner <: Visitor<Type> {
         if (let Some(t) <- varDeclWithRef.declType) {
             referenceStatus.add(ref, Status.VIS)
             ref.effectiveType = t.traverse(this)
-            return typeManager.get("Unit")
+            return typeManager.getType("Unit")
         }
 
         referenceStatus.add(ref, Status.IN)
@@ -163,7 +163,7 @@ public class TypeAssigner <: Visitor<Type> {
         let initType: Type = initzer.traverse(this)
         ref.effectiveType = initType
         referenceStatus.add(ref, Status.VIS)
-        typeManager.get("Unit")
+        typeManager.getType("Unit")
     }
 
     public override func visit(funcDeclWithRef: FuncDeclWithRef): Type {
@@ -184,21 +184,21 @@ public class TypeAssigner <: Visitor<Type> {
         if (let Some(decl) <- funcDeclWithRef.declType) {
             referenceStatus.add(ref, Status.VIS)
             ref.effectiveType = decl.traverse(this)
-            return typeManager.get("Unit")
+            return typeManager.getType("Unit")
         }
 
         if (ref.identifier.kind == TokenKind.ILLEGAL) {
             referenceStatus.add(ref, Status.VIS)
-            ref.effectiveType = typeManager.get(currentClass.getOrThrow()
+            ref.effectiveType = typeManager.getType(currentClass.getOrThrow()
                 .classReference.identifier.value)
-            return typeManager.get("Unit")
+            return typeManager.getType("Unit")
         }
         
         referenceStatus.add(ref, Status.IN)
         let infType: Type = funcDeclWithRef.block.traverse(this)
         ref.effectiveType = infType
         referenceStatus.add(ref, Status.VIS)
-        typeManager.get("Unit")
+        typeManager.getType("Unit")
     }
 
     public override func visit(mainDeclWithRef: MainDeclWithRef): Type {
@@ -211,12 +211,12 @@ public class TypeAssigner <: Visitor<Type> {
 
         if (let Some(decl) <- mainDeclWithRef.declType) {
             ref.effectiveType = decl.traverse(this)
-            return typeManager.get("Unit")
+            return typeManager.getType("Unit")
         }
 
         let infType: Type = mainDeclWithRef.block.traverse(this)
         ref.effectiveType = infType
-        typeManager.get("Unit")
+        typeManager.getType("Unit")
     }
 
     public override func visit(varReference: VariableReference): Type {
@@ -272,11 +272,16 @@ public class TypeAssigner <: Visitor<Type> {
 
     public override func visit(classDeclWithRef: ClassDeclWithRef): Type {
         currentClass = classEnvironment.getGlobal(classDeclWithRef.identifier.value)
-
+        // TODO: Update this when we'll have interfaces.
+        if (let Some(superClass) <- classDeclWithRef.superTypes.get(0)) {
+            // Update the parent in the reference.
+            currentClass.getOrThrow().classReference.parent =
+                classEnvironment.getGlobal(superClass.typeName.value).getOrThrow().classReference
+        }
         classDeclWithRef.body.traverse(this)
-        classDeclWithRef.ref.effectiveType = typeManager.get(classDeclWithRef.identifier.value)
+        classDeclWithRef.ref.effectiveType = typeManager.getType(classDeclWithRef.identifier.value)
         currentClass = None
-        typeManager.get("Unit")
+        typeManager.getType("Unit")
     }
 
     public override func visit(body: Body): Type {
@@ -303,18 +308,42 @@ public class TypeAssigner <: Visitor<Type> {
 
     public override func visit(memberAccess: MemberAccess): Type {
         // TODO: Remember to change this when we add other class-like structures.
-        let baseClass: ClassReferenceForTC =
+        var baseClass: ClassReferenceForTC =
             classEnvironment.getGlobal((memberAccess.baseExpr.traverse(this).name))
                 .getOrThrow({ => Exception("Base of member access is not a class!") })
         let field: String = memberAccess.field.value
-        var tmpBaseClassVariableEnv: Environment<String, VariableReference> =
-            baseClass.variableEnvironment.getOrThrow()
+        while (let Some(parent) <- baseClass.classReference.parent) {
+            if (let Some(tp) <- getClassMember(baseClass, field)) {
+                return tp
+            }
+            baseClass = classEnvironment.getGlobal(parent.identifier.value).getOrThrow({ =>
+                Exception("Parent class is not declared!")})
+        }
+        if (let Some(tp) <- getClassMember(baseClass, field)) {
+            return tp
+        }
+        DUMMY_TYPE
+    }
 
-        if (let Some(varRef) <- tmpBaseClassVariableEnv.getLocal(field)) {
+    private func getClassMember(baseClass: ClassReferenceForTC, field: String): ?Type {
+        let baseClassVariableEnv: Environment<String, VariableReference> =
+            baseClass.variableEnvironment.getOrThrow()
+        let baseClassTypeManager: TypeManager = baseClass.typeManager.getOrThrow()
+
+        // Try to find a variable.
+        if (let Some(varRef) <- baseClassVariableEnv.getLocal(field)) {
             callableField = None
+            println("Found ${field}")
             return varRef.effectiveType.getOrThrow()
         }
-        callableField = field    
-        typeManager.get(baseClass.classReference.identifier.value)
+
+        // Try to find a function.
+        if (baseClassTypeManager.funcExists(field)) {
+            callableField = field
+            // I cannot know the return type of the function so I just tell the callExpr who to call
+            // and from which class.
+            return typeManager.getType(baseClass.classReference.identifier.value)
+        }
+        None
     }
 }

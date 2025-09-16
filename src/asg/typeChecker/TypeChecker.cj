@@ -59,11 +59,11 @@ public class TypeChecker <: Visitor<Type> {
 
     public override func visit(litConstExpr: LitConstExpr): Type {
         match (litConstExpr.literal.kind) {
-            case TokenKind.INTEGER_LITERAL => return typeManager.get("Int64")
-            case TokenKind.FLOAT_LITERAL => return typeManager.get("Float64")
-            case TokenKind.BOOL_LITERAL => return typeManager.get("Bool")
-            case TokenKind.STRING_LITERAL => return typeManager.get("String")
-            case TokenKind.UNIT_LITERAL => return typeManager.get("Unit")
+            case TokenKind.INTEGER_LITERAL => return typeManager.getType("Int64")
+            case TokenKind.FLOAT_LITERAL => return typeManager.getType("Float64")
+            case TokenKind.BOOL_LITERAL => return typeManager.getType("Bool")
+            case TokenKind.STRING_LITERAL => return typeManager.getType("String")
+            case TokenKind.UNIT_LITERAL => return typeManager.getType("Unit")
             // TODO: Add all other literals.
             case _ => return DUMMY_TYPE
         }
@@ -81,7 +81,7 @@ public class TypeChecker <: Visitor<Type> {
 
         expectedReturnType.remove()
 
-        typeManager.get("Unit")
+        typeManager.getType("Unit")
     }
 
     public override func visit(block: Block): Type {
@@ -93,7 +93,7 @@ public class TypeChecker <: Visitor<Type> {
             .filter({ n => n[0] is ReturnExpr || n[0].id == lastId })
             .map({ n => n[1] })
             .reduce({ a,b => typeManager.smallestCommonSupertype(a, b) })
-            .getOrDefault({ => typeManager.get("Unit")})
+            .getOrDefault({ => typeManager.getType("Unit")})
 
         endScope()
         returnType
@@ -104,7 +104,7 @@ public class TypeChecker <: Visitor<Type> {
     * have an else branch then the return type is Unit.
     */
     public override func visit(ifExpr: IfExpr): Type {
-        if (ifExpr.condition.traverse(this) != typeManager.get("Bool")) {
+        if (ifExpr.condition.traverse(this) != typeManager.getType("Bool")) {
             throw Exception("If condition must be bool.")
         }
         let ifType: Type = ifExpr.ifBlock.traverse(this)
@@ -115,14 +115,14 @@ public class TypeChecker <: Visitor<Type> {
     public override func visit(whileExpr: WhileExpr): Type {
         whileExpr.condition.traverse(this)
         whileExpr.block.traverse(this)
-        typeManager.get("Unit")
+        typeManager.getType("Unit")
     }
 
     public override func visit(returnExpr: ReturnExpr): Type {
         if (let Some(expr) <- returnExpr.expr) {
             return expr.traverse(this)
         }
-        typeManager.get("Unit")
+        typeManager.getType("Unit")
     }
 
     public override func visit(funcParam: FuncParam): Type {
@@ -134,11 +134,11 @@ public class TypeChecker <: Visitor<Type> {
     }
 
     public override func visit(primitiveType: PrimitiveType): Type {
-        typeManager.get(primitiveType.typeName.value)
+        typeManager.getType(primitiveType.typeName.value)
     }
 
     public override func visit(refType: RefType): Type {
-        typeManager.get(refType.typeName.value)
+        typeManager.getType(refType.typeName.value)
     }
 
     public override func visit(varDeclWithRef: VarDeclWithRef): Type {
@@ -152,7 +152,7 @@ public class TypeChecker <: Visitor<Type> {
                     "found ${initType.name}")
             }
         }
-        typeManager.get("Unit")
+        typeManager.getType("Unit")
     }
 
     public override func visit(funcDeclWithRef: FuncDeclWithRef): Type {
@@ -171,7 +171,7 @@ public class TypeChecker <: Visitor<Type> {
         if (!typeManager.isGlobal) {
             typeManager.addFunction(ref)
         }
-        typeManager.get("Unit")
+        typeManager.getType("Unit")
     }
 
     public override func visit(mainDeclWithRef: MainDeclWithRef): Type {
@@ -184,7 +184,7 @@ public class TypeChecker <: Visitor<Type> {
             throw Exception("Type of function not correct, expected ${assignedType.name}, found: " +
                 "${infType.name}")
         }
-        typeManager.get("Unit")
+        typeManager.getType("Unit")
     }
 
     public override func visit(varReference: VariableReference): Type {
@@ -205,7 +205,6 @@ public class TypeChecker <: Visitor<Type> {
         let tp: Type = refExprWithRef.ref.traverse(this)
         if (classEnvironment.getGlobal(refExprWithRef.ref.identifier.value).isSome()) {
             callableField = ""
-            println("isdfhugpisudg")
         }
         tp
     }
@@ -234,7 +233,7 @@ public class TypeChecker <: Visitor<Type> {
 
     public override func visit(classDeclWithRef: ClassDeclWithRef): Type {
         classDeclWithRef.body.traverse(this)
-        typeManager.get("Unit")
+        typeManager.getType("Unit")
     }
 
     public override func visit(body: Body): Type {
@@ -244,19 +243,43 @@ public class TypeChecker <: Visitor<Type> {
 
     public override func visit(memberAccess: MemberAccess): Type {
         // TODO: Remember to change this when we add other class-like structures.
-        let baseClass: ClassReferenceForTC =
+        var baseClass: ClassReferenceForTC =
             classEnvironment.getGlobal((memberAccess.baseExpr.traverse(this).name))
                 .getOrThrow({ => Exception("Base of member access is not a class!") })
         let field: String = memberAccess.field.value
-        var baseClassVariableEnv: Environment<String, VariableReference> =
-            baseClass.variableEnvironment.getOrThrow()
+        while (let Some(parent) <- baseClass.classReference.parent) {
+            if (let Some(tp) <- getClassMember(baseClass, field)) {
+                return tp
+            }
+            baseClass = classEnvironment.getGlobal(parent.identifier.value).getOrThrow({ =>
+                Exception("Parent class is not declared!")})
+        }
+        if (let Some(tp) <- getClassMember(baseClass, field)) {
+            return tp
+        }
+        DUMMY_TYPE
+    }
 
+    private func getClassMember(baseClass: ClassReferenceForTC, field: String): ?Type {
+        let baseClassVariableEnv: Environment<String, VariableReference> =
+            baseClass.variableEnvironment.getOrThrow()
+        let baseClassTypeManager: TypeManager = baseClass.typeManager.getOrThrow()
+
+        // Try to find a variable.
         if (let Some(varRef) <- baseClassVariableEnv.getLocal(field)) {
             callableField = None
+            println("Found ${field}")
             return varRef.effectiveType.getOrThrow()
         }
-        callableField = field    
-        typeManager.get(baseClass.classReference.identifier.value)
+
+        // Try to find a function.
+        if (baseClassTypeManager.funcExists(field)) {
+            callableField = field
+            // I cannot know the return type of the function so I just tell the callExpr who to call
+            // and from which class.
+            return typeManager.getType(baseClass.classReference.identifier.value)
+        }
+        None
     }
 
     private func beginScope(): Unit {

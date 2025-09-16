@@ -122,9 +122,9 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
             .map({ v: (String, ArrayList<(ArrayList<String>, String)>) => (
                 v[0],
                 v[1].iterator().map({ v: (ArrayList<String>, String) => (
-                    v[0].iterator().map({ v => typeManager.get(v) })
+                    v[0].iterator().map({ v => typeManager.getType(v) })
                         .fold<ArrayList<Type>>(ArrayList(), { res, v => res.add(v); res }),
-                    typeManager.get(v[1])
+                    typeManager.getType(v[1])
                 )}))
             }).forEach({ v => v[1].iterator().forEach({ t =>
                 // Create a reference for each parameter and then create the func reference to pass.

@@ -333,4 +333,67 @@ class TypeCheckTests {
             }"""
         @AssertThrows[Exception](TypeChecker(getAsg(test)))
     }
+
+    @TestCase
+    func memberShadowing_test() {
+        let test: String = """
+            class c {
+                let cvar = 5
+            }
+            class b <: c {
+                func bfunc() {
+                }
+            }
+            class a <: b {
+                let cvar = 19
+                init() {
+                }
+            }
+            main(){
+                let a = a()
+                let v: Int64 = a.cvar
+                let f: Unit = a.bfunc()
+            }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(test)))
+    }
+
+    @TestCase
+    func memberAccessSuperClass_test() {
+        let testRight: String = """
+            class c {
+                let cvar = 5
+            }
+            class b <: c {
+                func bfunc() {
+                }
+            }
+            class a <: b {
+                init() {
+                }
+            }
+            main(){
+                let a = a()
+                let v: Int64 = a.cvar
+                let f: Unit = a.bfunc()
+            }"""
+        TypeChecker(getAsg(testRight))
+        let testWrong: String = """
+            class c {
+                let common = 5
+            }
+            class b <: c {
+                func bfunc() {
+                }
+            }
+            class a <: b {
+                init() {
+                }
+            }
+            main(){
+                let a = a()
+                let v: String = a.common
+                let f: Unit = a.bfunc()
+            }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+    }
 }

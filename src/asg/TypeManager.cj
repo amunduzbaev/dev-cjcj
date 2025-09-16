@@ -50,7 +50,7 @@ public class TypeManager {
     */
     public func addType(typeName: String, parents: ArrayList<String>, isOpen!: Bool = false): Unit {
         addType(Type(typeName,
-            parents.iterator().map({ s => get(s)}).fold(ArrayList<Type>(),
+            parents.iterator().map({ s => getType(s)}).fold(ArrayList<Type>(),
                 { r: ArrayList<Type>, t: Type => r.add(t); r}
             ), isOpen))
     }
@@ -69,8 +69,12 @@ public class TypeManager {
     /*
     * Retrieves an existing type given the typeName.
     */
-    public func get(typeName: String): Type {
+    public func getType(typeName: String): Type {
         nameToType.get(typeName).getOrThrow({ => Exception("Type ${typeName} does not exist")})
+    }
+
+    public func funcExists(funcName: String): Bool {
+        totalFuncEnvironment.getGlobal(funcName).isSome()
     }
 
     /*
