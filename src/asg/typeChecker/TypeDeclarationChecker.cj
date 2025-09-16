@@ -192,48 +192,6 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
             )
         )
     }
- 
-    public override func visit(_: BinaryExpr): Unit { }
-
-    public override func visit(_: UnaryExpr): Unit { }
-
-    public override func visit(_: ParenExpr): Unit { }
-
-    public override func visit(_: LitConstExpr): Unit { }
-
-    public override func visit(_: AssignExpr): Unit { }
-
-    public override func visit(_: RefExpr): Unit { }
-
-    public override func visit(_: Block): Unit { }
-
-    public override func visit(_: IfExpr): Unit { }
-
-    public override func visit(_: WhileExpr): Unit { }
-
-    public override func visit(_: CallExpr): Unit { }
-
-    public override func visit(_: ReturnExpr): Unit { }
-
-    public override func visit(_: VarDecl): Unit { }
-
-    public override func visit(_: FuncParam): Unit { }
-
-    public override func visit(_: FuncDecl): Unit { }
-
-    public override func visit(_: MainDecl): Unit { }
-
-    public override func visit(_: Argument): Unit { }
-
-    public override func visit(_: TypeNode): Unit { }
-
-    public override func visit(_: PrimitiveType): Unit { }
-
-    public override func visit(_: RefType): Unit { }
-
-    public override func visit(_: VariableReference): Unit { }
-
-    public override func visit(_: FuncReference): Unit{ }
 
     public override func visit(_: VarDeclWithRef): Unit{ }
 

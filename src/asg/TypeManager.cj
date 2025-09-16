@@ -2,7 +2,6 @@ package cjcj.asg
 
 import cjcj.visitor.Type
 import cjcj.visitor.FuncReference
-import cjcj.visitor.VariableReference
 import cjcj.visitor.Environment
 import cjcj.scanner.Token
 
