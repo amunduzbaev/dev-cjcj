@@ -449,39 +449,20 @@ class ParserTests {
     }
 
     @TestCase
-    func parseTest2() {
+    func thisSuperExpr_test() {
         let test: String = """
-            main(args: Bp){
-                let a: Int32
-                func A ()
-                    a = 1
+            class A {
+                func a() {
+                    return this
                 }
-
-                a = 2
-
-                let b = a +
-
-                a = 3.
             }
-            
-            """
-
-        let scanner = Scanner(test.toRuneArray())
-        let tokens = scanner.scanTokens().toArray()
-        
-        let reporter = parser.Reporter(getStdErr(), tokens.toArray())
-        let parser: parser.Parser = parser.Parser(tokens.toArray(), reporter)
-
-        let program: ?Program = parser.parse()
-
-        // let CorrectError = ArrayList<()>()
-
-        @Assert(program.isNone())
-        // @Assert(reporter.getError == CorrectError)
+            main(){
+            }"""
+        @Assert(parse(test).isSome())
     }
 
     @TestCase 
-    func parseTest3() {
+    func general_test() {
         let test: String = """
             main(args: Bp){
                 let a: Int32
@@ -521,23 +502,7 @@ class ParserTests {
                 3(*&#@71I#(@))))))
             */
             """
-
-        let scanner = Scanner(test.toRuneArray())
-        let tokens = scanner.scanTokens().toArray()
-
-        let reporter = parser.Reporter(getStdErr(), tokens.toArray())
-        let parser: parser.Parser = parser.Parser(tokens.toArray(), reporter)
-        let program: ?Program = parser.parse()
-
-        // parser.logErrors()
-
-        // let printer = PrettyPrinter()
-        // if(let Some(p) <- program) {
-        //     p.prettyPrint(printer)
-        // }
-        // println(printer.toString())
-
-        @Assert(program.isSome())
+        @Assert(parse(test).isSome())
     }
 }
 

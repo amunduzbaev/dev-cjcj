@@ -523,6 +523,9 @@ internal open class DeclParser {
         if (let Some(identifier) <- identifier()) {
             return identifier
         }
+        if (let Some(thisSuperExpression) <- thisSuperExpression()) {
+            return thisSuperExpression
+        }
         primitiveTypeExpr()
     }
 
@@ -828,6 +831,9 @@ internal open class DeclParser {
         if (let Some(i) <- identifier()) {
             return i
         }
+        if (let Some(thisSuperExpression) <- thisSuperExpression()) {
+            return thisSuperExpression
+        }
         if (helper.matches(TK.LPAREN)) {
             helper.skipNL()
             let expr: Expr = expectExpression(expression,
@@ -835,6 +841,13 @@ internal open class DeclParser {
             helper.skipNL()
             helper.consume(TK.RPAREN, "Expected ')' after expression.", helper.current)
             return ParenExpr(NodeIdManager.nextId(), expr)
+        }
+        None
+    }
+
+    private func thisSuperExpression(): ?Expr {
+        if (helper.matches(TKH.THIS_SUPER)) {
+            return ThisSuperExpr(NodeIdManager.nextId(), helper.previous())
         }
         None
     }

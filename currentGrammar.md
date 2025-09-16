@@ -185,6 +185,7 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
     leftAuxExpression
         : identifier
         | type
+        | thisSuperExpression
         | leftAuxExpression fieldAccess
         | leftAuxExpression callSuffix
         ;
@@ -259,6 +260,7 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         | ifExpression
         | loopExpression
         | jumpExpression
+        | thisSuperExpression
         | parenthesizedExpression
         ;
 
@@ -334,6 +336,11 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
         : RETURN (NL* expression)?
         | CONTINUE
         | BREAK
+        ;
+
+    thisSuperExpression
+        : THIS
+        | SUPER
         ;
 
     parenthesizedExpression
