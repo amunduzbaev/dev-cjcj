@@ -367,7 +367,7 @@ public class AsgMaker <: Visitor<Node> {
         if (currentScopeType != ScopeType.BODY) {
             throw Exception("Cannot invoke ${thisSuperExpr.keyword.value} outside of a class")
         }
-        thisSuperExpr
+        ThisSuperReference(NodeIdManager.nextId(), thisSuperExpr.keyword)
     }
 
     private func beginScope(newScopeType: ScopeType): ScopeType{
