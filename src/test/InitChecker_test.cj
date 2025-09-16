@@ -137,6 +137,60 @@ class InitCheckerTests {
        InitChecker().resolve(getAsg(testRight))
     }
 
+
+    @TestCase
+    func ifelseInitializationComplex2_test() {
+        let testWrong: String = """
+            main () {
+                let A: Int32
+
+                if(true) {
+                    A = 3
+                } else {
+                    if(true) {
+                        A = 5
+                    } else {
+                    }
+                }
+
+                if(true) {
+                } else {
+                    A = 4
+                }
+
+                let B = A
+                A = 1
+            }
+
+            """
+
+        @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+
+        let testRight: String = """
+            main () {
+                let A: Int64
+
+                if(true) {
+                    A = 3
+                } else {
+                    if(true) {
+                        A = 5
+                    } else {
+                    }
+                }
+
+                if(true) {
+                } else {
+                    A = 4
+                }
+
+                A = 1
+            }
+            """
+
+        InitChecker().resolve(getAsg(testRight))
+    }
+
     @TestCase 
     func blockInitialization_test() {
         let testWrong: String = """
@@ -222,6 +276,46 @@ class InitCheckerTests {
         """
 
        InitChecker().resolve(getAsg(testRight))
+    }
+
+
+    @TestCase
+    func mutationComplex2_test() {
+        let testWrong: String = """
+            main () {
+                let A: Int64
+
+                if(true) {
+                    A = 3
+                } else {
+                    A = 1
+                    if(true) {
+                    } else {
+                        A = 2
+                    }
+                }
+            }
+            """
+
+        @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+
+        let testRight: String = """
+            main () {
+                var A: Int64
+
+                if(true) {
+                    A = 3
+                } else {
+                    A = 1
+                    if(true) {
+                    } else {
+                        A = 2
+                    }
+                }
+            }
+            """
+
+        InitChecker().resolve(getAsg(testRight))
     }
 
     @TestCase
@@ -391,104 +485,37 @@ class InitCheckerTests {
 
 
     @TestCase
-    func initCheckTest1() {
-        let test: String = """
-            main(){
-                let a: Int32
-                func A (){
-                    a = 1
+    func classInitMutationComplex_test() {
+        let testWrong: String = """
+            class C{
+                let b: Int64 = 1
+                init() {
                 }
 
-                a = 2
-
-                let b = a + a
-
-            }"""
-
-       @AssertThrows[Exception](InitChecker().resolve(getAsg(test)))
-    }
-
-    @TestCase
-    func initCheckTest2() {
-        let test: String = """
-            main () {
-                let A: Int64
-
-                if(true) {
-                    A = 3
-
-                } else {
-                    if(true) {
-                        A = 5
-                    } else {
-                    }
+                func F() {
+                    b = 2
                 }
-
-                if(true) {
-                } else {
-                    A = 4
-                }
-
-                A = 1
             }
-            """
-
-        InitChecker().resolve(getAsg(test))
-    }
-
-    @TestCase
-    func initCheckTest3() {
-        let test: String = """
-            main () {
-                let A: Int32
-
-                if(true) {
-                    A = 3
-
-                } else {
-                    if(true) {
-                        A = 5
-                    } else {
-                    }
-                }
-
-                if(true) {
-                } else {
-                    A = 4
-                }
-
-                let B = A
-                A = 1
+            main() {
             }
+        """
+       @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
 
-            """
-
-        @AssertThrows[Exception](InitChecker().resolve(getAsg(test)))
-    }
-
-    @TestCase
-    func initCheckTest4() {
-        let test: String = """
-            main () {
-                let A: Int32
-
-                if(true) {
-                    A = 3
-                } else {
-                    if(true) {
-                    } else {
-                        A = 2
-                    }
+        let testRight: String = """
+            class C{
+                var b: Int64 = 1
+                init() {
                 }
 
-                let B = A
-
-                A = 1
+                func F() {
+                    b = 2
+                }
             }
+            main() {
+            }
+        """
 
-            """
-
-        @AssertThrows[Exception](InitChecker().resolve(getAsg(test)))
+       InitChecker().resolve(getAsg(testRight))
     }
 }
 
