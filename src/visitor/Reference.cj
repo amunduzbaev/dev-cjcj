@@ -124,6 +124,25 @@ public class MainReference <: Reference {
     }
 }
 
+public class ThisSuperReference <: Reference {
+    private let keyword_: Token
+    private var classReference_: ?ClassReference = None
+
+    public init(id: NodeId, keyword: Token) {
+        super(id, Token(), None)
+        keyword_ = keyword
+    }
+
+    public prop keyword: Token {
+        get() { keyword_ }
+    }
+
+    public mut prop classReference: ?ClassReference {
+        get() { classReference_ }
+        set(v) { classReference_ = v }
+    }
+}
+
 public class VarDeclWithRef <: VarDecl {
     private let ref_: VariableReference
 
