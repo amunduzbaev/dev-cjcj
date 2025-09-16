@@ -503,3 +503,29 @@ public class PrimitiveTypeExpr <: Expr {
         set(v) { keyword_ = v }
     }
 }
+
+public class ThisSuperExpr <: Expr {
+    private var keyword_: Token
+
+    public init() {
+        this(NodeId(), Token())
+    }
+
+    public ThisSuperExpr(id: NodeId, keyword: Token) {
+        super(id)
+        keyword_ = keyword
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        printer.append(keyword.value)
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public mut prop keyword: Token {
+        get() { keyword_ }
+        set(v) { keyword_ = v }
+    }
+}
