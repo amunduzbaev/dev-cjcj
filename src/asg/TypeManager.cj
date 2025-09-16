@@ -44,6 +44,13 @@ public class TypeManager {
         nameToType_ = typeManager.nameToType_
     }
 
+    // Sets the typeManager member as a parent of this members.
+    public func setEnclosing(parent: TypeManager): Unit {
+        // TODO: Think about adding some checks.
+        immediateFuncEnvironment.enclosing = parent.immediateFuncEnvironment
+        totalFuncEnvironment.enclosing = parent.totalFuncEnvironment
+    }
+
     /*
     * Adds a type to the map if the type is not already defined.
     */

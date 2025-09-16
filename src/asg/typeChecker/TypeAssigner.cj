@@ -313,37 +313,21 @@ public class TypeAssigner <: Visitor<Type> {
                 .getOrThrow({ => Exception("Base of member access is not a class!") })
         let field: String = memberAccess.field.value
         while (let Some(parent) <- baseClass.classReference.parent) {
-            if (let Some(tp) <- getClassMember(baseClass, field)) {
+            if (let Some((tp, isCallable)) <- baseClass.getMember(field)) {
+                if (isCallable) {
+                    callableField = field
+                }
                 return tp
             }
             baseClass = classEnvironment.getGlobal(parent.identifier.value).getOrThrow({ =>
                 Exception("Parent class is not declared!")})
         }
-        if (let Some(tp) <- getClassMember(baseClass, field)) {
+        if (let Some((tp, isCallable)) <- baseClass.getMember(field)) {
+            if (isCallable) {
+                callableField = field
+            }
             return tp
         }
         DUMMY_TYPE
-    }
-
-    private func getClassMember(baseClass: ClassReferenceForTC, field: String): ?Type {
-        let baseClassVariableEnv: Environment<String, VariableReference> =
-            baseClass.variableEnvironment.getOrThrow()
-        let baseClassTypeManager: TypeManager = baseClass.typeManager.getOrThrow()
-
-        // Try to find a variable.
-        if (let Some(varRef) <- baseClassVariableEnv.getLocal(field)) {
-            callableField = None
-            println("Found ${field}")
-            return varRef.effectiveType.getOrThrow()
-        }
-
-        // Try to find a function.
-        if (baseClassTypeManager.funcExists(field)) {
-            callableField = field
-            // I cannot know the return type of the function so I just tell the callExpr who to call
-            // and from which class.
-            return typeManager.getType(baseClass.classReference.identifier.value)
-        }
-        None
     }
 }

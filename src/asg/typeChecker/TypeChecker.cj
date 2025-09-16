@@ -230,6 +230,8 @@ public class TypeChecker <: Visitor<Type> {
     }
 
     public override func visit(classDeclWithRef: ClassDeclWithRef): Type {
+        checkBodyDecl(classEnvironment.getGlobal(classDeclWithRef.ref.identifier.value)
+            .getOrThrow({ => Exception("Unexpected, class should've been declared")}))
         classDeclWithRef.body.traverse(this)
         typeManager.getType("Unit")
     }
@@ -246,38 +248,22 @@ public class TypeChecker <: Visitor<Type> {
                 .getOrThrow({ => Exception("Base of member access is not a class!") })
         let field: String = memberAccess.field.value
         while (let Some(parent) <- baseClass.classReference.parent) {
-            if (let Some(tp) <- getClassMember(baseClass, field)) {
+            if (let Some((tp, isCallable)) <- baseClass.getMember(field)) {
+                if (isCallable) {
+                    callableField = field
+                }
                 return tp
             }
             baseClass = classEnvironment.getGlobal(parent.identifier.value).getOrThrow({ =>
                 Exception("Parent class is not declared!")})
         }
-        if (let Some(tp) <- getClassMember(baseClass, field)) {
+        if (let Some((tp, isCallable)) <- baseClass.getMember(field)) {
+            if (isCallable) {
+                callableField = field
+            }
             return tp
         }
         DUMMY_TYPE
-    }
-
-    private func getClassMember(baseClass: ClassReferenceForTC, field: String): ?Type {
-        let baseClassVariableEnv: Environment<String, VariableReference> =
-            baseClass.variableEnvironment.getOrThrow()
-        let baseClassTypeManager: TypeManager = baseClass.typeManager.getOrThrow()
-
-        // Try to find a variable.
-        if (let Some(varRef) <- baseClassVariableEnv.getLocal(field)) {
-            callableField = None
-            println("Found ${field}")
-            return varRef.effectiveType.getOrThrow()
-        }
-
-        // Try to find a function.
-        if (baseClassTypeManager.funcExists(field)) {
-            callableField = field
-            // I cannot know the return type of the function so I just tell the callExpr who to call
-            // and from which class.
-            return typeManager.getType(baseClass.classReference.identifier.value)
-        }
-        None
     }
 
     private func beginScope(): Unit {
@@ -288,5 +274,43 @@ public class TypeChecker <: Visitor<Type> {
     private func endScope(): Unit {
         typeManager.endScope()
         variableEnvironment = variableEnvironment.enclosing.getOrThrow()
+    }
+
+    /*
+    * Checks that there is no shadowing of the super members.
+    */
+    private func checkBodyDecl(classReferenceTC: ClassReferenceForTC): Unit {
+        // TODO: In the future we will check the override, open and visibility.
+        if (classReferenceTC.classReference.parent.isNone()) {
+            return
+        }
+        let variableEnvironment: Environment<String, VariableReference> =
+            classReferenceTC.variableEnvironment.getOrThrow()
+        let classTypeManager: TypeManager = classReferenceTC.typeManager.getOrThrow()
+
+        let parent = classReferenceTC.classReference.parent.getOrThrow()
+        let parentTC: ClassReferenceForTC =
+            classEnvironment.getGlobal(parent.identifier.value).getOrThrow()
+        let parentVariableEnvironment = parentTC.variableEnvironment.getOrThrow()
+        let parentTypeManager = parentTC.typeManager.getOrThrow()
+
+        for (varDecl in variableEnvironment.elements.values()) {
+            let varName: String = varDecl.identifier.value
+            if (parentVariableEnvironment.getGlobal(varName).isSome() ||
+                parentTypeManager.funcExists(varName)
+            ) {
+                throw Exception("Cannot declare variables that shadows supertype members.")
+            }
+        }
+        for (funcName in classTypeManager.totalFuncEnvironment.elements.keys()) {
+            if (parentVariableEnvironment.getGlobal(funcName).isSome() ||
+                parentTypeManager.funcExists(funcName)
+            ) {
+                throw Exception("Cannot declare func that shadows supertype members.")
+            }
+        }
+
+        variableEnvironment.enclosing = parentVariableEnvironment
+        classTypeManager.setEnclosing(parentTypeManager)
     }
 }

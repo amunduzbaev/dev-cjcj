@@ -26,4 +26,20 @@ public class ClassReferenceForTC {
     public prop classReference: ClassReference {
         get() { classReference_ }
     }
+
+    public func getMember(field: String): ?(Type, Bool) {
+
+        // Try to find a variable.
+        if (let Some(varRef) <- variableEnvironment.getOrThrow().getLocal(field)) {
+            return (varRef.effectiveType.getOrThrow(), false)
+        }
+
+        // Try to find a function.
+        if (typeManager.getOrThrow().funcExists(field)) {
+            // I cannot know the return type of the function so I just tell the callExpr who to call
+            // and from which class.
+            return (typeManager.getOrThrow().getType(classReference.identifier.value), true)
+        }
+        None
+    }
 }
