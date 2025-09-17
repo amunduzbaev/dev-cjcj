@@ -6,7 +6,10 @@ import cjcj.asg.ScopeType
 import cjcj.asg.TypeManager
 import cjcj.asg.Declarator
 import cjcj.asg.DeclaratorFactory
+import cjcj.parser.NodeIdManager
+import cjcj.scanner.Token
 
+import std.ast.Position
 import std.collection.*
 
 /*
@@ -27,6 +30,8 @@ public class TypeChecker <: Visitor<Type> {
     public init(program: Program) {
         typeManager = TypeDeclarationChecker().resolve(program)
         let tmpClassEnvironment: Environment<String, ClassReference> = Environment()
+        declareBuiltinClassReferences(tmpClassEnvironment)
+
         let globalTypeDeclarator: Declarator = DeclaratorFactory.globalAsgDeclarator(
             tmpClassEnvironment, typeManager
         )
@@ -35,6 +40,17 @@ public class TypeChecker <: Visitor<Type> {
             .forEach({ cr => classEnvironment.declare(cr[0], ClassReferenceForTC(cr[1])) })
         TypeAssigner(program, classEnvironment, typeManager)
         program.traverse(this)
+    }
+
+    private func declareBuiltinClassReferences(
+        classEnvironment: Environment<String, ClassReference>
+    ) {
+        BUILTIN_TYPES.iterator().forEach({ t =>
+            classEnvironment.declare(
+                t[0],
+                ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, t[0], Position()))
+            )
+        })
     }
 
     public override func visit(program: Program): Type {
@@ -233,12 +249,17 @@ public class TypeChecker <: Visitor<Type> {
         let params = callExprWithRef.arguments.iterator().fold<ArrayList<Type>>(ArrayList(),
                     { res, v => res.add(v.traverse(this)); res }).toArray()
 
-        let ref: FuncReference
-        if (let Some(classRef) <- classEnvironment.getGlobal(tp.name)) {
-            ref = classRef.typeManager.getOrThrow()
-                .applyFunction(identifier, params, expectedReturnType.peek())
-        } else {
+        var ref: FuncReference
+        // Check first for a function call.
+        try {
             ref = typeManager.applyFunction(identifier, params, expectedReturnType.peek())
+        } catch(e: Exception) {
+            if (let Some(classRef) <- classEnvironment.getGlobal(tp.name)) {
+                ref = classRef.typeManager.getOrThrow()
+                    .applyFunction(identifier, params, expectedReturnType.peek())
+            } else {
+                throw e
+            }
         }
 
         // TODO: Change this with lambdas.
@@ -315,8 +336,9 @@ public class TypeChecker <: Visitor<Type> {
         let parent = classReferenceTC.classReference.parent.getOrThrow()
         let parentTC: ClassReferenceForTC =
             classEnvironment.getGlobal(parent.identifier.value).getOrThrow()
-        let parentVariableEnvironment = parentTC.variableEnvironment.getOrThrow()
-        let parentTypeManager = parentTC.typeManager.getOrThrow()
+        // If it is a builtin type without attributes and function its just empty.
+        let parentVariableEnvironment = parentTC.variableEnvironment.getOrDefault({ => Environment()})
+        let parentTypeManager = parentTC.typeManager.getOrDefault({ => TypeManager() })
 
         for (varDecl in variableEnvironment.elements.values()) {
             let varName: String = varDecl.identifier.value
