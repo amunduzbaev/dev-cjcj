@@ -264,3 +264,20 @@ public class RefExprWithRef <: RefExpr {
         get() { ref_ }
     }
 }
+
+public class CallExprWithRef <: CallExpr {
+    private var ref_: ?FuncReference = None
+
+    public init(id: NodeId, callee: Node, arguments: ArrayList<Argument>) {
+        super(id, callee, arguments)
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public mut prop ref: ?FuncReference {
+        get() { ref_ }
+        set(v) { ref_ = v }
+    }
+}

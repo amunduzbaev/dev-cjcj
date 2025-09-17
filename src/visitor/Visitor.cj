@@ -145,4 +145,8 @@ public abstract class Visitor<R> {
     protected open func visit(_: ThisSuperReference): R {
         throw Exception("Unimplemented method for Visitor : This Super reference")
     }
+
+    protected open func visit(_: CallExprWithRef): R {
+        throw Exception("Unimplemented method for Visitor : Call expression with reference")
+    }
 }

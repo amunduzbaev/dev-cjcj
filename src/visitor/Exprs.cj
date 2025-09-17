@@ -340,8 +340,8 @@ public class WhileExpr <: Expr {
     }
 }
 
-public class CallExpr <: Expr {
-    private var callee_: Node
+public open class CallExpr <: Expr {
+    private let callee_: Node
     private var arguments_: ArrayList<Argument>
 
     public init() {
@@ -354,11 +354,11 @@ public class CallExpr <: Expr {
         arguments_ = arguments
     }
 
-    public override func traverse<R>(v: Visitor<R>): R {
+    public override open func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 
-    public override func prettyPrint(printer: PrettyPrinter): Unit {
+    public override open func prettyPrint(printer: PrettyPrinter): Unit {
         callee.prettyPrint(printer)
         printer.append("(")
         if (!arguments.isEmpty()) {
@@ -372,9 +372,8 @@ public class CallExpr <: Expr {
         printer.append(")")
     }
 
-    public mut prop callee: Node {
+    public prop callee: Node {
         get() { callee_ }
-        set(v) { callee_ = v }
     }
     public mut prop arguments: ArrayList<Argument> {
         get() { arguments_ }
