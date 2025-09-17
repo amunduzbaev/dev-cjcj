@@ -378,12 +378,24 @@ class TypeCheckTests {
                 init() {
                     b + 1
                     let c: Int64 = f()
+                    func inside() {
+                        let a = 10
+                        if (true) {
+                            return 7
+                        }
+                        func insideinside() {
+                            let a = "string"
+                            return a
+                        }
+                        b
+                    }
                 }
                 func f() {
                     return b
                 }
             }
             main(){
+                let test = a()
             }"""
         TypeChecker(getAsg(testRight))
     }
