@@ -39,30 +39,11 @@ public class Cj {
 
         let initChecker = InitChecker()
         if (let Some(p) <- program) {
-            // p.prettyPrint(printer)
             asg = asgMaker.resolve(p)
-            TypeChecker(asg)
             asg.prettyPrint(printer)
 
-            // initChecker.resolve(asg)
-
-            // initChecker.notInitialized.iterator().forEach({ entry =>
-            //     let (ref, node) = entry
-            //     printer.append("\nvariable ")
-            //     ref.prettyPrint(printer)
-            //     printer.append(" is referenced without initialization in \n     ")
-            //     node.prettyPrint(printer)
-            //     printer.append("\n")
-            // })
-
-            // initChecker.cannotMutate.iterator().forEach({ entry =>
-            //     let (ref, node) = entry
-            //     printer.append("\nCan not mutate immutable variable ")
-            //     ref.prettyPrint(printer)
-            //     printer.append(" in \n     ")
-            //     node.prettyPrint(printer)
-            //     printer.append("\n")
-            // })
+            TypeChecker(asg)
+            initChecker.resolve(asg)
 
             println(printer.toString())
         }
@@ -82,3 +63,4 @@ main (args: Array<String>) {
         // Cj.runFile("testcode2.txt")
     }
 }
+

@@ -78,25 +78,6 @@ public enum Status {
 * After that we will create the DAG of the types to make the future checks easier.
 */
 public class TypeDeclarationChecker <: Visitor<Unit> {
-    // TODO: Add all builtin functions and types (make a script to do that).
-    private static let BUILTIN_FUNCTIONS:
-        ArrayList<(String, ArrayList<(ArrayList<String>, String)>)> = ArrayList([
-            ("+", ArrayList([
-                (ArrayList(["Int64", "Int64"]), "Int64"),
-                (ArrayList(["Int32", "Int32"]), "Int32")
-            ]))
-        ])
-
-    // TODO: Fix this, for exampe Int64 is <: ToString & Hashable and others probably. For now I
-    // assume that it's just <: Any
-    private static let BUILTIN_TYPES: Array<(String, Array<String>)> = [
-        ("Int64", ["Any"]), ("Int32", ["Any"]), ("Int16", ["Any"]), ("Int8", ["Any"]),
-        ("IntNative", ["Any"]),  ("UInt64", ["Any"]), ("UInt32", ["Any"]), ("UInt16", ["Any"]),
-        ("UInt8", ["Any"]), ("UIntNative", ["Any"]), ("Float64", ["Any"]), ("Float32", ["Any"]),
-        ("Float16", ["Any"]), ("Rune", ["Any"]), ("Unit", ["Any"]), ("Bool", ["Any"]),
-        ("Nothing", ["Any"]), ("String", ["Any"]), ("Object", ["Any"]), ("Any", [])
-    ]
-
     private let declTypes: Map<String, TypePrecursor> = HashMap()
 
     // Creates and returnes the typeManager filled with all the type declarations.

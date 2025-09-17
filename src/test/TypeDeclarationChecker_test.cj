@@ -1,6 +1,7 @@
 package cjcj.test
 
 import cjcj.asg.typeChecker.TypeDeclarationChecker
+import cjcj.asg.typeChecker.TypeChecker
 import cjcj.asg.AsgMaker
 import cjcj.visitor.Program
 import cjcj.parser
@@ -86,5 +87,44 @@ class TypeDeclarationCheckerTests {
             }
             """
         TypeDeclarationChecker().resolve(getAsg(test))
+    }
+
+    @TestCase
+    func builtin_operators_test() {
+        let testWrong: String = """
+            main() {
+                let a: Bool = true
+                let b: Bool = false
+
+                a / b 
+                a - b 
+                a & b 
+            }
+        """
+
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+
+        let testRight: String = """
+            main() {
+                let a = 1
+                let b = 2
+
+                a % b 
+                a / b 
+                a - b 
+                a & b 
+
+                let c: Bool = true
+                let d: Bool = false
+
+                c && d
+                c || d 
+                c == d 
+                c != d
+                !c 
+            }
+        """
+
+        TypeChecker(getAsg(testRight))
     }
 }
