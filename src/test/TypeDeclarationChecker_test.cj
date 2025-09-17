@@ -90,7 +90,7 @@ class TypeDeclarationCheckerTests {
     }
 
     @TestCase
-    func builtin_operators_test() {
+    func builtinOperators_test() {
         let testWrong: String = """
             main() {
                 let a: Bool = true

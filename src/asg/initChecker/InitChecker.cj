@@ -141,11 +141,15 @@ public open class InitChecker <: Visitor<Unit> {
         whileExpr.condition.traverse(this)
     }
 
-    public func visit(callExpr: CallExpr) {
+    public func visit(callExpr: CallExprWithRef) {
         callExpr.arguments.iterator().forEach({ arg => 
             arg.traverse(this)
         })
 
+        match (callExpr.callee as RefExprWithRef) {
+            case Some(refExpr) => refExpr.ref = callExpr.ref.getOrThrow()
+            case _ => ()
+        }
         callExpr.callee.traverse(this)
     }
 
@@ -311,8 +315,8 @@ public open class InitChecker <: Visitor<Unit> {
 
 /*
 Extension of the Checker above that checks initialization of a class 
-    TODO: 
-    Add "this"
+    TODO: Add "this"
+    TODD: check init() function calls form a cycle. 
 */
 public class ClassInitChecker <: InitChecker {
     private var enclosingClassReference: ClassReference

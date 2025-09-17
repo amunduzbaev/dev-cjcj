@@ -249,7 +249,7 @@ public class ClassDeclWithRef <: ClassDecl {
 }
 
 public class RefExprWithRef <: RefExpr {
-    private let ref_: Reference 
+    private var ref_: Reference 
 
     public init(id: NodeId, identifier: Token, ref: Reference) {
         super(id, identifier)
@@ -260,8 +260,9 @@ public class RefExprWithRef <: RefExpr {
         v.visit(this)
     }
 
-    public prop ref: Reference {
+    public mut prop ref: Reference {
         get() { ref_ }
+        set(v) { ref_ = v }
     }
 }
 
