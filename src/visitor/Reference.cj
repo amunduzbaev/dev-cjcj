@@ -133,6 +133,14 @@ public class ThisSuperReference <: Reference {
         keyword_ = keyword
     }
 
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter): Unit {
+        printer.append(keyword.value)
+    }
+
     public prop keyword: Token {
         get() { keyword_ }
     }
