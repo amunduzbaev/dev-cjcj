@@ -3,7 +3,7 @@ package cjcj.asg.typeChecker
 import cjcj.visitor.*
 import cjcj.scanner.TokenKind
 import cjcj.scanner.Token
-import cjcj.asg.ScopeType
+import cjcj.asg.GlobalType
 import cjcj.asg.TypeManager
 import cjcj.asg.Declarator
 import cjcj.asg.DeclaratorFactory
@@ -26,7 +26,8 @@ public class TypeAssigner <: Visitor<Type> {
     // Contains the name of the last callable field if there is some.
     private var callableField: ?String = None
     private var currentClass: ?ClassReferenceForTC = None
-    private var scopeType: ScopeType = ScopeType.NIL
+    private var globalType: GlobalType = GlobalType.NIL
+    private var inConstructor: Bool = false
 
     /*
     * It expects already to have every class declared and a typeManager to query and insert
@@ -177,7 +178,7 @@ public class TypeAssigner <: Visitor<Type> {
         ref.paramRef.getOrThrow().iterator().enumerate()
             .forEach({ v => v[1].effectiveType = params[v[0]].paramType.traverse(this) })
 
-        if (!typeManager.isGlobal && scopeType != ScopeType.BODY) {
+        if (!typeManager.isGlobal && globalType != GlobalType.BODY) {
             typeManager.addFunction(ref)
         }
 
@@ -195,9 +196,16 @@ public class TypeAssigner <: Visitor<Type> {
         }
         
         referenceStatus.add(ref, Status.IN)
+        if (funcDeclWithRef.keyword.kind == TokenKind.INIT) {
+            inConstructor = true
+        }
+        
         let infType: Type = funcDeclWithRef.block.traverse(this)
+
+        inConstructor = false
         ref.effectiveType = infType
         referenceStatus.add(ref, Status.VIS)
+
         typeManager.getType("Unit")
     }
 
@@ -238,11 +246,11 @@ public class TypeAssigner <: Visitor<Type> {
         refExprWithRef.ref.traverse(this)
     }
 
-    public override func visit(callExpr: CallExpr): Type {
-        let calleeType: Type = callExpr.callee.traverse(this)
+    public override func visit(callExprWithRef: CallExprWithRef): Type {
+        let calleeType: Type = callExprWithRef.callee.traverse(this)
         let identifier = callableField.getOrThrow({ =>
             Exception("Left of call expression not callable") })
-        let params = callExpr.arguments.iterator().fold<ArrayList<Type>>(ArrayList(),
+        let params = callExprWithRef.arguments.iterator().fold<ArrayList<Type>>(ArrayList(),
                     { res, v => res.add(v.traverse(this)); res }).toArray()
 
         let ref: FuncReference
@@ -278,27 +286,29 @@ public class TypeAssigner <: Visitor<Type> {
             currentClass.getOrThrow().classReference.parent =
                 classEnvironment.getGlobal(superClass.typeName.value).getOrThrow().classReference
         }
-        classDeclWithRef.body.traverse(this)
         classDeclWithRef.ref.effectiveType = typeManager.getType(classDeclWithRef.identifier.value)
+
+        classDeclWithRef.body.traverse(this)
         currentClass = None
         typeManager.getType("Unit")
     }
 
     public override func visit(body: Body): Type {
         typeManager.beginScope()
-        scopeType = ScopeType.BODY
+        globalType = GlobalType.BODY
 
         let variableEnvironment: Environment<String, VariableReference> = Environment()
         let bodyDeclarator: Declarator =
             DeclaratorFactory.bodyAsgDeclarator(variableEnvironment, typeManager)
         body.decls.iterator().forEach({ decl => decl.traverse(bodyDeclarator) })
-        body.decls.iterator().forEach({ decl => decl.traverse(this) })
 
         currentClass.getOrThrow().typeManager = TypeManager(typeManager)
         currentClass.getOrThrow().variableEnvironment = variableEnvironment
 
+        body.decls.iterator().forEach({ decl => decl.traverse(this) })
+
         typeManager.endScope()
-        scopeType = ScopeType.NIL
+        globalType = GlobalType.NIL
 
         currentClass.getOrThrow().typeManager.getOrThrow().deleteHistory()
         currentClass.getOrThrow().variableEnvironment.getOrThrow().enclosing = None
@@ -329,5 +339,14 @@ public class TypeAssigner <: Visitor<Type> {
             return tp
         }
         DUMMY_TYPE
+    }
+
+    public override func visit(thisSuperReference: ThisSuperReference): Type {
+        if (inConstructor) {
+            callableField = ""
+        }
+
+        thisSuperReference.classReference = currentClass.getOrThrow().classReference
+        currentClass.getOrThrow().classReference.effectiveType.getOrThrow()
     }
 }

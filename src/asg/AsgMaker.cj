@@ -15,12 +15,21 @@ import std.collection.HashMap
 import std.deriving.Derive
 
 /*
-* Needed to know if I can do some operations inside the current scope, for
-* example a return expression.
+* Needed to know if I can do some operations inside the current scope, for example a return
+* expression.
 */
 @Derive[Equatable]
 public enum ScopeType {
-    NIL | BLOCK | BODY
+    NIL | BLOCK
+}
+
+/*
+* Needed to know if I can do some operations inside the current global type, for example using the
+* this keyword.
+*/
+@Derive[Equatable]
+public enum GlobalType {
+    NIL | BODY
 }
 
 /*
@@ -38,6 +47,7 @@ public class AsgMaker <: Visitor<Node> {
     private var variableEnvironment: Environment<String, VariableReference> = Environment()
 
     private var currentScopeType: ScopeType = ScopeType.NIL
+    private var currentGlobalType: GlobalType = GlobalType.NIL
     private var refExists: ?Reference = None
     
     /*
@@ -165,7 +175,7 @@ public class AsgMaker <: Visitor<Node> {
         callExpr.arguments.iterator().forEach({ a => arguments.add(
             (a.traverse(this) as Argument).getOrThrow()
         )})
-        CallExpr(NodeIdManager.nextId(), callee, arguments)
+        CallExprWithRef(NodeIdManager.nextId(), callee, arguments)
     }
 
     public override func visit(returnExpr: ReturnExpr): Node {
@@ -337,15 +347,15 @@ public class AsgMaker <: Visitor<Node> {
 
     // TODO: Think about removing scopeType body.
     public override func visit(body: Body): Node {
-        let precScopeType = beginScope(ScopeType.BODY)
+        let precGlobalType: GlobalType = beginGlobal(GlobalType.BODY)
 
         let decls: ArrayList<Decl> = ArrayList()
-        let topDecl: Declarator = DeclaratorFactory.bodyAstDeclarator(
+        let bodyDeclarator: Declarator = DeclaratorFactory.bodyAstDeclarator(
             funcEnvironment, variableEnvironment
         )
         let refDecls = ArrayList<(Decl, ?Reference)>()
         body.decls.iterator().forEach({ d =>
-            refDecls.add((d, d.traverse(topDecl)))
+            refDecls.add((d, d.traverse(bodyDeclarator)))
         })
         
         refDecls.iterator().forEach({ entry =>
@@ -354,7 +364,7 @@ public class AsgMaker <: Visitor<Node> {
             decls.add((d.traverse(this) as Decl).getOrThrow())
         })
 
-        endScope(precScopeType)
+        endGlobal(precGlobalType)
         Body(NodeIdManager.nextId(), decls)
     }
 
@@ -364,14 +374,26 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(thisSuperExpr: ThisSuperExpr): Node {
-        if (currentScopeType != ScopeType.BODY) {
+        if (currentGlobalType != GlobalType.BODY) {
             throw Exception("Cannot invoke ${thisSuperExpr.keyword.value} outside of a class")
         }
         ThisSuperReference(NodeIdManager.nextId(), thisSuperExpr.keyword)
     }
 
+    private func beginGlobal(newGlobalType: GlobalType): GlobalType {
+        let precGlobalType: GlobalType = currentGlobalType
+        currentGlobalType = newGlobalType
+        beginScope(ScopeType.NIL)
+        precGlobalType
+    }
+
+    private func endGlobal(precGlobalType: GlobalType): Unit {
+        currentGlobalType = precGlobalType
+        endScope(ScopeType.NIL)
+    }
+
     private func beginScope(newScopeType: ScopeType): ScopeType{
-        let precScopeType = currentScopeType
+        let precScopeType: ScopeType = currentScopeType
         currentScopeType = newScopeType
         funcEnvironment = Environment(funcEnvironment)
         variableEnvironment = Environment(variableEnvironment)

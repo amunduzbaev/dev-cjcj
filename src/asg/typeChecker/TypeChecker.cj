@@ -21,6 +21,8 @@ public class TypeChecker <: Visitor<Type> {
     private var variableEnvironment: Environment<String, VariableReference> = Environment()
     private var classEnvironment: Environment<String, ClassReferenceForTC> = Environment()
     private var callableField: ?String = None
+    private var currentClassRef: ?ClassReferenceForTC = None
+    private var inConstructor: Bool = false
 
     public init(program: Program) {
         typeManager = TypeDeclarationChecker().resolve(program)
@@ -119,6 +121,9 @@ public class TypeChecker <: Visitor<Type> {
     }
 
     public override func visit(returnExpr: ReturnExpr): Type {
+        if (inConstructor) {
+            throw Exception("Cannot have a return inside a constructor")
+        }
         if (let Some(expr) <- returnExpr.expr) {
             return expr.traverse(this)
         }
@@ -160,13 +165,16 @@ public class TypeChecker <: Visitor<Type> {
         let assignedType: Type = ref.effectiveType
             .getOrThrow({ => Exception("Type not yet assigned!")})
         
-        // TODO: INIT CANNOT HAVE RETURN INSIDE I GUESS, RIGHT NOW I'M NOT CHECKING IT.
         if (ref.identifier.kind != TokenKind.ILLEGAL) {
             let infType: Type = funcDeclWithRef.block.traverse(this)
             if (!assignedType.isParent(infType)) {
                 throw Exception("Type of function not correct, expected ${assignedType.name}, " +
                     "found: ${infType.name}")
             }
+        } else {
+            inConstructor = true
+            funcDeclWithRef.block.traverse(this)
+            inConstructor = false
         }
         if (!typeManager.isGlobal) {
             typeManager.addFunction(ref)
@@ -207,11 +215,17 @@ public class TypeChecker <: Visitor<Type> {
         tp
     }
 
-    public override func visit(callExpr: CallExpr): Type {
-        let tp: Type = callExpr.callee.traverse(this)
-        let identifier = callableField.getOrThrow({ =>
+    public override func visit(callExprWithRef: CallExprWithRef): Type {
+        let typeManager: TypeManager = if (let Some(currentClassRef) <- currentClassRef) {
+            currentClassRef.typeManager.getOrThrow()
+        } else {
+            typeManager
+        }
+
+        let tp: Type = callExprWithRef.callee.traverse(this)
+        let identifier: String = callableField.getOrThrow({ =>
             Exception("Left of call expression not callable") })
-        let params = callExpr.arguments.iterator().fold<ArrayList<Type>>(ArrayList(),
+        let params = callExprWithRef.arguments.iterator().fold<ArrayList<Type>>(ArrayList(),
                     { res, v => res.add(v.traverse(this)); res }).toArray()
 
         let ref: FuncReference
@@ -225,14 +239,19 @@ public class TypeChecker <: Visitor<Type> {
         // TODO: Change this with lambdas.
         callableField = None
 
-        callExpr.callee = ref
+        callExprWithRef.ref = ref
         ref.effectiveType.getOrThrow()
     }
 
     public override func visit(classDeclWithRef: ClassDeclWithRef): Type {
-        checkBodyDecl(classEnvironment.getGlobal(classDeclWithRef.ref.identifier.value)
-            .getOrThrow({ => Exception("Unexpected, class should've been declared")}))
+        let classRefForTC = classEnvironment.getGlobal(classDeclWithRef.ref.identifier.value)
+            .getOrThrow({ => Exception("Unexpected, class should've been declared")})
+        checkBodyDecl(classRefForTC)
+        currentClassRef = classRefForTC
+
         classDeclWithRef.body.traverse(this)
+
+        currentClassRef = None
         typeManager.getType("Unit")
     }
 
@@ -312,5 +331,18 @@ public class TypeChecker <: Visitor<Type> {
 
         variableEnvironment.enclosing = parentVariableEnvironment
         classTypeManager.setEnclosing(parentTypeManager)
+    }
+
+    public override func visit(thisSuperReference: ThisSuperReference): Type {
+        let classReference: ClassReference = currentClassRef.getOrThrow({ =>
+            Exception("Cannot have ${thisSuperReference.keyword.value} outside of a class")})
+            .classReference 
+        thisSuperReference.classReference = classReference
+        callableField = ""
+        if (thisSuperReference.keyword.kind == TokenKind.THIS) {
+            return classReference.effectiveType.getOrThrow()
+        }
+        classReference.parent.getOrThrow({ =>
+            Exception("Cannot invoke super without super type")}).effectiveType.getOrThrow()
     }
 }
