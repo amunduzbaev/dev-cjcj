@@ -3,7 +3,7 @@ package cjcj.asg.typeChecker
 import cjcj.visitor.*
 import cjcj.scanner.TokenKind
 import cjcj.scanner.Token
-import cjcj.asg.GlobalType
+import cjcj.asg.ScopeType
 import cjcj.asg.TypeManager
 import cjcj.asg.Declarator
 import cjcj.asg.DeclaratorFactory
@@ -26,7 +26,7 @@ public class TypeAssigner <: Visitor<Type> {
     // Contains the name of the last callable field if there is some.
     private var callableField: ?String = None
     private var currentClass: ?ClassReferenceForTC = None
-    private var globalType: GlobalType = GlobalType.NIL
+    private var scopeType: ScopeType = ScopeType.NIL
     private var inConstructor: Bool = false
 
     /*
@@ -38,6 +38,13 @@ public class TypeAssigner <: Visitor<Type> {
         private let typeManager: TypeManager
     ) {
         program.traverse(this)
+    }
+
+    public init(
+        classEnvironment: Environment<String, ClassReferenceForTC>, typeManager: TypeManager
+    ) {
+        this.classEnvironment = classEnvironment
+        this.typeManager = typeManager
     }
 
     public override func visit(program: Program): Type {
@@ -178,7 +185,7 @@ public class TypeAssigner <: Visitor<Type> {
         ref.paramRef.getOrThrow().iterator().enumerate()
             .forEach({ v => v[1].effectiveType = params[v[0]].paramType.traverse(this) })
 
-        if (!typeManager.isGlobal && globalType != GlobalType.BODY) {
+        if (!typeManager.isGlobal && scopeType != ScopeType.BODY) {
             typeManager.addFunction(ref)
         }
 
@@ -295,7 +302,7 @@ public class TypeAssigner <: Visitor<Type> {
 
     public override func visit(body: Body): Type {
         typeManager.beginScope()
-        globalType = GlobalType.BODY
+        scopeType = ScopeType.BODY
 
         let variableEnvironment: Environment<String, VariableReference> = Environment()
         let bodyDeclarator: Declarator =
@@ -308,7 +315,7 @@ public class TypeAssigner <: Visitor<Type> {
         body.decls.iterator().forEach({ decl => decl.traverse(this) })
 
         typeManager.endScope()
-        globalType = GlobalType.NIL
+        scopeType = ScopeType.NIL
 
         currentClass.getOrThrow().typeManager.getOrThrow().deleteHistory()
         currentClass.getOrThrow().variableEnvironment.getOrThrow().enclosing = None

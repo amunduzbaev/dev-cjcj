@@ -89,6 +89,9 @@ public class TypeChecker <: Visitor<Type> {
     public override func visit(block: Block): Type {
         beginScope()
 
+        let typeAssigner: TypeAssigner = TypeAssigner(classEnvironment, typeManager)
+        block.nodes.iterator().forEach({ n => n.traverse(typeAssigner) })
+
         let lastId = block.nodes.last.getOrDefault({ => Expr() }).id
         let returnType = block.nodes.iterator()
             .map({ n => (n, n.traverse(this)) })
@@ -166,18 +169,20 @@ public class TypeChecker <: Visitor<Type> {
             .getOrThrow({ => Exception("Type not yet assigned!")})
         
         if (ref.identifier.kind != TokenKind.ILLEGAL) {
+            let prevInConstructor: Bool = inConstructor
+            inConstructor = false
+
             let infType: Type = funcDeclWithRef.block.traverse(this)
             if (!assignedType.isParent(infType)) {
                 throw Exception("Type of function not correct, expected ${assignedType.name}, " +
                     "found: ${infType.name}")
             }
+
+            inConstructor = prevInConstructor
         } else {
             inConstructor = true
             funcDeclWithRef.block.traverse(this)
             inConstructor = false
-        }
-        if (!typeManager.isGlobal) {
-            typeManager.addFunction(ref)
         }
         typeManager.getType("Unit")
     }
