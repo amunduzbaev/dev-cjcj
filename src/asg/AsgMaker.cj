@@ -24,8 +24,8 @@ public enum ScopeType {
 }
 
 /*
-* Needed to know if I can do some operations inside the current global type, for example using the
-* this keyword.
+* Needed to know if I can do some operations inside the current global type, for example use the
+* "this" keyword.
 */
 @Derive[Equatable]
 public enum GlobalType {
@@ -33,13 +33,12 @@ public enum GlobalType {
 }
 
 /*
-* Resolves a Program and retrieves the ASG root. Every variable and function
-* reference will be bound to the node of the initialization. (declaration maybe?)
-* The reference and call nodes will be different from the AST for this reason.
-*
-* Note: I'm using a few getOrThrow() functions without custom errors and without
-* catching them because it's impossible that the as didn't work except if
-* there's a bug in the as operator itself.
+* Resolves a Program and retrieves the ASG root. Every variable and function reference will be bound
+* to the link created on the declaration.
+* Traverses the AST and keeps environments for declarations, every envinronment is able to supply
+* liks to the declarations based on the identifier.
+* Note: for function links we cannot know at this stage the exact function that is called, this will
+* require a future step, for now the link is a dummy link to a function with the same identifier.
 */
 public class AsgMaker <: Visitor<Node> {
     private var classEnvironment: Environment<String, ClassReference> = Environment()
@@ -79,7 +78,6 @@ public class AsgMaker <: Visitor<Node> {
     public override func visit(program: Program): Node {
         let decls: ArrayList<Decl> = ArrayList()
         
-        // Declare global function and classes.
         let globalDeclarator: Declarator = DeclaratorFactory.globalAstDeclarator(
             funcEnvironment, classEnvironment
         )
@@ -134,7 +132,6 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(refExpr: RefExpr): Node {
-        // get(refExpr.identifier.value)
         RefExprWithRef(NodeIdManager.nextId(), refExpr.identifier, get(refExpr.identifier.value))
     }
 
@@ -217,18 +214,13 @@ public class AsgMaker <: Visitor<Node> {
 
         let reference: VariableReference
 
-        if (initializer.isSome() || declType.isSome()) {
-            if (let Some(ref) <- storedRef) {
-                reference = (ref as VariableReference).getOrThrow({ => 
-                    Exception("Reference given to variable declaration is not VariableReference")})
-            } else {
-                reference = VariableReference(NodeIdManager.nextId(), varDecl.identifier,
-                    varDecl.keyword)
-                declareVar(varDecl.identifier, reference)
-            }
+        if (let Some(ref) <- storedRef) {
+            reference = (ref as VariableReference).getOrThrow({ => 
+                Exception("Reference given to variable declaration is not VariableReference")})
         } else {
-            println("No explicit type without initializer")
-            throw VarDeclError()
+            reference = VariableReference(NodeIdManager.nextId(), varDecl.identifier,
+                varDecl.keyword)
+            declareVar(varDecl.identifier, reference)
         }
 
         let nodeId: NodeId = NodeIdManager.nextId()
@@ -331,21 +323,18 @@ public class AsgMaker <: Visitor<Node> {
                 "with the global declarator")
         }
 
-        let body = (classDecl.body.traverse(this) as Body).getOrThrow({ => 
-            Exception("Body of a class has to be Body in ASG")})
+        let body = (classDecl.body.traverse(this) as Body).getOrThrow()
 
         let superTypes = ArrayList<TypeNode>()
         classDecl.superTypes.iterator().forEach({ superType => 
-            let visitedSuperType = (superType.traverse(this) as TypeNode).getOrThrow({ => 
-                Exception("SuperTypes of classDecl have to be TypeNode") })
+            let visitedSuperType = (superType.traverse(this) as TypeNode).getOrThrow()
             superTypes.add(visitedSuperType)
         })
 
-        ClassDeclWithRef(NodeIdManager.nextId(), classDecl.keyword, 
-        classDecl.identifier, body, superTypes, classReference)
+        ClassDeclWithRef(NodeIdManager.nextId(), classDecl.keyword, classDecl.identifier, body,
+            superTypes, classReference)
     }
 
-    // TODO: Think about removing scopeType body.
     public override func visit(body: Body): Node {
         let precGlobalType: GlobalType = beginGlobal(GlobalType.BODY)
 

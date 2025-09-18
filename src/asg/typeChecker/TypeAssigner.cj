@@ -165,8 +165,8 @@ public class TypeAssigner <: Visitor<Type> {
 
         referenceStatus.add(ref, Status.IN)
         let initzer: Expr = varDeclWithRef.initializer.getOrThrow({ =>
-            Exception("No initializer and no declType in typeChecking, should've been checked" +
-                " before") })
+            Exception("Impossible to infer the type of ${ref.identifier.value}, there must be an " +
+                "initializer if there is no declaration type.") })
         
         let initType: Type = initzer.traverse(this)
         ref.effectiveType = initType
