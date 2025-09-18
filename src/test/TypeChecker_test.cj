@@ -311,8 +311,23 @@ class TypeCheckTests {
     }
 
     @TestCase
-    func needToposortFunctionCall_test() {
+    func nestedUnknownTypeFunctionCall_test() {
         let test: String = """
+        class a {
+            func f() {
+                g()
+                i()
+            }
+            func i() {
+                g()
+            }
+            func g() {
+                h()
+            }
+            func h() {
+                return 1
+            }
+        }
         func f() {
             g()
             i()
@@ -329,6 +344,29 @@ class TypeCheckTests {
         main(){
         }"""
         TypeChecker(getAsg(test))
+        // TODO: We can make this test not fail if we let the assigner go into the blocks. It will
+        // mean implement all the empty visit functions but it could be worth it, cjc doesn't do it.
+        let testHard = """
+        func f() {
+            g()
+            i()
+        }
+        func i() {
+            g()
+        }
+        func g() {
+            h()
+        }
+        let a = 5
+        func h() {
+            func bo(): Int64 {
+                f()
+            }
+            return a
+        }
+        main(){
+        }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(testHard)))
     }
 
     @TestCase
