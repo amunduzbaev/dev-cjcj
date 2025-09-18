@@ -17,7 +17,6 @@ import std.collection.*
 * that can be an assignment for variables or the type of the block for a function definition.
 */
 public class TypeAssigner <: Visitor<Type> {
-    private let expectedReturnType: ArrayStack<Type> = ArrayStack()
     // Used to know if there are cycles.
     private let referenceStatus: Map<Reference, Status> = HashMap()
 
@@ -49,13 +48,13 @@ public class TypeAssigner <: Visitor<Type> {
     public override func visit(binaryExpr: BinaryExpr): Type {
         let left: Type = binaryExpr.left.traverse(this)
         let right: Type = binaryExpr.right.traverse(this)
-        typeManager.applyFunction(binaryExpr.oper.value, [left, right], expectedReturnType.peek())
+        typeManager.applyFunction(binaryExpr.oper.value, [left, right], None)
             .effectiveType.getOrThrow()
     }
 
     public override func visit(unaryExpr: UnaryExpr): Type {
         let right: Type = unaryExpr.right.traverse(this)
-        typeManager.applyFunction(unaryExpr.oper.value, [right], expectedReturnType.peek())
+        typeManager.applyFunction(unaryExpr.oper.value, [right], None)
             .effectiveType.getOrThrow()
     }
 
@@ -78,14 +77,10 @@ public class TypeAssigner <: Visitor<Type> {
     public override func visit(assignExpr: AssignExpr): Type {
         let left: Type = assignExpr.left.traverse(this)
 
-        expectedReturnType.add(left)
-
         let right: Type = assignExpr.right.traverse(this)
         if (!left.isParent(right)) {
             throw Exception("Cannot assign ${right.name} to ${left.name}")
         }
-
-        expectedReturnType.remove()
 
         typeManager.getType("Unit")
     }
@@ -161,10 +156,11 @@ public class TypeAssigner <: Visitor<Type> {
         let initzer: Expr = varDeclWithRef.initializer.getOrThrow({ =>
             Exception("Impossible to infer the type of ${ref.identifier.value}, there must be an " +
                 "initializer if there is no declaration type.") })
-        
+
         let initType: Type = initzer.traverse(this)
         ref.effectiveType = initType
         referenceStatus.add(ref, Status.VIS)
+
         typeManager.getType("Unit")
     }
 
@@ -222,16 +218,17 @@ public class TypeAssigner <: Visitor<Type> {
 
         let infType: Type = mainDeclWithRef.block.traverse(this)
         ref.effectiveType = infType
+
         typeManager.getType("Unit")
     }
 
     public override func visit(varReference: VariableReference): Type {
-        varReference.effectiveType.getOrThrow()
+        varReference.effectiveType.getOrDefault({ => Type.DUMMY })
     }
 
     public override func visit(funcReference: FuncReference): Type {
         callableField = funcReference.identifier.value
-        funcReference.effectiveType.getOrThrow()
+        funcReference.effectiveType.getOrDefault({ => Type.DUMMY })
     }
 
     public override func visit(classReference: ClassReference): Type {
@@ -254,11 +251,11 @@ public class TypeAssigner <: Visitor<Type> {
         var ref: FuncReference
         // Check first for a function call.
         try {
-            ref = typeManager.applyFunction(identifier, params, expectedReturnType.peek())
+            ref = typeManager.applyFunction(identifier, params, None)
         } catch(e: Exception) {
             if (let Some(classRef) <- classEnvironment.getGlobal(calleeType.name)) {
                 ref = classRef.typeManager.getOrThrow()
-                    .applyFunction(identifier, params, expectedReturnType.peek())
+                    .applyFunction(identifier, params, None)
             } else {
                 throw e
             }
