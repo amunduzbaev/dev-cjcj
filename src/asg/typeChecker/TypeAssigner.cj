@@ -17,8 +17,6 @@ import std.collection.*
 * that can be an assignment for variables or the type of the block for a function definition.
 */
 public class TypeAssigner <: Visitor<Type> {
-    // Dummy type to return when I don't need to return an actual one.
-    private static let DUMMY_TYPE = Type("")
     private let expectedReturnType: ArrayStack<Type> = ArrayStack()
     // Used to know if there are cycles.
     private let referenceStatus: Map<Reference, Status> = HashMap()
@@ -27,29 +25,25 @@ public class TypeAssigner <: Visitor<Type> {
     private var callableField: ?String = None
     private var currentClass: ?ClassReferenceForTC = None
     private var scopeType: ScopeType = ScopeType.NIL
-    private var inConstructor: Bool = false
+    private var inConstructor_: Bool = false
 
     /*
     * It expects already to have every class declared and a typeManager to query and insert
     * new functions that are not declared in the global scope.
     */
     public TypeAssigner(
-        program: Program, private var classEnvironment: Environment<String, ClassReferenceForTC>,
+        private var classEnvironment: Environment<String, ClassReferenceForTC>,
         private let typeManager: TypeManager
-    ) {
-        program.traverse(this)
-    }
+    ) { }
 
-    public init(
-        classEnvironment: Environment<String, ClassReferenceForTC>, typeManager: TypeManager
-    ) {
-        this.classEnvironment = classEnvironment
-        this.typeManager = typeManager
+    public mut prop inConstructor: Bool {
+        get() { inConstructor_ }
+        set(v) { inConstructor_ = v }
     }
 
     public override func visit(program: Program): Type {
         program.decls.iterator().forEach({ d => d.traverse(this) })
-        DUMMY_TYPE
+        Type.DUMMY
     }
 
     public override func visit(binaryExpr: BinaryExpr): Type {
@@ -77,7 +71,7 @@ public class TypeAssigner <: Visitor<Type> {
             case TokenKind.STRING_LITERAL => return typeManager.getType("String")
             case TokenKind.UNIT_LITERAL => return typeManager.getType("Unit")
             // TODO: Add all other literals.
-            case _ => return DUMMY_TYPE
+            case _ => return Type.DUMMY
         }
     }
 
@@ -185,6 +179,7 @@ public class TypeAssigner <: Visitor<Type> {
         ref.paramRef.getOrThrow().iterator().enumerate()
             .forEach({ v => v[1].effectiveType = params[v[0]].paramType.traverse(this) })
 
+        // If I'm in global or body scope everything is already declared.
         if (!typeManager.isGlobal && scopeType != ScopeType.BODY) {
             typeManager.addFunction(ref)
         }
@@ -195,7 +190,7 @@ public class TypeAssigner <: Visitor<Type> {
             return typeManager.getType("Unit")
         }
 
-        if (ref.identifier.kind == TokenKind.ILLEGAL) {
+        if (funcDeclWithRef.keyword.kind == TokenKind.INIT) {
             referenceStatus.add(ref, Status.VIS)
             ref.effectiveType = typeManager.getType(currentClass.getOrThrow()
                 .classReference.identifier.value)
@@ -203,13 +198,9 @@ public class TypeAssigner <: Visitor<Type> {
         }
         
         referenceStatus.add(ref, Status.IN)
-        if (funcDeclWithRef.keyword.kind == TokenKind.INIT) {
-            inConstructor = true
-        }
         
         let infType: Type = funcDeclWithRef.block.traverse(this)
 
-        inConstructor = false
         ref.effectiveType = infType
         referenceStatus.add(ref, Status.VIS)
 
@@ -334,7 +325,7 @@ public class TypeAssigner <: Visitor<Type> {
         currentClass.getOrThrow().typeManager.getOrThrow().deleteHistory()
         currentClass.getOrThrow().variableEnvironment.getOrThrow().enclosing = None
 
-        DUMMY_TYPE
+        Type.DUMMY
     }
 
     public override func visit(memberAccess: MemberAccess): Type {
@@ -359,7 +350,7 @@ public class TypeAssigner <: Visitor<Type> {
             }
             return tp
         }
-        DUMMY_TYPE
+        Type.DUMMY
     }
 
     public override func visit(thisSuperReference: ThisSuperReference): Type {

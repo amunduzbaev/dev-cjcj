@@ -17,8 +17,7 @@ import std.collection.*
 * elements and based on the defined operations.
 */
 public class TypeChecker <: Visitor<Type> {
-    // Dummy type to return when I don't need to return an actual one.
-    private static let DUMMY_TYPE = Type("")
+    private let typeAssigner: TypeAssigner
     private let typeManager: TypeManager
     private let expectedReturnType: ArrayStack<Type> = ArrayStack()
     private var variableEnvironment: Environment<String, VariableReference> = Environment()
@@ -29,6 +28,8 @@ public class TypeChecker <: Visitor<Type> {
 
     public init(program: Program) {
         typeManager = TypeDeclarationChecker().resolve(program)
+        typeAssigner = TypeAssigner(classEnvironment, typeManager)
+
         let tmpClassEnvironment: Environment<String, ClassReference> = Environment()
         declareBuiltinClassReferences(tmpClassEnvironment)
 
@@ -38,7 +39,8 @@ public class TypeChecker <: Visitor<Type> {
         program.decls.iterator().forEach({ d => d.traverse(globalTypeDeclarator) })
         tmpClassEnvironment.elements.iterator()
             .forEach({ cr => classEnvironment.declare(cr[0], ClassReferenceForTC(cr[1])) })
-        TypeAssigner(program, classEnvironment, typeManager)
+
+        program.traverse(typeAssigner)
         program.traverse(this)
     }
 
@@ -55,7 +57,7 @@ public class TypeChecker <: Visitor<Type> {
 
     public override func visit(program: Program): Type {
         program.decls.iterator().forEach({ d => d.traverse(this) })
-        DUMMY_TYPE
+        Type.DUMMY
     }
 
     public override func visit(binaryExpr: BinaryExpr): Type {
@@ -83,7 +85,7 @@ public class TypeChecker <: Visitor<Type> {
             case TokenKind.STRING_LITERAL => return typeManager.getType("String")
             case TokenKind.UNIT_LITERAL => return typeManager.getType("Unit")
             // TODO: Add all other literals.
-            case _ => return DUMMY_TYPE
+            case _ => return Type.DUMMY
         }
     }
 
@@ -105,7 +107,6 @@ public class TypeChecker <: Visitor<Type> {
     public override func visit(block: Block): Type {
         beginScope()
 
-        let typeAssigner: TypeAssigner = TypeAssigner(classEnvironment, typeManager)
         block.nodes.iterator().forEach({ n => n.traverse(typeAssigner) })
 
         let lastId = block.nodes.last.getOrDefault({ => Expr() }).id
@@ -187,6 +188,7 @@ public class TypeChecker <: Visitor<Type> {
         if (ref.identifier.kind != TokenKind.ILLEGAL) {
             let prevInConstructor: Bool = inConstructor
             inConstructor = false
+            typeAssigner.inConstructor = prevInConstructor
 
             let infType: Type = funcDeclWithRef.block.traverse(this)
             if (!assignedType.isParent(infType)) {
@@ -195,10 +197,13 @@ public class TypeChecker <: Visitor<Type> {
             }
 
             inConstructor = prevInConstructor
+            typeAssigner.inConstructor = prevInConstructor
         } else {
             inConstructor = true
+            typeAssigner.inConstructor = true
             funcDeclWithRef.block.traverse(this)
             inConstructor = false
+            typeAssigner.inConstructor = false
         }
         typeManager.getType("Unit")
     }
@@ -283,7 +288,7 @@ public class TypeChecker <: Visitor<Type> {
 
     public override func visit(body: Body): Type {
         body.decls.iterator().forEach({ decl => decl.traverse(this) })
-        DUMMY_TYPE
+        Type.DUMMY
     }
 
     public override func visit(memberAccess: MemberAccess): Type {
@@ -308,7 +313,7 @@ public class TypeChecker <: Visitor<Type> {
             }
             return tp
         }
-        DUMMY_TYPE
+        Type.DUMMY
     }
 
     private func beginScope(): Unit {
