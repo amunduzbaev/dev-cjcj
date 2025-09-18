@@ -174,10 +174,10 @@ public abstract class DeclaratorFactory {
             let ref: FuncReference = funcDeclWithRef.funcRef
             let funcName: String = ref.identifier.value
             let paramRef: ArrayList<VariableReference> = ref.paramRef.getOrThrow()
-            TypeCheckerHelper.funcParamToParamRef(
+            Utils.funcParamToParamRef(
                 funcDeclWithRef.params, ref.paramRef.getOrThrow(), typeManager
             )
-            let params: Array<Type> = TypeCheckerHelper.refToType(paramRef)
+            let params: Array<Type> = Utils.refToType(paramRef)
             let funcHashParamName: String = TypeManager.funcHashConcat(funcName, params)
             if (canDeclare(funcHashParamName)) {
                 typeManager.addFunction(ref)
