@@ -311,6 +311,57 @@ class TypeCheckTests {
     }
 
     @TestCase
+    func needToposortFunctionCall_test() {
+        let test: String = """
+        func f() {
+            g()
+            i()
+        }
+        func i() {
+            g()
+        }
+        func g() {
+            h()
+        }
+        func h() {
+            return 1
+        }
+        main(){
+        }"""
+        TypeChecker(getAsg(test))
+    }
+
+    @TestCase
+    func cyclicFunctionCall_test() {
+        let testRight: String = """
+            func f() {
+                g()
+                return 5
+            }
+
+            func g(): String {
+                f()
+                return "hi"
+            }
+            main() {
+            }"""
+        TypeChecker(getAsg(testRight))
+        let testWrong: String = """
+            func f() {
+                g()
+                return 5
+            }
+
+            func g() {
+                f()
+                return "hi"
+            }
+            main() {
+            }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+    }
+
+    @TestCase
     func memberAccessNotFound_test() {
         let test: String = """
             class a {
@@ -378,12 +429,12 @@ class TypeCheckTests {
                 init() {
                     b + 1
                     let c: Int64 = f()
-                    func inside() {
+                    func inside(): Int64 {
                         let a = 10
                         if (true) {
                             return 7
                         }
-                        func insideinside() {
+                        func insideinside(): String {
                             let a = "string"
                             return a
                         }
