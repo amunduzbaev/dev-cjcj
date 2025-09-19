@@ -20,7 +20,7 @@ import std.deriving.Derive
 */
 @Derive[Equatable]
 public enum ScopeType {
-    NIL | BLOCK
+    NIL | BLOCK | BODY
 }
 
 /*

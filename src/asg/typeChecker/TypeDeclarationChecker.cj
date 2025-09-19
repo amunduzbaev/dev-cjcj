@@ -167,7 +167,6 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
         
         declTypes.add(classDecl.identifier.value,
             TypePrecursor(classDecl.identifier.value,
-                // TODO: Desugar classes without supertypes to be <: Object
                 supertypes,
                 true
             )
