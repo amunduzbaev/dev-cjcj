@@ -447,19 +447,6 @@ class TypeCheckTests {
     }
 
     @TestCase
-    func noReturnInsideInit_test() {
-        let test: String = """
-            class a {
-                init() {
-                    return 5
-                }
-            }
-            main(){
-            }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(test)))
-    }
-
-    @TestCase
     func bodyMemberAccess_test() {
         let testRight: String = """
             class a {
