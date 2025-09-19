@@ -69,7 +69,7 @@ public class AsgMaker <: Visitor<Node> {
         ]
 
         builtinIdentifiers.iterator().forEach({ t => 
-            classEnvironment.declare(t.value, ClassReference(NodeIdManager.nextId(), t))
+            classEnvironment.declare(t.value, ClassReference(NodeIdManager.nextId(), t, true))
         })
 
         return (program.traverse(this) as Program).getOrThrow()
