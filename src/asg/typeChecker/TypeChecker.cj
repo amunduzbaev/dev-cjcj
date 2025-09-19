@@ -58,7 +58,7 @@ public class TypeChecker <: Visitor<Type> {
         BUILTIN_TYPES.iterator().forEach({ t =>
             classEnvironment.declare(
                 t[0],
-                ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, t[0], Position()))
+                ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, t[0], Position()), true)
             )
         })
     }
