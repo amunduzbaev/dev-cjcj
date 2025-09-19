@@ -5,6 +5,7 @@ import cjcj.parser.NodeIdManager
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import cjcj.asg.TypeManager
+import cjcj.asg.Utils
 
 import std.ast.Position
 import std.collection.*
@@ -102,9 +103,8 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
         BUILTIN_FUNCTIONS.iterator()
             .map({ v: (String, ArrayList<(ArrayList<String>, String)>) => (
                 v[0],
-                v[1].iterator().map({ v: (ArrayList<String>, String) => (
-                    v[0].iterator().map({ v => typeManager.getType(v) })
-                        .fold<ArrayList<Type>>(ArrayList(), { res, v => res.add(v); res }),
+                v[1].iterator().map<(ArrayList<Type>, Type)>({ v: (ArrayList<String>, String) => (
+                    Utils.fold(v[0].iterator().map({ v => typeManager.getType(v) }), ArrayList()),
                     typeManager.getType(v[1])
                 )}))
             }).forEach({ v => v[1].iterator().forEach({ t =>
@@ -161,9 +161,8 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
 
     // I only want to visit declarations of new types, I can skip everything else.
     public override func visit(classDecl: ClassDeclWithRef): Unit {
-        let supertypes: ArrayList<String> = classDecl.superTypes.iterator()
-            .map({ st => st.typeName.value })
-            .fold<ArrayList<String>>(ArrayList(), { res, v => res.add(v); res })
+        let supertypes: ArrayList<String> = Utils.fold(classDecl.superTypes.iterator()
+            .map({ st => st.typeName.value }), ArrayList())
         
         declTypes.add(classDecl.identifier.value,
             TypePrecursor(classDecl.identifier.value,

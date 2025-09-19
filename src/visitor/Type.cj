@@ -3,6 +3,7 @@ package cjcj.visitor
 import std.collection.*
 
 public class Type <: Equatable<Type> & Hashable {
+    public static let DUMMY = Type("")
     public static let ANY: Type = Type("Any", ArrayList(), true, 0)
     
     private let parents_: ArrayList<Type>

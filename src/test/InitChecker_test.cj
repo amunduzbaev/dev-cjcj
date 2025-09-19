@@ -543,6 +543,19 @@ class InitCheckerTests {
 
        InitChecker().resolve(getAsg(testRight))
     }
+
+    @TestCase
+    func noReturnInsideInit_test() {
+        let test: String = """
+            class a {
+                init() {
+                    return 5
+                }
+            }
+            main(){
+            }"""
+        @AssertThrows[Exception](InitChecker().resolve(getAsg(test)))
+    }
 }
 
 

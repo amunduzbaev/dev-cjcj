@@ -311,6 +311,95 @@ class TypeCheckTests {
     }
 
     @TestCase
+    func nestedUnknownTypeFunctionCall_test() {
+        let test: String = """
+        class a {
+            func f() {
+                g()
+                i()
+            }
+            func i() {
+                g()
+            }
+            func g() {
+                h()
+            }
+            func h() {
+                return 1
+            }
+        }
+        func f() {
+            g()
+            i()
+        }
+        func i() {
+            g()
+        }
+        func g() {
+            h()
+        }
+        func h() {
+            return 1
+        }
+        main(){
+        }"""
+        TypeChecker(getAsg(test))
+        // TODO: We can make this test not fail if we let the assigner go into the blocks. It will
+        // mean implement all the empty visit functions but it could be worth it, cjc doesn't do it.
+        let testHard = """
+        func f() {
+            g()
+            i()
+        }
+        func i() {
+            g()
+        }
+        func g() {
+            h()
+        }
+        let a = 5
+        func h() {
+            func bo(): Int64 {
+                f()
+            }
+            return a
+        }
+        main(){
+        }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(testHard)))
+    }
+
+    @TestCase
+    func cyclicFunctionCall_test() {
+        let testRight: String = """
+            func f() {
+                g()
+                return 5
+            }
+
+            func g(): String {
+                f()
+                return "hi"
+            }
+            main() {
+            }"""
+        TypeChecker(getAsg(testRight))
+        let testWrong: String = """
+            func f() {
+                g()
+                return 5
+            }
+
+            func g() {
+                f()
+                return "hi"
+            }
+            main() {
+            }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+    }
+
+    @TestCase
     func memberAccessNotFound_test() {
         let test: String = """
             class a {
@@ -320,6 +409,52 @@ class TypeCheckTests {
                 let c: Int64 = a().b
             }"""
         @AssertThrows[Exception](TypeChecker(getAsg(test)))
+    }
+
+    @TestCase
+    func functionCallsParameters_test() {
+        var test: String = """
+            let a = g(1 + 2 * 4, "abcd")
+            func g(a: Int64, b: String) {
+            }
+            main(){
+            }"""
+        TypeChecker(getAsg(test))
+        test = """
+            class a {
+                func f() {
+                    g(1 + 2 * 4, "abcd")
+                }
+                func g(a: Int64, b: String) {
+                }
+            }
+            main(){
+            }"""
+        TypeChecker(getAsg(test))
+        test = """
+            main(){
+                func g(a: Int64, b: String) {
+                }
+                func f() {
+                    g(1 + 2 * 4, "abcd")
+                }
+            }"""
+        TypeChecker(getAsg(test))
+    }
+
+    @TestCase
+    func literalImplicitCast_test() {
+        // ** needs to take a UInt64 on the right side.
+        let testRight: String = """
+            main(){
+                1 + 2 * 4 ** 10
+            }"""
+        TypeChecker(getAsg(testRight))
+        let testWrong: String = """
+            main(){
+                1 + 2 * 4 ** -10
+            }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
     }
 
     @TestCase
@@ -340,32 +475,19 @@ class TypeCheckTests {
             class c {
                 let cvar = 5
             }
-            class b <: c {
-                func bfunc() {
-                }
-            }
             class a <: b {
                 let cvar = 19
                 init() {
+                }
+            }
+            class b <: c {
+                func bfunc() {
                 }
             }
             main(){
                 let a = a()
                 let v: Int64 = a.cvar
                 let f: Unit = a.bfunc()
-            }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(test)))
-    }
-
-    @TestCase
-    func noReturnInsideInit_test() {
-        let test: String = """
-            class a {
-                init() {
-                    return 5
-                }
-            }
-            main(){
             }"""
         @AssertThrows[Exception](TypeChecker(getAsg(test)))
     }
@@ -378,12 +500,12 @@ class TypeCheckTests {
                 init() {
                     b + 1
                     let c: Int64 = f()
-                    func inside() {
+                    func inside(): Int64 {
                         let a = 10
                         if (true) {
                             return 7
                         }
-                        func insideinside() {
+                        func insideinside(): String {
                             let a = "string"
                             return a
                         }
@@ -436,6 +558,26 @@ class TypeCheckTests {
                 let a = a()
                 let v: String = a.common
                 let f: Unit = a.bfunc()
+            }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+    }
+
+    @TestCase
+    func variableDeclCycle_test() {
+        let testRight: String = """
+            let a: Int64 = f()
+            func f() {
+                return a
+            }
+            main(){
+            }"""
+        TypeChecker(getAsg(testRight))
+        let testWrong: String = """
+            let a = f()
+            func f() {
+                return a
+            }
+            main(){
             }"""
         @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
     }

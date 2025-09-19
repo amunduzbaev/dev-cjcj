@@ -3,8 +3,9 @@ package cjcj.asg
 import cjcj.visitor.*
 
 import std.collection.ArrayList
+import std.collection.List
 
-abstract class TypeCheckerHelper {
+abstract class Utils {
     /*
     * Assigns the effective types to the parameter references based on the func param declarations.
     * @param funcParams the list to take the types from
@@ -28,5 +29,12 @@ abstract class TypeCheckerHelper {
         refs.iterator()
             .map({ p => p.effectiveType.getOrThrow() })
             .fold<ArrayList<Type>>(ArrayList(), { acc, v => acc.add(v); acc }).toArray()
+    }
+
+    /*
+    * Folds an iterator into a List.
+    */
+    public static func fold<T, R>(it: Iterator<T>, base: R): R where R <: List<T> {
+        it.fold<R>(base, { acc, v => acc.add(v); acc })
     }
 }

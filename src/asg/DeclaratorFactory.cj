@@ -19,13 +19,12 @@ import std.deriving.Derive
 */
 private class ReferenceDeclarator <: Declarator {
     public ReferenceDeclarator(
-        canDeclare!: (String) -> Bool = { _ => true },
         private let visitVar!: (VarDeclWithRef) -> ?Reference = { _ => None },
         private let visitFunc!: (FuncDeclWithRef) -> ?Reference = { _ => None },
         private let visitClass!: (ClassDeclWithRef) -> ?Reference = { _ => None },
         private let visitMain!: (MainDeclWithRef) -> ?Reference = { _ => None }
     ) {
-        super(canDeclare: canDeclare)
+        super()
     }
 
     public override func visit(funcDeclWithRef: FuncDeclWithRef): ?Reference {
@@ -62,8 +61,7 @@ public abstract class DeclaratorFactory {
         ])
         Declarator(
             visitFunc: functionAstDeclaration(funcEnvironment, canDeclare),
-            visitVar: variableAstDeclaration(variableEnvironment, canDeclare),
-            canDeclare: canDeclare
+            visitVar: variableAstDeclaration(variableEnvironment, canDeclare)
         )
     }
 
@@ -79,8 +77,7 @@ public abstract class DeclaratorFactory {
         ])
         Declarator(
             visitFunc: functionAstDeclaration(funcEnvironment, canDeclare),
-            visitClass: classAstDeclaration(classEnvironment, canDeclare),
-            canDeclare: canDeclare
+            visitClass: classAstDeclaration(classEnvironment, canDeclare)
         )
     }
 
@@ -97,8 +94,7 @@ public abstract class DeclaratorFactory {
         ])
         ReferenceDeclarator(
             visitFunc: functionAsgDeclaration(typeManager, canDeclare),
-            visitVar: variableAsgDeclaration(variableEnvironment, canDeclare),
-            canDeclare: canDeclare
+            visitVar: variableAsgDeclaration(variableEnvironment, canDeclare)
         )
     }
 
@@ -115,8 +111,7 @@ public abstract class DeclaratorFactory {
         ])
         ReferenceDeclarator(
             visitFunc: functionAsgDeclaration(typeManager, canDeclare),
-            visitClass: classAsgDeclaration(classEnvironment, canDeclare),
-            canDeclare: canDeclare
+            visitClass: classAsgDeclaration(classEnvironment, canDeclare)
         )
     }
 
@@ -174,10 +169,10 @@ public abstract class DeclaratorFactory {
             let ref: FuncReference = funcDeclWithRef.funcRef
             let funcName: String = ref.identifier.value
             let paramRef: ArrayList<VariableReference> = ref.paramRef.getOrThrow()
-            TypeCheckerHelper.funcParamToParamRef(
+            Utils.funcParamToParamRef(
                 funcDeclWithRef.params, ref.paramRef.getOrThrow(), typeManager
             )
-            let params: Array<Type> = TypeCheckerHelper.refToType(paramRef)
+            let params: Array<Type> = Utils.refToType(paramRef)
             let funcHashParamName: String = TypeManager.funcHashConcat(funcName, params)
             if (canDeclare(funcHashParamName)) {
                 typeManager.addFunction(ref)
@@ -196,7 +191,8 @@ public abstract class DeclaratorFactory {
         canDeclare: (String) -> Bool
     ): (ClassDecl) -> ?Reference {
         { classDecl: ClassDecl =>
-            let ref: ClassReference = ClassReference(NodeIdManager.nextId(), classDecl.identifier)
+            // TODO: At the moment every class is considered open.
+            let ref: ClassReference = ClassReference(NodeIdManager.nextId(), classDecl.identifier, true)
             if (canDeclare(classDecl.identifier.value)) {
                 environment.declare(classDecl.identifier.value, ref)
                 return ref
