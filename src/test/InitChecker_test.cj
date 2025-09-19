@@ -342,6 +342,32 @@ class InitCheckerTests {
        InitChecker().resolve(getAsg(testRight))
     }
 
+    @TestCase
+    func initializationOfParameters_test(){
+        let testWrong: String = """
+            main() {
+                func a(b: String, c: Int64) : Int64 {
+                    c = 1
+                    c
+                }
+                a("1", 2)
+            }
+        """
+       @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+
+        let testRight: String = """
+            main() {
+                func a(b: String, c: Int64) : Int64 {
+                    c
+                }
+                a("1", 2)
+            }
+        """
+
+       InitChecker().resolve(getAsg(testRight))
+
+    }
+
 
     @TestCase
     func classInit_test() {

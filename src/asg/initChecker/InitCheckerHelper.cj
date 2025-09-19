@@ -44,4 +44,3 @@ public class ScopeEnvironment {
         get() { enclosing_.isNone() }
     }
 }
-

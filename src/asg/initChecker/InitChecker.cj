@@ -11,6 +11,7 @@ import std.collection.Set
 import std.collection.HashSet
 
 import std.collection.ArrayList
+import std.collection.ArrayStack
 import std.ast.Position
 import std.deriving.Derive
 
@@ -29,11 +30,11 @@ TODO : Global functions and variables
 */
 
 public open class InitChecker <: Visitor<Unit> {
-    public var declareEnvironment = Environment<Reference, Int64>()
-    public var initializeEnvironment = Environment<Reference, Int64>()
-    public var lastKilledEnvironment = Environment<Reference, Int64>()
-    public var currentScopeType: ScopeEnvironment = ScopeEnvironment()
-    public var blockType: ScopeType = ScopeType.BLOCK
+    protected var declareEnvironment = Environment<Reference, Int64>()
+    protected var initializeEnvironment = Environment<Reference, Int64>()
+    protected var lastKilledEnvironment = Environment<Reference, Int64>()
+    protected var currentScopeType: ScopeEnvironment = ScopeEnvironment()
+    protected var waitingDeclaration = HashSet<Reference>()
 
     public init(declareEnvironment_: Environment<Reference, Int64>, 
         initializeEnvironment_: Environment<Reference, Int64>,
@@ -98,6 +99,7 @@ public open class InitChecker <: Visitor<Unit> {
         }
     }
 
+    protected var blockType: ScopeType = ScopeType.BLOCK
     public func visit(block: Block) {
         beginScope(blockType)
 
@@ -165,6 +167,8 @@ public open class InitChecker <: Visitor<Unit> {
         if (let Some(initzer) <- varDecl.initializer) {
             initzer.traverse(this)
             initialize(varDecl.ref)
+        } else if (waitingDeclaration.remove(varDecl.ref)) {
+            initialize(varDecl.ref)
         }
 
         if (let Some(declType) <- varDecl.declType) {
@@ -174,7 +178,7 @@ public open class InitChecker <: Visitor<Unit> {
 
     public func visit(funcDecl: FuncDeclWithRef) {
         funcDecl.funcRef.paramRef.getOrThrow().iterator().forEach({ ref => 
-            initialize(ref)
+            waitingDeclaration.add(ref)
         })
 
         if (let Some(declType) <- funcDecl.declType) {
@@ -187,7 +191,7 @@ public open class InitChecker <: Visitor<Unit> {
 
     public func visit(mainDecl: MainDeclWithRef) {
         if (let Some(ref) <- mainDecl.mainRef.paramRef) {
-            initialize(ref)
+            waitingDeclaration.add(ref)
         }
 
         if (let Some(declType) <- mainDecl.declType) {
@@ -318,7 +322,7 @@ Extension of the Checker above that checks initialization of a class
     TODO: Add "this"
     TODD: check init() function calls form a cycle. 
 */
-public class ClassInitChecker <: InitChecker {
+private class ClassInitChecker <: InitChecker {
     private var enclosingClassReference: ClassReference
     private var initializedMemberVariables: Int64 = 0
     private var totalMemberVariables: Int64 = 0
@@ -377,9 +381,7 @@ public class ClassInitChecker <: InitChecker {
                 }
             acc
         })
-
-        // We can not call member functions of current class in variable declaration or in 
-        // constructor functions before initializing all member variables. 
+ 
         varDecls.forEach({ varDecl => varDecl.traverse(this) })
         initDecls.iterator().forEach({ initDecl => initVisit(initDecl) })
         initializedMemberVariables = totalMemberVariables
@@ -392,7 +394,7 @@ public class ClassInitChecker <: InitChecker {
         let initializedMemberVariablesBefore = initializedMemberVariables
 
         initDecl.funcRef.paramRef.getOrThrow().iterator().forEach({ ref => 
-            initialize(ref)
+            waitingDeclaration.add(ref)
         })
 
         if (let Some(declType) <- initDecl.declType) {
@@ -449,4 +451,3 @@ public class ClassInitChecker <: InitChecker {
         get() { totalMemberVariables == initializedMemberVariables }
     }
 }
-
