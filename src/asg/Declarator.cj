@@ -23,8 +23,7 @@ public open class Declarator <: Visitor<?Reference> {
         private let visitVar!: (VarDecl) -> ?Reference = { _ => None },
         private let visitFunc!: (FuncDecl) -> ?Reference = { _ => None },
         private let visitClass!: (ClassDecl) -> ?Reference = { _ => None },
-        private let visitMain!: (MainDecl) -> ?Reference = { _ => None },
-        public let canDeclare!: (String) -> Bool = { _ => true }
+        private let visitMain!: (MainDecl) -> ?Reference = { _ => None }
     ) {
     }
 
