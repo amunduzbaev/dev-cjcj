@@ -515,4 +515,24 @@ class TypeCheckTests {
             }"""
         @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
     }
+
+    @TestCase
+    func variableDeclCycle_test() {
+        let testRight: String = """
+            let a: Int64 = f()
+            func f() {
+                return a
+            }
+            main(){
+            }"""
+        TypeChecker(getAsg(testRight))
+        let testWrong: String = """
+            let a = f()
+            func f() {
+                return a
+            }
+            main(){
+            }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+    }
 }
