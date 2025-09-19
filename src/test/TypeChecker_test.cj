@@ -412,6 +412,52 @@ class TypeCheckTests {
     }
 
     @TestCase
+    func functionCallsParameters_test() {
+        var test: String = """
+            let a = g(1 + 2 * 4, "abcd")
+            func g(a: Int64, b: String) {
+            }
+            main(){
+            }"""
+        TypeChecker(getAsg(test))
+        test = """
+            class a {
+                func f() {
+                    g(1 + 2 * 4, "abcd")
+                }
+                func g(a: Int64, b: String) {
+                }
+            }
+            main(){
+            }"""
+        TypeChecker(getAsg(test))
+        test = """
+            main(){
+                func g(a: Int64, b: String) {
+                }
+                func f() {
+                    g(1 + 2 * 4, "abcd")
+                }
+            }"""
+        TypeChecker(getAsg(test))
+    }
+
+    @TestCase
+    func literalImplicitCast_test() {
+        // ** needs to take a UInt64 on the right side.
+        let testRight: String = """
+            main(){
+                1 + 2 * 4 ** 10
+            }"""
+        TypeChecker(getAsg(testRight))
+        let testWrong: String = """
+            main(){
+                1 + 2 * 4 ** -10
+            }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+    }
+
+    @TestCase
     func memberAccessCannotCallClass_test() {
         let test: String = """
             class a {
@@ -429,13 +475,13 @@ class TypeCheckTests {
             class c {
                 let cvar = 5
             }
-            class b <: c {
-                func bfunc() {
-                }
-            }
             class a <: b {
                 let cvar = 19
                 init() {
+                }
+            }
+            class b <: c {
+                func bfunc() {
                 }
             }
             main(){
