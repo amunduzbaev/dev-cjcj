@@ -280,8 +280,7 @@ internal open class DeclParser {
                         parameters++
                         parameter = unnamedParameter()
 
-                        // For now, discards all other parameters other than the
-                        // first one.
+                        // TODO: For now, discards all other parameters other than the first one.
                         // TEMPORARY FIX, REMEMBER TO MAKE A REAL SOLUTION
 
                     } while(helper.matches(TK.COMMA))
