@@ -96,9 +96,11 @@ public class FuncReference <: Reference {
 
 public open class ClassReference <: Reference{
     private var parent_: ?ClassReference = None
+    private let isOpen_: Bool
 
-    public init(id: NodeId, identifier: Token) {
+    public init(id: NodeId, identifier: Token, isOpen: Bool) {
         super(id, identifier, None)
+        isOpen_ = isOpen
     }
 
     public open override func traverse<R>(v: Visitor<R>): R {
@@ -108,6 +110,10 @@ public open class ClassReference <: Reference{
     public mut prop parent: ?ClassReference {
         get() { parent_ }
         set(v) { parent_ = v }
+    }
+
+    public prop isOpen: Bool {
+        get() { isOpen_ }
     }
 }
 
