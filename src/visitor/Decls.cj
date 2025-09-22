@@ -11,6 +11,7 @@ import std.collection.ArrayList
 public abstract class Decl <: Node {
     protected var identifier_: Token = Token()
     protected var keyword_: Token = identifier_
+    protected var declType_: ?TypeNode = None
     
     init() {
         this(NodeId())
@@ -20,10 +21,20 @@ public abstract class Decl <: Node {
         super(id)
     }
 
+    init(id: NodeId, declType: ?TypeNode) {
+        this(id)
+        declType_ = declType
+    }
+
     init(id: NodeId, keyword: Token, identifier: Token) {
         this(id)
         identifier_ = identifier
         keyword_ = keyword
+    }
+
+    init(id: NodeId, keyword: Token, identifier: Token, declType: ?TypeNode) {
+        this(id, keyword, identifier)
+        declType_ = declType
     }
 
     //Constructor for constructors, they have no name
@@ -53,6 +64,11 @@ public abstract class Decl <: Node {
         set(v) { keyword_ = v }
     }
 
+    public mut prop declType: ?TypeNode {
+        get() { declType_ }
+        set(v) { declType_ = v }
+    }
+
     public override open func prettyPrint(printer: PrettyPrinter) {
         if (keyword.kind != TokenKind.ILLEGAL) {
             printer.append(keyword.value + " ")
@@ -65,7 +81,6 @@ public abstract class Decl <: Node {
 
 public open class VarDecl <: Decl {
     private var initializer_: ?Expr
-    private var declType_: ?TypeNode
 
     public init() {
         this(NodeId(), Token(), Token())
@@ -81,9 +96,8 @@ public open class VarDecl <: Decl {
 
     public init(id: NodeId, keyword: Token, identifier: Token, initializer: ?Expr,
             declType: ?TypeNode) {
-        super(id, keyword, identifier)
+        super(id, keyword, identifier, declType)
         initializer_ = initializer
-        declType_ = declType
     }
 
     public open override func traverse<R>(v: Visitor<R>): R {
@@ -93,11 +107,6 @@ public open class VarDecl <: Decl {
     public mut prop initializer: ?Expr {
         get() { initializer_ }
         set(v) { initializer_ = v }
-    }
-
-    public mut prop declType: ?TypeNode {
-        get() { declType_ }
-        set(v) { declType_ = v }
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -114,15 +123,13 @@ public open class VarDecl <: Decl {
 public open class MainDecl <: Decl {
     private var block_: Block
     private var param_: ?FuncParam
-    private var declType_: ?TypeNode
     
     public init() {
         this(NodeId(), Block(), None, None)
     }
 
-    public MainDecl(id: NodeId, block: Block, param: ?FuncParam, 
-                    declType: ?TypeNode) {
-        super(id)
+    public MainDecl(id: NodeId, block: Block, param: ?FuncParam, declType: ?TypeNode) {
+        super(id, declType)
         this.block_ = block
         this.param_ = param
         this.declType_ = declType
@@ -157,12 +164,6 @@ public open class MainDecl <: Decl {
         get() { param_ }
         set(v) { param_ = v }
     }
-
-    public mut prop declType: ?TypeNode {
-        get() { declType_ }
-        set(v) { declType_ = v }
-    }
-
 }
 
 public class FuncParam <: Decl {
@@ -208,7 +209,6 @@ public class FuncParam <: Decl {
 public open class FuncDecl <: Decl {
     private var block_: Block
     private var params_: ArrayList<FuncParam>
-    private var declType_: ?TypeNode
 
     public init() {
         this(NodeId(), Token(), Token(), Block(), ArrayList(), None)
@@ -216,7 +216,7 @@ public open class FuncDecl <: Decl {
 
     public init(id: NodeId, keyword: Token, identifier: Token, block: Block,
                 params: ArrayList<FuncParam>, declType: ?TypeNode) {
-        super(id, keyword, identifier)
+        super(id, keyword, identifier, declType)
         this.block_ = block
         this.params_ = params
         this.declType_ = declType
@@ -259,11 +259,6 @@ public open class FuncDecl <: Decl {
         get() { params_ }
         set(v) { params_ = v }
     }
-
-    public mut prop declType: ?TypeNode {
-        get() { declType_ }
-        set(v) { declType_ = v }
-    }
 }
 
 public open class ClassDecl <: Decl {
@@ -304,5 +299,4 @@ public open class ClassDecl <: Decl {
     public prop superTypes: ArrayList<TypeNode> {
         get() { superTypes_ }
     }
-
 }
