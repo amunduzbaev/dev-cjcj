@@ -187,7 +187,7 @@ public class TypeManager {
         }
         if (res.isNone()) {
             res = match (tmpImmediateFuncEnvironment.getLocal(funcHashConcat(funcName, params))) {
-                case Some(returnType) => returnType
+                case Some(returnReference) => returnReference
                 case _ => findClosestSuperType(funcName, params, expectedReturnType, tmpTotalFuncEnvironment)
             }
         }

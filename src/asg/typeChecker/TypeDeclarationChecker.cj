@@ -11,59 +11,6 @@ import std.ast.Position
 import std.collection.*
 import std.deriving.Derive
 
-/*
-* Used to represent a type of which we don't know all the information needed, for example we may not
-* know if the parents exist, so this class will take only the names and assume that everything is
-* fine and exists without any check.
-*/
-private class TypePrecursor <: Equatable<TypePrecursor> & Hashable {
-    private let name_: String
-    private let parents_: ArrayList<String>
-    private let isOpen_: Bool
-
-    public init(name: String, parents: ArrayList<String>) {
-        this(name, parents.toArray(), false)
-    }
-
-    public init(name: String, parents: ArrayList<String>, isOpen: Bool) {
-        this(name, parents.toArray(), isOpen)
-    }
-
-    public init(name: String, parents: Array<String>) {
-        this(name, parents, false)
-    }
-
-    public init(name: String, parents: Array<String>, isOpen: Bool) {
-        name_ = name
-        parents_ = parents.iterator().fold(ArrayList(), { r, t => r.add(t); r })
-        isOpen_ = isOpen
-    }
-
-    public override operator func ==(other: TypePrecursor): Bool {
-        this.name == other.name
-    }
-
-    public override operator func !=(other: TypePrecursor): Bool {
-        this.name != other.name
-    }
-
-    public override func hashCode(): Int64 {
-        name.hashCode()
-    }
-
-    public prop name: String {
-        get() { name_ }
-    }
-
-    public prop parents: ArrayList<String> {
-        get() { parents_ }
-    }
-
-    public prop isOpen: Bool {
-        get() { isOpen_ }
-    }
-}
-
 // TODO: Maybe create a generic Graph class that contains all the graph functions.
 @Derive[Equatable]
 public enum Status {
@@ -79,24 +26,35 @@ public enum Status {
 * After that we will create the DAG of the types to make the future checks easier.
 */
 public class TypeDeclarationChecker <: Visitor<Unit> {
-    private let declTypes: Map<String, TypePrecursor> = HashMap()
+    private let declTypes: Map<String, ClassReference> = HashMap()
+    private let edges: Map<Reference, String> = HashMap()
 
-    // Creates and returnes the typeManager filled with all the type declarations.
-    public func resolve(program: Program): TypeManager {
+    /*
+    * Creates and returns:
+    *   - the typeManager filled with all the type declarations.
+    *   - the list of class references of the program in topological order of inheritance.
+    */
+    public func resolve(program: Program): (TypeManager, Array<ClassReference>) {
         let typeManager: TypeManager = TypeManager()
         declareBuiltinTypes()
         program.traverse(this)
-        let toposort: Array<TypePrecursor> = toposort(declTypes)
-        toposort.iterator().forEach({t => typeManager.addType(t.name, t.parents, isOpen: t.isOpen)})
+        let toposort: Array<ClassReference> = toposort(declTypes)
+        toposort.iterator().forEach({ t => typeManager.addType(t.identifier.value, match(t.parent) {
+            case Some(p) => ArrayList([p.identifier.value])
+            case _ => ArrayList()
+        }, isOpen: t.isOpen) })
         // After I have added all types I can add the builtin functions.
         defineBuiltinFunctions(typeManager)
-        typeManager
+        (typeManager, toposort)
     }
 
     private func declareBuiltinTypes() {
-        BUILTIN_TYPES.iterator().map<(String, TypePrecursor)>({ v =>
-            (v[0], TypePrecursor(v[0], v[1], true))
-        }).forEach({ v: (String, TypePrecursor) => declTypes.add(v[0], v[1]) })
+        BUILTIN_TYPES.iterator().map<(String, ClassReference)>({ v: (String, Array<String>) =>
+            let ref = ClassReference(
+                NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, v[0], Position()), true)
+            v[1].iterator().forEach({ p => edges.add(ref, p) })
+            (v[0], ref)
+        }).forEach({ v: (String, ClassReference) => declTypes.add(v[0], v[1]) })
     }
 
     private func defineBuiltinFunctions(typeManager: TypeManager) {
@@ -126,30 +84,37 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
         })
     }
 
-    private func toposort(graph: Map<String, TypePrecursor>): Array<TypePrecursor> {
-        let sort: ArrayList<TypePrecursor> = ArrayList()
-        let status: Map<TypePrecursor, Status> = HashMap()
-        for ((name, typePrecursor) in graph) {
-            if (!status.contains(typePrecursor)) {
-                dfs(typePrecursor, graph, status, sort)
+    private func toposort(graph: Map<String, ClassReference>): Array<ClassReference> {
+        let sort: ArrayList<ClassReference> = ArrayList()
+        let status: Map<Reference, Status> = HashMap()
+        for ((name, classReference) in graph) {
+            if (!status.contains(classReference)) {
+                dfs(classReference, graph, status, sort)
             }
         }
         sort.toArray()
     }
 
-    private func dfs(current: TypePrecursor, graph: Map<String, TypePrecursor>,
-        status: Map<TypePrecursor, Status>, sort: ArrayList<TypePrecursor>): Unit
+    private func dfs(current: ClassReference, graph: Map<String, ClassReference>,
+        status: Map<Reference, Status>, sort: ArrayList<ClassReference>): Unit
     {
         if (let Some(status) <- status.get(current)) {
             match(status) {
-                case Status.IN => throw Exception("The type graph is not a DAG")
+                case Status.IN => throw Exception("Cyclic type inheritance")
                 case _ => return
             }
         }
         status.add(current, Status.IN)
-        for (parent in current.parents) {
-            dfs(graph.get(parent).getOrThrow({ => Exception("Type ${parent} doesn't exist")}),
-                graph, status, sort)
+        if (let Some(parent) <- edges.get(current)) {
+            current.parent = graph.get(parent).getOrThrow()
+        }
+        if (let Some(parent) <- current.parent) {
+            dfs(
+                graph.get(parent.identifier.value).getOrThrow({ =>
+                    Exception("Type ${parent} doesn't exist")
+                }),
+                graph, status, sort
+            )
         }
         status.add(current, Status.VIS)
         sort.add(current)
@@ -160,16 +125,19 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
     }
 
     // I only want to visit declarations of new types, I can skip everything else.
-    public override func visit(classDecl: ClassDeclWithRef): Unit {
-        let supertypes: ArrayList<String> = Utils.fold(classDecl.superTypes.iterator()
-            .map({ st => st.typeName.value }), ArrayList())
-        
-        declTypes.add(classDecl.identifier.value,
-            TypePrecursor(classDecl.identifier.value,
-                supertypes,
-                true
-            )
-        )
+    public override func visit(classDeclWithRef: ClassDeclWithRef): Unit {
+        if (classDeclWithRef.superTypes.isEmpty()) {
+            edges.add(classDeclWithRef.ref, "Object")
+        } else if (
+            classDeclWithRef.superTypes.size == 1 &&
+            let Some(superClass) <- classDeclWithRef.superTypes.get(0)
+        ) {
+            edges.add(classDeclWithRef.ref, superClass.typeName.value)
+        } else {
+            throw Exception("Invalid number of superclasses, it can be max 1.")
+        }
+
+        declTypes.add(classDeclWithRef.identifier.value, classDeclWithRef.ref)
     }
 
     public override func visit(_: VarDeclWithRef): Unit{ }

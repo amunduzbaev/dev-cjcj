@@ -15,12 +15,18 @@ import std.collection.*
 /*
 * It will check that all the operation types and assignments are correct based on the types of the
 * elements and based on the defined operations.
+* It will visit all the graph and will try to assign types to all the declarations, if a declaration
+* has a declaration type 't' it will check if the inferred type of the assignment or the block is a
+* subtype of 't'.
+* If it encounters a variable reference or a function call and there is no declaration type it will
+* go to the declaration and solve it. If there are cycles or a type cannot be inferred it will throw
+* an exception.
 */
 public class TypeChecker <: Visitor<Type> {
     // Used to know if there are cycles.
     private let referenceStatus: Map<Reference, Status> = HashMap()
     // Maps the reference to the declaration.
-    private let funcToDecl: Map<Reference, FuncDeclWithRef> = HashMap()
+    private let refToDecl: Map<Reference, Decl> = HashMap()
 
     private let typeManager: TypeManager
     private let expectedReturnType: ArrayStack<Type> = ArrayStack()
@@ -33,32 +39,30 @@ public class TypeChecker <: Visitor<Type> {
 
 
     public init(program: Program) {
-        // TODO: Make declaration checker return the topological order of the classes, it's needed
-        // for member shadowing check.
         // Declare every type.
-        typeManager = TypeDeclarationChecker().resolve(program)
+        let classTopoOrder: Array<ClassReference>
+        (typeManager, classTopoOrder) = TypeDeclarationChecker().resolve(program)
 
+        // Need to declare classes in topological order to have the reference to the supertypes.
         let tmpClassEnvironment: Environment<String, ClassReference> = Environment()
-        declareBuiltinClassReferences(tmpClassEnvironment)
+        classTopoOrder.iterator().forEach({ c =>
+            tmpClassEnvironment.declare(c.identifier.value, c)
+        })
 
         let globalAsgDeclarator: Declarator = DeclaratorFactory.globalAsgDeclarator(
-            tmpClassEnvironment, typeManager
+            Environment(), typeManager, refToDecl
         )
         program.decls.iterator().forEach({ d => d.traverse(globalAsgDeclarator) })
         tmpClassEnvironment.elements.iterator()
             .forEach({ cr => classEnvironment.declare(cr[0], ClassReferenceForTC(cr[1])) })
 
-        program.traverse(GlobalBodyTypeAssigner(classEnvironment, typeManager, funcToDecl))
         program.traverse(this)
-    }
 
-    private func declareBuiltinClassReferences(
-        classEnvironment: Environment<String, ClassReference>
-    ) {
-        BUILTIN_TYPES.iterator().forEach({ t =>
-            classEnvironment.declare(
-                t[0],
-                ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, t[0], Position()))
+        // After traversing every class will have its own typeManager and variable environment set
+        // So I can go in topological order and check the member shadowing.
+        classTopoOrder.iterator().forEach({ classReference =>
+            checkMemberShadowing(
+                classEnvironment.getGlobal(classReference.identifier.value).getOrThrow()
             )
         })
     }
@@ -128,8 +132,7 @@ public class TypeChecker <: Visitor<Type> {
     }
 
     /*
-    * Here we want to find the lowest common supertype of all the branches, if an ifExpr doesn't
-    * have an else branch then the return type is Unit.
+    * Here we want to find the lowest common supertype of all the branches.
     */
     public override func visit(ifExpr: IfExpr): Type {
         if (ifExpr.condition.traverse(this) != typeManager.getType("Bool")) {
@@ -182,9 +185,7 @@ public class TypeChecker <: Visitor<Type> {
         }
         referenceStatus.add(ref, Status.IN)
 
-        var targetType: ?Type = if (let Some(effectiveType) <- ref.effectiveType) {
-            effectiveType
-        } else if (let Some(declType) <- varDeclWithRef.declType) {
+        var targetType: ?Type = if (let Some(declType) <- varDeclWithRef.declType) {
             declType.traverse(this)
         } else {
             None
@@ -220,16 +221,18 @@ public class TypeChecker <: Visitor<Type> {
         }
         referenceStatus.add(ref, Status.IN)
 
-        if (funcDeclWithRef.keyword.kind == TokenKind.INIT) {
-            
-            funcDeclWithRef.block.traverse(this)
-            
-        } else {
+        let params = funcDeclWithRef.params
+        // Set effective type to parameters (= to declaration type)
+        ref.paramRef.getOrThrow().iterator().enumerate()
+            .forEach({ v => v[1].effectiveType = params[v[0]].paramType.traverse(this) })
 
+        if (funcDeclWithRef.keyword.kind == TokenKind.INIT) {
+            ref.effectiveType = typeManager.getType(currentClassRef.getOrThrow()
+                .classReference.identifier.value)
+            funcDeclWithRef.block.traverse(this)
+        } else {
             let infType: Type = funcDeclWithRef.block.traverse(this)
-            var targetType: Type = if (let Some(effectiveType) <- ref.effectiveType) {
-                effectiveType
-            } else if (let Some(declType) <- funcDeclWithRef.declType) {
+            var targetType: Type = if (let Some(declType) <- funcDeclWithRef.declType) {
                 declType.traverse(this)
             } else {
                 infType
@@ -239,7 +242,6 @@ public class TypeChecker <: Visitor<Type> {
                 throw Exception("Type of function not correct, expected ${targetType.name}" +
                     ", found: ${infType.name}")
             }
-
             ref.effectiveType = targetType
         }
         
@@ -254,6 +256,11 @@ public class TypeChecker <: Visitor<Type> {
 
     public override func visit(mainDeclWithRef: MainDeclWithRef): Type {
         let ref: MainReference = mainDeclWithRef.mainRef
+
+        // Set effective type to parameter (= to declaration type)
+        if (let Some(paramRef) <- ref.paramRef) {
+            paramRef.effectiveType = mainDeclWithRef.param.getOrThrow().traverse(this)
+        }
 
         let infType: Type = mainDeclWithRef.block.traverse(this)
         var targetType: Type = if (let Some(effectiveType) <- ref.effectiveType) {
@@ -275,6 +282,14 @@ public class TypeChecker <: Visitor<Type> {
 
     public override func visit(varReference: VariableReference): Type {
         // TODO: make it callable if lambda in the future.
+        if (let Some(effectiveType) <- varReference.effectiveType) {
+            return effectiveType
+        }
+        let decl: Decl = refToDecl.get(varReference).getOrThrow()
+        if (let Some(declType) <- decl.declType) {
+            return declType.traverse(this)
+        }
+        decl.traverse(this)
         varReference.effectiveType.getOrThrow()
     }
 
@@ -283,15 +298,10 @@ public class TypeChecker <: Visitor<Type> {
         classReference.effectiveType.getOrThrow()
     }
 
-    public override func visit(funcReference: FuncReference): Type{
-        let res: Type
-        if (let Some(effectiveType) <- funcReference.effectiveType) {
-            res = effectiveType
-        } else {
-            res = funcToDecl.get(funcReference).getOrThrow().traverse(this)
-        }
+    public override func visit(funcReference: FuncReference): Type {
+        // This is not the real func reference, I cannot trust it.
         callableField = funcReference.identifier.value
-        res
+        Type.DUMMY
     }
 
     public override func visit(refExprWithRef: RefExprWithRef): Type {
@@ -315,6 +325,14 @@ public class TypeChecker <: Visitor<Type> {
         // Check first for a function call.
         try {
             ref = typeManager.applyFunction(identifier, params, expectedReturnType.peek())
+            if (ref.effectiveType.isNone()) {
+                let funcDecl: Decl = refToDecl.get(ref).getOrThrow()
+                if (let Some(declType) <- funcDecl.declType) {
+                    ref.effectiveType = declType.traverse(this)
+                } else {
+                    funcDecl.traverse(this)
+                }
+            }
         } catch(e: Exception) {
             if (let Some(classRef) <- classEnvironment.getGlobal(tp.name)) {
                 ref = classRef.typeManager.getOrThrow()
@@ -326,18 +344,16 @@ public class TypeChecker <: Visitor<Type> {
 
         callableField = None
 
-        // Set the reference to the real one.
+        // Set the reference to the correct one.
         callExprWithRef.ref = ref
         ref.effectiveType.getOrThrow()
     }
 
     public override func visit(classDeclWithRef: ClassDeclWithRef): Type {
-        let classRefForTC = classEnvironment.getGlobal(classDeclWithRef.ref.identifier.value)
+        currentClassRef = classEnvironment.getGlobal(classDeclWithRef.ref.identifier.value)
             .getOrThrow({ => Exception("Unexpected, class should've been declared")})
 
-        checkMemberShadowing(classRefForTC)
-        currentClassRef = classRefForTC
-
+        classDeclWithRef.ref.effectiveType = typeManager.getType(classDeclWithRef.identifier.value)
         classDeclWithRef.body.traverse(this)
 
         currentClassRef = None
@@ -345,11 +361,25 @@ public class TypeChecker <: Visitor<Type> {
     }
 
     public override func visit(body: Body): Type {
+        beginScope()
         scopeType = ScopeType.BODY
+
+        let variableEnvironment: Environment<String, VariableReference> = Environment()
+        let bodyDeclarator: Declarator =
+            DeclaratorFactory.bodyAsgDeclarator(variableEnvironment, typeManager, refToDecl)
+        body.decls.iterator().forEach({ decl => decl.traverse(bodyDeclarator) })
+
+        currentClassRef.getOrThrow().typeManager = TypeManager(typeManager)
+        currentClassRef.getOrThrow().variableEnvironment = variableEnvironment
 
         body.decls.iterator().forEach({ decl => decl.traverse(this) })
 
         scopeType = ScopeType.NIL
+        endScope()
+
+        currentClassRef.getOrThrow().typeManager.getOrThrow().deleteHistory()
+        currentClassRef.getOrThrow().variableEnvironment.getOrThrow().enclosing = None
+
         Type.DUMMY
     }
 
@@ -399,8 +429,8 @@ public class TypeChecker <: Visitor<Type> {
             return
         }
         let variableEnvironment: Environment<String, VariableReference> =
-            classReferenceTC.variableEnvironment.getOrThrow()
-        let classTypeManager: TypeManager = classReferenceTC.typeManager.getOrThrow()
+            classReferenceTC.variableEnvironment.getOrDefault({ => Environment()})
+        let classTypeManager: TypeManager = classReferenceTC.typeManager.getOrDefault({ => TypeManager() })
 
         let parent = classReferenceTC.classReference.parent.getOrThrow()
         let parentTC: ClassReferenceForTC =

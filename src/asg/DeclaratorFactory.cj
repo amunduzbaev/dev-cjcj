@@ -84,34 +84,39 @@ public abstract class DeclaratorFactory {
     /*
     * Declarator for the class, struct... bodies in the ASG, declares all functions and variables.
     * Functions signatures are checked based on the name and the type of the parameters.
+    * Every reference will be linked with its declaration.
     */
     public static func bodyAsgDeclarator(
         variableEnvironment: Environment<String, VariableReference>,
-        typeManager: TypeManager
+        typeManager: TypeManager,
+        refToDecl: Map<Reference, Decl>
     ): Declarator {
         let canDeclare: (String) -> Bool = canDeclare([
             { k => variableEnvironment.getLocal(k).isNone() }
         ])
         ReferenceDeclarator(
-            visitFunc: functionAsgDeclaration(typeManager, canDeclare),
-            visitVar: variableAsgDeclaration(variableEnvironment, canDeclare)
+            visitFunc: functionAsgDeclaration(typeManager, canDeclare, refToDecl),
+            visitVar: variableAsgDeclaration(variableEnvironment, canDeclare, refToDecl)
         )
     }
 
     /*
-    * Declarator for the global scope in the ASG, declares all function and classes.
+    * Declarator for the global scope in the ASG, declares all function, classes and variables.
     * Functions signatures are checked based on the name and the type of the parameters.
+    * Every reference will be linked with its declaration.
     */
     public static func globalAsgDeclarator(
         classEnvironment: Environment<String, ClassReference>,
-        typeManager: TypeManager
+        typeManager: TypeManager,
+        refToDecl: Map<Reference, Decl>
     ): Declarator {
         let canDeclare: (String) -> Bool = canDeclare([
             { k => classEnvironment.getLocal(k).isNone() }
         ])
         ReferenceDeclarator(
-            visitFunc: functionAsgDeclaration(typeManager, canDeclare),
-            visitClass: classAsgDeclaration(classEnvironment, canDeclare)
+            visitFunc: functionAsgDeclaration(typeManager, canDeclare, refToDecl),
+            visitClass: classAsgDeclaration(classEnvironment, canDeclare),
+            visitVar: variableAsgDeclaration(Environment(), canDeclare, refToDecl)
         )
     }
 
@@ -132,10 +137,12 @@ public abstract class DeclaratorFactory {
 
     private static func variableAsgDeclaration(
         environment: Environment<String, VariableReference>,
-        canDeclare: (String) -> Bool
+        canDeclare: (String) -> Bool,
+        refToDecl: Map<Reference, Decl>
     ): (VarDeclWithRef) -> ?Reference {
         { varDeclWithRef: VarDeclWithRef =>
             let ref: VariableReference = varDeclWithRef.ref
+            refToDecl.add(ref, varDeclWithRef)
             if (canDeclare(varDeclWithRef.identifier.value)) {
                 environment.declare(varDeclWithRef.identifier.value, ref)
                 return ref
@@ -163,10 +170,12 @@ public abstract class DeclaratorFactory {
 
     private static func functionAsgDeclaration(
         typeManager: TypeManager,
-        canDeclare: (String) -> Bool
+        canDeclare: (String) -> Bool,
+        refToDecl: Map<Reference, Decl>
     ): (FuncDeclWithRef) -> ?Reference {
         { funcDeclWithRef: FuncDeclWithRef =>
             let ref: FuncReference = funcDeclWithRef.funcRef
+            refToDecl.add(ref, funcDeclWithRef)
             let funcName: String = ref.identifier.value
             let paramRef: ArrayList<VariableReference> = ref.paramRef.getOrThrow()
             Utils.funcParamToParamRef(
