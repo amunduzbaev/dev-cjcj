@@ -302,8 +302,6 @@ public open class InitChecker <: Visitor<Unit> {
         initializeEnvironment.getGlobal(reference).isSome()
     }
 
-    // Given two environments left and right
-    // Stores the intersection of keys of environments in left
     protected func intersect<K, V> (left: Environment<K, V>, right: Environment<K, V>) where K <: 
             Hashable & Equatable<K> & ToString {
         let leftElementsArr = left.elements.toArray()
@@ -390,6 +388,35 @@ private class ClassInitChecker <: InitChecker {
         endScope()
     }
 
+    public func visit(refExpr: RefExprWithRef) {
+        if (let Some(varReference) <- (refExpr.ref as VariableReference)) {
+            if (!isInitialized(varReference)) {
+                throw Exception("Variable ${varReference.identifier} is referenced" + 
+                " before initialization")
+                // The position of this reference is stored at the position of the token 
+                // refExpr.identifier
+            }
+        } else if (let Some(funcReference) <- (refExpr.ref as FuncReference) && 
+            decls.contains(funcReference) && !allClassMembersInitialized) {
+            
+            throw Exception("Member function ${funcReference.identifier} is referenced before all"+
+                " member variables are initialized")
+        }
+    }
+
+    private func initBlock(block: Block) {
+        beginScope(blockType)
+
+        // Reset the blockType to default BLOCK
+        blockType = ScopeType.BLOCK
+
+        block.nodes.iterator().forEach({ node => 
+            node.traverse(this)
+        })
+
+        endScope()
+    }
+
     private func initVisit(initDecl: FuncDeclWithRef) {
         let initializedMemberVariablesBefore = initializedMemberVariables
 
@@ -402,7 +429,7 @@ private class ClassInitChecker <: InitChecker {
         }
 
         blockType = ScopeType.FUNCBLOCK
-        initDecl.block.traverse(this)
+        initBlock(initDecl.block)
 
         if (!allClassMembersInitialized) {
             throw Exception("Constructor function does not" + 
@@ -431,23 +458,194 @@ private class ClassInitChecker <: InitChecker {
         }
     }
 
-    public func visit(refExpr: RefExprWithRef) {
-        if (let Some(varReference) <- (refExpr.ref as VariableReference)) {
-            if (!isInitialized(varReference)) {
-                throw Exception("Variable ${varReference.identifier} is referenced" + 
-                " before initialization")
-                // The position of this reference is stored at the position of the token 
-                // refExpr.identifier
-            }
-        } else if (let Some(funcReference) <- (refExpr.ref as FuncReference) && 
-            decls.contains(funcReference) && !allClassMembersInitialized) {
-            
-            throw Exception("Member function ${funcReference.identifier} is referenced before all"+
-                " member variables are initialized")
-        }
-    }
 
     private prop allClassMembersInitialized: Bool {
         get() { totalMemberVariables == initializedMemberVariables }
+    }
+}
+
+/*
+TODO : Add static variables
+*/
+
+private class StaticGlobalVariableInitializationChecker <: Visitor<Unit> {
+    private let unvisitedFunctions = Environment<Reference, FuncDeclWithRef>()
+    private let initializedVariables = HashSet<Reference>()
+
+    private init(program: Program) {
+        program.decls.iterator().forEach({ decl => declare(decl) })
+
+        program.traverse(this)
+    }
+
+    public func visit(program: Program) {
+        program.decls.iterator().forEach({ decl => 
+            decl.traverse(this)
+            
+            match (decl as VarDeclWithRef) {
+                case Some(varDecl) => declareVariable(varDecl)
+                case _ => ()
+            }
+        })
+    }
+ 
+    public func visit(binaryExpr: BinaryExpr) {
+        binaryExpr.left.traverse(this)
+        binaryExpr.right.traverse(this)
+    }
+
+    public func visit(unaryExpr: UnaryExpr) {
+        unaryExpr.right.traverse(this)
+    }
+
+    public func visit(parenExpr: ParenExpr){
+        parenExpr.parenthesizedExpr.traverse(this)
+    }
+
+    public func visit(assignExpr: AssignExpr) {
+        assignExpr.right.traverse(this)
+    }
+
+    public func visit(refExpr: RefExprWithRef) {
+        if (let Some(ref) <- (refExpr.ref as VariableReference) && !isInitialized(ref)) {
+            throw Exception("Use of static/global variable ${ref.identifier.value} before " + 
+                "initialization")
+        } else if (let Some(ref) <- (refExpr.ref as FuncReference)) {
+            tryVisit(ref)
+        }
+    }
+
+    public func visit(block: Block) {
+        block.nodes.iterator().forEach({ node => 
+            node.traverse(this)
+        })
+    }
+
+    public func visit(ifExpr: IfExpr) {
+        ifExpr.elseBranch.traverse(this)
+        ifExpr.condition.traverse(this)
+        ifExpr.ifBlock.traverse(this)
+    }
+
+    public func visit(whileExpr: WhileExpr) {
+        whileExpr.block.traverse(this)
+        whileExpr.condition.traverse(this)
+    }
+
+    public func visit(callExpr: CallExprWithRef) {
+        callExpr.arguments.iterator().forEach({ arg => 
+            arg.traverse(this)
+        })
+
+        // match (callExpr.callee as RefExprWithRef) {
+        //     case Some(refExpr) => refExpr.ref = callExpr.ref.getOrThrow()
+        //     case _ => ()
+        // }
+        callExpr.callee.traverse(this)
+    }
+
+    public func visit(returnExpr: ReturnExpr) {
+        match (returnExpr.expr) {
+            case Some(expr) => expr.traverse(this)
+            case _ => ()
+        }
+    }
+
+    public func visit(varDecl: VarDeclWithRef) {
+        if (let Some(initzer) <- varDecl.initializer) {
+            initzer.traverse(this)
+        }
+
+        if (let Some(declType) <- varDecl.declType) {
+            declType.traverse(this)
+        }
+    }
+
+    public func visit(funcDecl: FuncDeclWithRef) {
+        if (let Some(declType) <- funcDecl.declType) {
+            declType.traverse(this)
+        }
+
+        funcDecl.block.traverse(this)
+    }
+
+    public func visit(mainDecl: MainDeclWithRef) {
+        if (let Some(declType) <- mainDecl.declType) {
+            declType.traverse(this)
+        }
+
+        mainDecl.block.traverse(this)
+    }
+
+    public func visit(classDecl: ClassDeclWithRef): Unit {
+        classDecl.superTypes.iterator().forEach({ superType => superType.traverse(this) })
+        classDecl.body.traverse(this)
+    }
+
+    public func visit(argument: Argument) {
+        argument.expr.traverse(this)
+    }
+
+    public func visit(memberAccess: MemberAccess) {
+        memberAccess.baseExpr.traverse(this)
+    }
+
+    public func visit(_: LitConstExpr) {
+    }
+
+    public func visit(_: JumpExpr) {
+    }
+
+    public func visit(_: TypeNode) {
+    }
+
+    public func visit(_: PrimitiveType) {
+    }
+
+    public func visit(_: RefType) {
+    }
+
+    public func visit(_: PrimitiveTypeExpr) {
+    }
+
+    public func visit(_: VariableReference) {
+        throw Exception("References should not be traversed")
+    }
+
+    public func visit(_: FuncReference) {
+        throw Exception("References should not be traversed")
+    }
+
+    public func visit(_: ClassReference) {
+        throw Exception("References should not be traversed")
+    }
+
+    private func declareVariable(varDecl: VarDeclWithRef): Unit {
+        initializedVariables.add(varDecl.ref)
+    }
+
+    private func declareFunction(funcDecl: FuncDeclWithRef) {
+        if (unvisitedFunctions.getLocal(funcDecl.funcRef).isNone()) {
+            unvisitedFunctions.declare(funcDecl.funcRef, funcDecl)
+        }
+    }
+
+    private func declare(decl: Decl): Unit {
+        if (let Some(funcDecl) <- (decl as FuncDeclWithRef)) {
+            declareFunction(funcDecl)
+        } else if (let Some(classDecl) <- (decl as ClassDeclWithRef)) {
+            classDecl.body.decls.iterator().forEach{ decl => declare(decl) }
+        }
+    }
+
+    private func isInitialized(reference: Reference) {
+        initializedVariables.contains(reference)
+    }
+
+    private func tryVisit(funcRef: FuncReference) {
+        match (unvisitedFunctions.getLocal(funcRef)) {
+            case Some(funcDecl) => funcDecl.traverse(this)
+            case _ => ()
+        }
     }
 }
