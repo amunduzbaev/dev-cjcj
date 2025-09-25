@@ -6,10 +6,9 @@ import cjcj.asg.ScopeType
 import cjcj.asg.TypeManager
 import cjcj.asg.Declarator
 import cjcj.asg.DeclaratorFactory
-import cjcj.parser.NodeIdManager
+import cjcj.asg.Utils
 import cjcj.scanner.Token
 
-import std.ast.Position
 import std.collection.*
 
 /*
@@ -36,7 +35,6 @@ public class TypeChecker <: Visitor<Type> {
 
     // Contains the name of the last callable field if there is some.
     private var callableField: ?String = None
-
 
     public init(program: Program) {
         // Declare every type.
@@ -75,13 +73,13 @@ public class TypeChecker <: Visitor<Type> {
     public override func visit(binaryExpr: BinaryExpr): Type {
         let left: Type = binaryExpr.left.traverse(this)
         let right: Type = binaryExpr.right.traverse(this)
-        typeManager.applyFunction(binaryExpr.oper.value, [left, right], expectedReturnType.peek())
-            .effectiveType.getOrThrow()
+        typeManager.applyFunction(binaryExpr.oper.value, [[left], [right]],
+            expectedReturnType.peek())[0].effectiveType.getOrThrow()
     }
 
     public override func visit(unaryExpr: UnaryExpr): Type {
         let right: Type = unaryExpr.right.traverse(this)
-        typeManager.applyFunction(unaryExpr.oper.value, [right], expectedReturnType.peek())
+        typeManager.applyFunction(unaryExpr.oper.value, [[right]], expectedReturnType.peek())[0]
             .effectiveType.getOrThrow()
     }
 
@@ -318,13 +316,18 @@ public class TypeChecker <: Visitor<Type> {
         let tp: Type = callExprWithRef.callee.traverse(this)
         let identifier: String = callableField.getOrThrow({ =>
             Exception("Left of call expression not callable") })
-        let params = callExprWithRef.arguments.iterator().fold<ArrayList<Type>>(ArrayList(),
-                    { res, v => res.add(v.traverse(this)); res }).toArray()
+        let params: Array<Array<Type>> = Utils.fold(callExprWithRef.arguments.iterator()
+            .map({ v => [v.traverse(this)] }), ArrayList()).toArray()
 
         var ref: FuncReference
         // Check first for a function call.
         try {
-            ref = typeManager.applyFunction(identifier, params, expectedReturnType.peek())
+            let possFunc: ArrayList<FuncReference> =
+                typeManager.applyFunction(identifier, params, expectedReturnType.peek())
+            if (possFunc.isEmpty()) {
+                throw Exception("Impossible to find a function to call")
+            }
+            ref = possFunc[0]
             if (ref.effectiveType.isNone()) {
                 let funcDecl: Decl = refToDecl.get(ref).getOrThrow()
                 if (let Some(declType) <- funcDecl.declType) {
@@ -336,7 +339,7 @@ public class TypeChecker <: Visitor<Type> {
         } catch(e: Exception) {
             if (let Some(classRef) <- classEnvironment.getGlobal(tp.name)) {
                 ref = classRef.typeManager.getOrThrow()
-                    .applyFunction(identifier, params, expectedReturnType.peek())
+                    .applyFunction(identifier, params, expectedReturnType.peek())[0]
             } else {
                 throw e
             }
@@ -430,13 +433,15 @@ public class TypeChecker <: Visitor<Type> {
         }
         let variableEnvironment: Environment<String, VariableReference> =
             classReferenceTC.variableEnvironment.getOrDefault({ => Environment()})
-        let classTypeManager: TypeManager = classReferenceTC.typeManager.getOrDefault({ => TypeManager() })
+        let classTypeManager: TypeManager = classReferenceTC.typeManager
+            .getOrDefault({ => TypeManager() })
 
         let parent = classReferenceTC.classReference.parent.getOrThrow()
         let parentTC: ClassReferenceForTC =
             classEnvironment.getGlobal(parent.identifier.value).getOrThrow()
         // If it is a builtin type without attributes and function its just empty.
-        let parentVariableEnvironment = parentTC.variableEnvironment.getOrDefault({ => Environment()})
+        let parentVariableEnvironment = parentTC.variableEnvironment
+            .getOrDefault({ => Environment()})
         let parentTypeManager = parentTC.typeManager.getOrDefault({ => TypeManager() })
 
         for (varDecl in variableEnvironment.elements.values()) {

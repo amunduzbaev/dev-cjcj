@@ -5,7 +5,7 @@ import cjcj.visitor.*
 import std.collection.ArrayList
 import std.collection.List
 
-abstract class Utils {
+public abstract class Utils {
     /*
     * Assigns the effective types to the parameter references based on the func param declarations.
     * @param funcParams the list to take the types from
