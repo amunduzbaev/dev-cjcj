@@ -5,13 +5,9 @@ import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import cjcj.parser.NodeIdManager
 
-import std.env.getStdOut
-
 import std.ast.Position
 import std.collection.ArrayList
 import std.collection.ArrayStack
-import std.collection.Map
-import std.collection.HashMap
 import std.deriving.Derive
 
 /*
@@ -140,8 +136,8 @@ public class AsgMaker <: Visitor<Node> {
 
         let nodes: ArrayList<Node> = ArrayList()
         while (let Some((last, declType)) <- waitingDeclarations.remove()) {
-            nodes.add(VarDeclWithRef(NodeIdManager.nextId(), last.keyword, last.identifier, last,
-                declType))
+            // nodes.add(VarDeclWithRef(NodeIdManager.nextId(), last.keyword, last.identifier, last,
+            //     declType))
             declareVar(last.identifier, last)
         }
         block.nodes.iterator().forEach({ n => nodes.add(n.traverse(this)) })

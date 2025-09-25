@@ -3,10 +3,8 @@ package cjcj.parser
 import cjcj.visitor.*
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
-import cjcj.scanner.TokenKindHelper
 
 import std.collection.ArrayList
-import std.convert.Parsable
 
 public class Parser {
     private let declParser: DeclParser

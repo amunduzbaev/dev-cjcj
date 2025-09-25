@@ -2,17 +2,10 @@ package cjcj.asg
 
 import cjcj.visitor.*
 import cjcj.scanner.Token
-import cjcj.scanner.TokenKind
 import cjcj.parser.NodeIdManager
 
-import std.env.getStdOut
-
-import std.ast.Position
 import std.collection.ArrayList
-import std.collection.ArrayStack
 import std.collection.Map
-import std.collection.HashMap
-import std.deriving.Derive
 
 /*
 * Declarator for the ASG, allows to handle all declarations with references.

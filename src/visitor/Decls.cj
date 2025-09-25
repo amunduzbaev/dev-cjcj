@@ -5,7 +5,6 @@ import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 
-import std.ast.Position
 import std.collection.ArrayList
 
 public abstract class Decl <: Node {

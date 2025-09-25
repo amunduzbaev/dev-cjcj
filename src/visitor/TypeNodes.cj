@@ -3,8 +3,6 @@ package cjcj.visitor
 import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.scanner.*
 
-import std.ast.Position
-
 /*
     TODO: Make this abstract and try to remove the default constructors of the nodes that maybe we
     can avoid.

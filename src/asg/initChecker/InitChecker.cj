@@ -3,17 +3,10 @@ package cjcj.asg.initChecker
 import cjcj.visitor.*
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
-import cjcj.parser.NodeIdManager
-import cjcj.parser.ParseError
-import cjcj.prettyPrinter.PrettyPrinter
-import std.env.getStdOut
 import std.collection.Set
 import std.collection.HashSet
 
 import std.collection.ArrayList
-import std.collection.ArrayStack
-import std.ast.Position
-import std.deriving.Derive
 
 /*
 

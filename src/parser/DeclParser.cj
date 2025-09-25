@@ -6,7 +6,6 @@ import cjcj.scanner.TokenKind
 import cjcj.scanner.TokenKindHelper
 
 import std.collection.ArrayList
-import std.convert.Parsable
 import std.ast.Position
 
 private type TK = TokenKind

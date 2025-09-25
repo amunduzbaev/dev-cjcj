@@ -93,7 +93,7 @@ public class Type <: Equatable<Type> & Hashable {
     * Returns the list of ancestors including "this" type up to a given target type. If the target
     * is not found returns None. The list is ordered by distance (in number of edges) from "this".
     */
-    public func ancestorsUntil(target: Type): ?Array<Type> {
+    private func ancestorsUntil(target: Type): ?Array<Type> {
         let q: Queue<Type> = ArrayQueue()
         let visited: Set<Type> = HashSet()
         let res: ArrayList<Type> = ArrayList()

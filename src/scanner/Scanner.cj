@@ -1,7 +1,6 @@
 package cjcj.scanner
 
 import std.collection.*
-import std.convert.*
 import std.ast.Position
 
 import std.env.*

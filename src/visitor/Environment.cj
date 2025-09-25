@@ -1,15 +1,7 @@
 package cjcj.visitor
 
-// import cjcj.parser.NodeIdManager
-import cjcj.scanner.Token
-import cjcj.scanner.TokenKind
-// import cjcj.parser.ParseError
-
-// import cjcj.visitor.*
-
 import std.collection.Map
 import std.collection.HashMap
-import std.collection.ArrayList
 
 /*
 * Defines an Environment in which you can associate keys to values. Each environment knows who was

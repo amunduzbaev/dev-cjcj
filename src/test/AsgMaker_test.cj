@@ -4,7 +4,6 @@ import cjcj.asg.AsgMaker
 import cjcj.visitor.*
 import cjcj.parser
 import cjcj.scanner.*
-import cjcj.prettyPrinter.PrettyPrinter
 
 import std.env.*
 import std.collection.ArrayList
@@ -142,8 +141,7 @@ class AsgMakerTests {
         let decl: FuncDeclWithRef = (m.block.nodes[0] as FuncDeclWithRef).getOrThrow()
         @Assert(decl.declType.isSome())
         @Assert(decl.params.size == 3)
-        @Assert(decl.block.nodes.size == 6)
-        // block has 6 nodes, because it adds declaration of variables a, b, c as 3 new nodes
+        @Assert(decl.block.nodes.size == 3)
     }
 
     @TestCase

@@ -1,11 +1,5 @@
 package cjcj.parser
 
-import cjcj.scanner.Token
-import cjcj.scanner.TokenKind
-import std.collection.*
-import std.ast.Position
-import cjcj.visitor.*
-
 abstract public class BaseErrorMessage <: ToString{}
 
 public class Error <: BaseErrorMessage{
@@ -29,7 +23,8 @@ ${spaces} | ${" " * suffixPrefix[0].size}^
 public class ErrorUnclosedDelimiter <: BaseErrorMessage {
     ErrorUnclosedDelimiter(public let line: Int32, public let startIndex: Int64, 
         public let start: String, public let suffixPrefixStart: (String, String), 
-        public let currentIndex: Int64, public let current: String, public let suffixPrefixCurrent: (String, String)) {}
+        public let currentIndex: Int64, public let current: String,
+        public let suffixPrefixCurrent: (String, String)) {}
     
     public func toString(): String {
         let lineStr: String = line.toString()

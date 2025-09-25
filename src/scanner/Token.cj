@@ -1,7 +1,6 @@
 package cjcj.scanner
 
 import std.ast.Position
-import std.deriving.*
 
 public class Token <: ToString {
     public let kind: TokenKind

@@ -1,10 +1,6 @@
 package cjcj.asg.initChecker
 
 import cjcj.visitor.*
-import std.env.getStdOut
-import std.collection.HashSet
-import std.collection.HashMap
-import std.collection.ArrayList
 import std.deriving.Derive
 
 extend<K, V> Environment<K, V> where K <: Hashable & Equatable<K> & ToString {

@@ -1,8 +1,6 @@
 package cjcj.visitor
 
 import cjcj.prettyPrinter.PrettyPrinter
-import cjcj.scanner.TokenKind
-import cjcj.scanner.Token
 
 import std.collection.ArrayList
 import std.deriving.Derive

@@ -2,7 +2,6 @@ package cjcj.visitor
 
 import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.scanner.Token
-import cjcj.scanner.TokenKind
 import std.collection.*
 
 /*
