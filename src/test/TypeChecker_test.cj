@@ -538,12 +538,15 @@ class TypeCheckTests {
 
     @TestCase
     func memberShadowing_test() {
-        let test: String = """
+        let testFunc: String = """
             class c {
                 let cvar = 5
+                func f() {
+                }
             }
             class a <: b {
-                let cvar = 19
+                func f() {
+                }
                 init() {
                 }
             }
@@ -556,7 +559,26 @@ class TypeCheckTests {
                 let v: Int64 = a.cvar
                 let f: Unit = a.bfunc()
             }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(test)))
+        @AssertThrows[Exception](TypeChecker(getAsg(testFunc)))
+        let testVar: String = """
+            class c {
+                let cvar = 5
+            }
+            class a <: b {
+                let cvar = 2
+                init() {
+                }
+            }
+            class b <: c {
+                func bfunc() {
+                }
+            }
+            main(){
+                let a = a()
+                let v: Int64 = a.cvar
+                let f: Unit = a.bfunc()
+            }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(testVar)))
     }
 
     @TestCase
