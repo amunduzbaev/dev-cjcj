@@ -30,7 +30,7 @@ public class ClassReferenceForTC {
     public func getMember(field: String): ?(Type, Bool) {
 
         // Try to find a variable.
-        if (let Some(varRef) <- variableEnvironment.getOrThrow().getLocal(field)) {
+        if (let Some(varRef) <- variableEnvironment.getOrThrow().getGlobal(field)) {
             return (varRef.effectiveType.getOrThrow(), false)
         }
 
