@@ -291,3 +291,20 @@ public class CallExprWithRef <: CallExpr {
         set(v) { ref_ = v }
     }
 }
+
+public class MemberAccessWithRef <: MemberAccess {
+    private var ref_: ?ClassReference = None
+
+    public init(id: NodeId, baseExpr: Node, field: Token) {
+        super(id, baseExpr, field)
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public mut prop ref: ?ClassReference {
+        get() { ref_ }
+        set(v) { ref_ = v }
+    }
+}

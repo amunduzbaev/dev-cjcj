@@ -443,7 +443,7 @@ public class JumpExpr <: Expr {
     }
 }
 
-public class MemberAccess <: Expr {
+public open class MemberAccess <: Expr {
     private var baseExpr_: Node
     private var field_: Token
 
@@ -462,7 +462,7 @@ public class MemberAccess <: Expr {
         printer.append(".${field.value}")
     }
 
-    public override func traverse<R>(v: Visitor<R>): R {
+    public open override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 

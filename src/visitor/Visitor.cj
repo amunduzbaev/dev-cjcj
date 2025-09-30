@@ -149,4 +149,8 @@ public abstract class Visitor<R> {
     protected open func visit(_: CallExprWithRef): R {
         throw Exception("Unimplemented method for Visitor : Call expression with reference")
     }
+
+    protected open func visit(_: MemberAccessWithRef): R {
+        throw Exception("Unimplemented method for Visitor : Member access with reference")
+    }
 }
