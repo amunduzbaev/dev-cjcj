@@ -82,13 +82,14 @@ public abstract class DeclaratorFactory {
     public static func bodyAsgDeclarator(
         variableEnvironment: Environment<String, VariableReference>,
         typeManager: TypeManager,
-        refToDecl: Map<Reference, Decl>
+        refToDecl: Map<Reference, Decl>,
+        declToTypeManager: Map<Decl, TypeManager>
     ): Declarator {
         let canDeclare: (String) -> Bool = canDeclare([
             { k => variableEnvironment.getLocal(k).isNone() }
         ])
         ReferenceDeclarator(
-            visitFunc: functionAsgDeclaration(typeManager, canDeclare, refToDecl),
+            visitFunc: functionAsgDeclaration(typeManager, canDeclare, refToDecl, declToTypeManager),
             visitVar: variableAsgDeclaration(variableEnvironment, canDeclare, refToDecl)
         )
     }
@@ -101,13 +102,14 @@ public abstract class DeclaratorFactory {
     public static func globalAsgDeclarator(
         classEnvironment: Environment<String, ClassReference>,
         typeManager: TypeManager,
-        refToDecl: Map<Reference, Decl>
+        refToDecl: Map<Reference, Decl>,
+        declToTypeManager: Map<Decl, TypeManager>
     ): Declarator {
         let canDeclare: (String) -> Bool = canDeclare([
             { k => classEnvironment.getLocal(k).isNone() }
         ])
         ReferenceDeclarator(
-            visitFunc: functionAsgDeclaration(typeManager, canDeclare, refToDecl),
+            visitFunc: functionAsgDeclaration(typeManager, canDeclare, refToDecl, declToTypeManager),
             visitClass: classAsgDeclaration(classEnvironment, canDeclare),
             visitVar: variableAsgDeclaration(Environment(), canDeclare, refToDecl)
         )
@@ -135,8 +137,8 @@ public abstract class DeclaratorFactory {
     ): (VarDeclWithRef) -> ?Reference {
         { varDeclWithRef: VarDeclWithRef =>
             let ref: VariableReference = varDeclWithRef.ref
-            refToDecl.add(ref, varDeclWithRef)
             if (canDeclare(varDeclWithRef.identifier.value)) {
+                refToDecl.add(ref, varDeclWithRef)
                 environment.declare(varDeclWithRef.identifier.value, ref)
                 return ref
             }
@@ -164,11 +166,11 @@ public abstract class DeclaratorFactory {
     private static func functionAsgDeclaration(
         typeManager: TypeManager,
         canDeclare: (String) -> Bool,
-        refToDecl: Map<Reference, Decl>
+        refToDecl: Map<Reference, Decl>,
+        declToTypeManager: Map<Decl, TypeManager>
     ): (FuncDeclWithRef) -> ?Reference {
         { funcDeclWithRef: FuncDeclWithRef =>
             let ref: FuncReference = funcDeclWithRef.funcRef
-            refToDecl.add(ref, funcDeclWithRef)
             let funcName: String = ref.identifier.value
             let paramRef: ArrayList<VariableReference> = ref.paramRef.getOrThrow()
             Utils.funcParamToParamRef(
@@ -177,6 +179,8 @@ public abstract class DeclaratorFactory {
             let params: Array<Type> = Utils.refToType(paramRef)
             let funcHashParamName: String = TypeManager.funcHashConcat(funcName, params)
             if (canDeclare(funcHashParamName)) {
+                refToDecl.add(ref, funcDeclWithRef)
+                declToTypeManager.add(funcDeclWithRef, typeManager)
                 typeManager.addFunction(ref)
                 return ref
             }

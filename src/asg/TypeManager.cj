@@ -2,7 +2,6 @@ package cjcj.asg
 
 import cjcj.visitor.Type
 import cjcj.visitor.FuncReference
-import cjcj.visitor.Environment
 import cjcj.scanner.Token
 
 import std.collection.*
@@ -17,37 +16,38 @@ public class TypeManager {
             .fold(StringBuilder(), { acc, v => acc.append(v); acc }).toString()
     }
 
+    private var enclosing_: ?TypeManager = None
     private var nameToType_: Map<String, Type> = HashMap()
-    private var immediateFuncEnvironment_: Environment<String, FuncReference> = Environment()
-    private var totalFuncEnvironment_: Environment<String, ArrayStack<FuncReference>> =Environment()
+    private var immediateFuncDef_: Map<String, FuncReference> = HashMap()
+    private var totalFuncDef_: Map<String, ArrayStack<FuncReference>> = HashMap()
 
     public prop nameToType: Map<String, Type> {
         get() { nameToType_ }
     }
 
-    public prop immediateFuncEnvironment: Environment<String, FuncReference> {
-        get() { immediateFuncEnvironment_ }
+    public prop immediateFuncDef: Map<String, FuncReference> {
+        get() { immediateFuncDef_ }
     }
 
-    public prop totalFuncEnvironment: Environment<String, ArrayStack<FuncReference>> {
-        get() { totalFuncEnvironment_ }
+    public prop totalFuncDef: Map<String, ArrayStack<FuncReference>> {
+        get() { totalFuncDef_ }
+    }
+
+    public prop enclosing: ?TypeManager {
+        get() { enclosing_ }
     }
 
     public init() {
-
     }
 
     public init(typeManager: TypeManager) {
-        immediateFuncEnvironment_ = typeManager.immediateFuncEnvironment
-        totalFuncEnvironment_ = typeManager.totalFuncEnvironment
+        enclosing_ = typeManager
         nameToType_ = typeManager.nameToType_
     }
 
     // Sets the typeManager member as a parent of this members.
     public func setEnclosing(parent: TypeManager): Unit {
-        // TODO: Think about adding some checks.
-        immediateFuncEnvironment.enclosing = parent.immediateFuncEnvironment
-        totalFuncEnvironment.enclosing = parent.totalFuncEnvironment
+        enclosing_ = parent
     }
 
     /*
@@ -79,94 +79,67 @@ public class TypeManager {
     }
 
     public func funcExists(funcName: String): Bool {
-        totalFuncEnvironment.getGlobal(funcName).isSome()
+        var tmpTypeManager = this
+        while (let Some(enclosing) <- tmpTypeManager.enclosing) {
+            if (tmpTypeManager.totalFuncDef.get(funcName).isSome()) {
+                return true
+            }
+            tmpTypeManager = enclosing
+        }
+        tmpTypeManager.totalFuncDef.get(funcName).isSome()
     }
 
     /*
     * Extension for method applyFunction
-    * For a function call with name : funcName and arguments : params
-    * Find the function which is the closest to the types of arguments in the call and returns its 
-    * return type. 
-    * In other words, find the function where each parameter type is the subtype of the types of the
-    * parameters at the same index in other functions and return its return type. If there is no 
-    * such function, throw an error. 
+    * For a function call with name : funcName and arguments : args
+    * Find the functions which are the closest to the types of arguments in the call and returns its
+    * references. 
+    * In other words, find the functions where each parameter type is the subtype of the types of
+    * the parameters at the same index in other functions and return its reference.
     */
     private func findClosestSuperType(
-        funcName: String, args: Array<Array<Type>>, expectedReturnType: ?Type,
-        environment: Environment<String, ArrayStack<FuncReference>>
+        funcName: String, args: Array<Set<Type>>, expectedReturnType: ?Type
     ): ArrayList<FuncReference> {
-        if (let Some(paramsList) <- environment.getLocal(funcName)) {
-            // Go through arguments.
-            let candidates: ArrayStack<FuncReference> = args.iterator().enumerate()
-                .fold(paramsList, { 
-                    consider: ArrayStack<FuncReference>, entry: (Int64, Array<Type>) =>
-                        let (id, possArg) = entry 
+        let candidates: ArrayStack<FuncReference> =
+            allFunctionsLocal(funcName, args, expectedReturnType)
 
-                        // Go through functions and their parameters at index id, take only the ones
-                        // that have the right number of parameters, a compatible return type and
-                        // compatibles types with the arguments that are passed.
-                        consider.iterator().fold<ArrayStack<FuncReference>>(ArrayStack(), 
-                        { acc: ArrayStack<FuncReference>, candidate: FuncReference =>
-                            if (let Some(paramRef) <- candidate.paramRef) {
-                                if (paramRef.size != args.size) {
-                                    return acc
-                                }
-                                let returnType: Type = candidate.effectiveType.getOrThrow()
-                                let paramType: Type = paramRef[id].effectiveType.getOrThrow()
-
-                                if (let Some(expectedReturnType) <- expectedReturnType &&
-                                    !expectedReturnType.isParent(returnType)
-                                ) {
-                                    return acc
-                                }
-
-                                let canMatch: Bool = possArg.iterator().any({ arg =>
-                                        paramType.isParent(arg)
-                                    })
-                                if (canMatch) {
-                                    acc.add(candidate)
-                                }
-                            }
-                            acc
-                        })
-                })
-
-            let returnTypeGrouping: Map<Type, ArrayList<FuncReference>> = HashMap()
-            candidates.iterator().forEach({ f =>
-                let returnType: Type = f.effectiveType.getOrThrow()
-                // Every type is in the group of itself and its ancestors. 
-                returnType.ancestors.iterator().forEach({ a =>
-                    if(let Some(prev) <- returnTypeGrouping.get(a)) {
-                        prev.add(f)
-                        return
-                    }
-                    returnTypeGrouping.add(a, ArrayList([f]))
-                })
+        let returnTypeGrouping: Map<Type, Set<FuncReference>> = HashMap()
+        candidates.iterator().forEach({ f: FuncReference =>
+            let returnType: Type = f.effectiveType.getOrThrow()
+            // Every type is in the group of itself and its ancestors. 
+            returnType.ancestors.iterator().forEach({ a =>
+                if(let Some(prev) <- returnTypeGrouping.get(a)) {
+                    prev.add(f)
+                    return
+                }
+                returnTypeGrouping.add(a, HashSet(ArrayList([f])))
             })
+        })
 
-            // Take the lowest function for each return type.
-            return Utils.fold<FuncReference, ArrayList<FuncReference>>(
-                returnTypeGrouping.values().iterator().map({ funcs => lowerFunction(funcs) })
-                    .filter({ f => f.isSome() }).map({ f => f.getOrThrow() }),
-                ArrayList()
-            )
-        }
-        ArrayList()
+        // Take the best function for each return type.
+        return Utils.fold<FuncReference, ArrayList<FuncReference>>(
+            returnTypeGrouping.values().iterator().map({ funcs => bestFunction(funcs) })
+                .filter({ f => f.isSome() }).map({ f => f.getOrThrow() }),
+            ArrayList()
+        )
     }
 
-    private func lowerFunction(funcs: ArrayList<FuncReference>): ?FuncReference {
+    /*
+    * Returns the best function of a list based on a ranking, the function chosen will be the one
+    * whose parameters are subtype of all the other. Will return only if the result is unique.
+    */
+    public func bestFunction(funcs: Set<FuncReference>): ?FuncReference {
         let closests: ArrayList<FuncReference> = Utils.fold(funcs.iterator()
             .filter({ candidate: FuncReference =>
                     let paramTypes: Array<Type> = Utils.refToType(candidate.paramRef.getOrThrow())
                     let canReach = paramTypes.iterator().enumerate().all({ entry => 
                         let (column, curType) = entry
                         let curAncestors = curType.ancestorSet
-                        funcs.iterator().map({ c => Utils.fold(c.paramRef.getOrThrow().iterator()
-                            .map({ v => v.effectiveType.getOrThrow() }), ArrayList()).toArray()
-                        }).all({
-                            otherCandidate: Array<Type> =>
-                                curAncestors.contains(otherCandidate[column])
-                        })
+                        funcs.iterator().map({ c => Utils.refToType(c.paramRef.getOrThrow()).toArray()
+                            }).all({
+                                otherCandidate: Array<Type> =>
+                                    curAncestors.contains(otherCandidate[column])
+                            })
                     })
                     canReach
             }), ArrayList())
@@ -177,67 +150,137 @@ public class TypeManager {
     }
 
     /*
-    * Returns the reference of the function called with the given parameters.
+    * Returns the reference of the function called with the given arguments.
     */
-    public func applyFunction(funcName: String, params: Array<Array<Type>>,
+    public func applyFunction(funcName: String, args: Array<Set<Type>>,
         expectedReturnType: ?Type): ArrayList<FuncReference>
     {
         // We can check for 100% match if we have only one option for each argument.
-        var immediateParams: ?Array<Type> = None
-        if (params.iterator().all({ poss => poss.size == 1 })) {
-            immediateParams = Utils.fold(params.iterator().map({ v => v[0] }),ArrayList()).toArray()
+        var immediateArgs: ?Array<Type> = None
+        if (args.iterator().all({ poss => poss.size == 1 })) {
+            immediateArgs = Utils.fold(args.iterator()
+                .map({ v => v.iterator().first().getOrThrow() }), ArrayList()).toArray()
         }
 
-        var tmpImmediateFuncEnvironment = immediateFuncEnvironment
-        var tmpTotalFuncEnvironment = totalFuncEnvironment
+        var tmpTypeManager: TypeManager = this
         var res: ArrayList<FuncReference> = ArrayList()
-        // TODO: If there are candidates with parameters but not with expected return take the first
-        // and print something like (expected "this" found "that" where that is the first)
-        while(let Some(enclosingImmediate) <- tmpImmediateFuncEnvironment.enclosing &&
-            let Some(enclosingTotal) <- tmpTotalFuncEnvironment.enclosing &&
+        // TODO: For error message: If there are candidates with parameters but not with expected
+        // return take the first and print something like (expected "this" found "that" where that
+        // is the first)
+        while(let Some(enclosing) <- tmpTypeManager.enclosing &&
             res.isEmpty()
         ) {
-            if (let Some(immediateParams) <- immediateParams) {
+            if (let Some(immediateArgs) <- immediateArgs) {
                 if (
-                    let Some(immediate) <- checkImmediate(funcName, immediateParams,
-                        tmpImmediateFuncEnvironment)
+                    let Some(immediate) <- tmpTypeManager.checkImmediate(funcName, immediateArgs)
                 ) {
                     res.add(immediate)
                     return res
                 }
-                tmpImmediateFuncEnvironment = enclosingImmediate
             }
-            res = findClosestSuperType(funcName, params, expectedReturnType,
-                tmpTotalFuncEnvironment)
-            tmpTotalFuncEnvironment = enclosingTotal
+            res = tmpTypeManager.findClosestSuperType(funcName, args, expectedReturnType)
+            tmpTypeManager = enclosing
         }
         if (res.isEmpty()) {
-            if (let Some(immediateParams) <- immediateParams) {
+            if (let Some(immediateArgs) <- immediateArgs) {
                 if (
-                    let Some(immediate) <- checkImmediate(funcName, immediateParams,
-                        tmpImmediateFuncEnvironment)
+                    let Some(immediate) <- tmpTypeManager.checkImmediate(funcName, immediateArgs)
                 ) {
                     res.add(immediate)
                     return res
                 }
             }
-            res = findClosestSuperType(funcName, params, expectedReturnType,
-                tmpTotalFuncEnvironment)
+            res = tmpTypeManager.findClosestSuperType(funcName, args, expectedReturnType)
         }
         res
     }
 
-    private func checkImmediate(funcName: String, params: Array<Type>,
-        environment: Environment<String, FuncReference>
+    /*
+    * Returns all the functions visible by the current environment that are compatible with the
+    * argument types and expected return type.
+    * If there are multiple functions with the exact same parameters the closest one will be chosen.
+    */
+    public func allFunctionsGlobal(funcName: String, args: Array<Set<Type>>): ArrayList<FuncReference> {
+        let map: Map<String, FuncReference> = HashMap()
+        var tmpTypeManager = this
+        while (let Some(enclosing) <- tmpTypeManager.enclosing) {
+            tmpTypeManager.allFunctionsLocal(funcName, args, None)
+                .iterator().forEach({ f =>
+                    map.addIfAbsent(
+                        funcHashConcat(
+                            f.identifier.value, Utils.refToType(f.paramRef.getOrThrow())
+                        ), f
+                    )
+                })
+            tmpTypeManager = enclosing
+        }
+        tmpTypeManager.allFunctionsLocal(funcName, args, None)
+            .iterator().forEach({ f =>
+                map.addIfAbsent(
+                    funcHashConcat(f.identifier.value, Utils.refToType(f.paramRef.getOrThrow())),
+                    f
+                )
+            })
+        Utils.fold(map.values().iterator(), ArrayList())
+    }
+
+    private func allFunctionsLocal(funcName: String, args: Array<Set<Type>>,
+        expectedReturnType: ?Type
+    ): ArrayStack<FuncReference> {
+        if (let Some(paramsList) <- totalFuncDef.get(funcName)) {
+            let validParamsList: ArrayStack<FuncReference> = paramsList.iterator()
+                .filter({ f => f.paramRef.isSome() })
+                .filter({ f => f.paramRef.getOrThrow().size == args.size })
+                .fold(ArrayStack(), { acc, v => acc.add(v); acc })
+            
+            // Weird things happen when you iterate through an empty list.
+            if (args.size == 0) {
+                return validParamsList
+            }
+            // Go through arguments.
+            return args.iterator().enumerate()
+                .fold(paramsList, { 
+                    consider: ArrayStack<FuncReference>, entry: (Int64, Set<Type>) =>
+                        let (id, possArg) = entry 
+
+                        // Go through functions and their parameters at index id, take only the ones
+                        // that have the right number of parameters, a compatible return type and
+                        // compatibles types with the arguments that are passed.
+                        consider.iterator().fold<ArrayStack<FuncReference>>(ArrayStack(), 
+                        { acc: ArrayStack<FuncReference>, candidate: FuncReference =>
+                            let paramRef = candidate.paramRef.getOrThrow()
+                            let paramType: Type = paramRef[id].effectiveType.getOrThrow()
+
+                            if (let Some(expectedReturnType) <- expectedReturnType) {
+                                let returnType: Type = candidate.effectiveType.getOrThrow()
+                                if (!expectedReturnType.isParent(returnType)) {
+                                    return acc
+                                }
+                            }
+
+                            let canMatch: Bool = possArg.iterator().any({ arg =>
+                                    paramType.isParent(arg)
+                                })
+                            if (canMatch) {
+                                acc.add(candidate)
+                            }
+                            acc
+                        })
+                })
+        }
+        ArrayStack()
+    }
+
+    private func checkImmediate(funcName: String, args: Array<Type>
     ): ?FuncReference {
-        environment.getLocal(funcHashConcat(funcName, params))
+        immediateFuncDef.get(funcHashConcat(funcName, args))
     }
 
     public func addFunction(reference: FuncReference): Unit {
         let funcName: String = reference.identifier.value
         let params: Array<Type> = Utils.refToType(reference.paramRef.getOrThrow())
 
-        if (let Some(fun) <- immediateFuncEnvironment.getLocal(funcHashConcat(funcName, params)))
+        if (let Some(fun) <- immediateFuncDef.get(funcHashConcat(funcName, params)))
         {
             let paramString: String = params.iterator().map({ t => t.name })
                 .reduce({ a, b => a + "," + b }).getOrDefault({ => "" })
@@ -245,15 +288,15 @@ public class TypeManager {
             throw Exception("Multiple declaration of func ${funcName} (${paramString})")
         }
 
-        immediateFuncEnvironment.declare(funcHashConcat(funcName, params), reference)
-        if (let Some(funList) <- totalFuncEnvironment.getLocal(funcName)) {
+        immediateFuncDef.add(funcHashConcat(funcName, params), reference)
+        if (let Some(funList) <- totalFuncDef.get(funcName)) {
             funList.add(reference)
             return
         }
 
         let stack: ArrayStack<FuncReference> = ArrayStack()
         stack.add(reference)
-        totalFuncEnvironment.declare(funcName, stack)
+        totalFuncDef.add(funcName, stack)
     }
 
     /*
@@ -262,6 +305,8 @@ public class TypeManager {
     */
     public func smallestCommonSupertype(a: Type, b: Type): Type {
         if (a == b) { return a }
+        if (a == Type.NOTHING) { return b }
+        if (b == Type.NOTHING) { return a }
         let ancB: Set<Type> = b.ancestorSet
         let commonSuperTypes: Array<Type> = a.ancestorSet.iterator()
             .filter({ t => ancB.contains(t) })
@@ -275,18 +320,22 @@ public class TypeManager {
         return validCandidates[0]
     }
 
-    public func beginScope(): Unit {
-        immediateFuncEnvironment_ = Environment(immediateFuncEnvironment)
-        totalFuncEnvironment_ = Environment(totalFuncEnvironment)
-    }
+    /*
+    * Returns the set of common supertypes that have no inner edges.
+    */
+    public func smallestCommonSupertypeSet(a: Type, b: Type): Set<Type> {
+        let ancA: Set<Type> = a.ancestorSet
+        let ancB: Set<Type> = b.ancestorSet
+        let totAnc: ArrayList<Type> =
+            Utils.fold(ancA.iterator().concat(ancB.iterator()), ArrayList())
+        let union: Set<Type> = HashSet(totAnc)
 
-    public func endScope(): Unit {
-        immediateFuncEnvironment_ = immediateFuncEnvironment.enclosing.getOrThrow({ =>
-            UnsupportedException("Trying to close the global scope") })
-        totalFuncEnvironment_ = totalFuncEnvironment.enclosing.getOrThrow({ =>
-            UnsupportedException("Trying to close the global scope") })
+        totAnc.iterator().forEach({ t => if (union.contains(t)) {
+            union.remove(all: t.ancestorSet)
+            union.add(t)
+        } })
+        union
     }
-
 
     /*
     * Returns the contiguous subsequens starting from 0 where all the elements are equal.
@@ -317,11 +366,10 @@ public class TypeManager {
     }
 
     public prop isGlobal: Bool {
-        get() { totalFuncEnvironment.isGlobal }
+        get() { enclosing.isNone() }
     }
 
     public func deleteHistory(): Unit {
-        totalFuncEnvironment.enclosing = None
-        immediateFuncEnvironment.enclosing = None
+        enclosing_ = None
     }
 }

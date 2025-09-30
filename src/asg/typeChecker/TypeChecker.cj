@@ -2,12 +2,12 @@ package cjcj.asg.typeChecker
 
 import cjcj.visitor.*
 import cjcj.scanner.TokenKind
-import cjcj.asg.ScopeType
 import cjcj.asg.TypeManager
 import cjcj.asg.Declarator
 import cjcj.asg.DeclaratorFactory
 import cjcj.asg.Utils
 import cjcj.scanner.Token
+import cjcj.parser.NodeIdManager
 
 import std.collection.*
 
@@ -21,25 +21,32 @@ import std.collection.*
 * go to the declaration and solve it. If there are cycles or a type cannot be inferred it will throw
 * an exception.
 */
-public class TypeChecker <: Visitor<Type> {
+public class TypeChecker <: Visitor<Unit> {
     // Used to know if there are cycles.
     private let referenceStatus: Map<Reference, Status> = HashMap()
     // Maps the reference to the declaration.
     private let refToDecl: Map<Reference, Decl> = HashMap()
+    private let declToTypeManager: Map<Decl, TypeManager> = HashMap()
 
-    private let typeManager: TypeManager
-    private let expectedReturnType: ArrayStack<Type> = ArrayStack()
-    private var scopeType: ScopeType = ScopeType.NIL
+    private var typeManager: TypeManager
     private var classEnvironment: Environment<String, ClassReferenceForTC> = Environment()
     private var currentClassRef: ?ClassReferenceForTC = None
 
     // Contains the name of the last callable field if there is some.
     private var callableField: ?String = None
 
+    // TODO: Maybe make a map of Nodes directly.
+    private let nodePossibleTypes: Map<NodeId, Set<Type>> = HashMap()
+    private let typeAssigner: TypeAssigner
+    private let validFunctionPool: Map<NodeId, Set<FuncReference>> = HashMap()
+
     public init(program: Program) {
         // Declare every type.
         let classTopoOrder: Array<ClassReference>
         (typeManager, classTopoOrder) = TypeDeclarationChecker().resolve(program)
+        typeAssigner = TypeAssigner(
+            nodePossibleTypes, classEnvironment, typeManager, validFunctionPool
+        )
 
         // Need to declare classes in topological order to have the reference to the supertypes.
         let tmpClassEnvironment: Environment<String, ClassReference> = Environment()
@@ -48,355 +55,406 @@ public class TypeChecker <: Visitor<Type> {
         })
 
         let globalAsgDeclarator: Declarator = DeclaratorFactory.globalAsgDeclarator(
-            Environment(), typeManager, refToDecl
+            Environment(), typeManager, refToDecl, declToTypeManager
         )
         program.decls.iterator().forEach({ d => d.traverse(globalAsgDeclarator) })
         tmpClassEnvironment.elements.iterator()
             .forEach({ cr => classEnvironment.declare(cr[0], ClassReferenceForTC(cr[1])) })
 
-        program.traverse(this)
+        // Traverse the classes first
+        program.decls.iterator()
+            .filter({ d => d is ClassDeclWithRef })
+            .forEach({ d => d.traverse(this)})
 
-        // After traversing every class will have its own typeManager and variable environment set
+        // Add empty init to all the classes that don't have one.
+        // TODO: This will change with interfaces, they cannot be instanciated, for now we assume
+        // everything is a class.
+        classEnvironment.elements.values().iterator()
+            .map<(String, TypeManager)>({ c => 
+                if (c.typeManager.isNone()) {
+                    c.typeManager = TypeManager()
+                }
+                (c.classReference.identifier.value, c.typeManager.getOrThrow())})
+            .filter({ t => !t[1].funcExists("") })
+            .forEach({ t =>
+                let ref: FuncReference = FuncReference(NodeIdManager.nextId(), Token())
+                ref.effectiveType = typeManager.getType(t[0])
+                ref.paramRef = ArrayList()
+                t[1].addFunction(ref)
+                nodePossibleTypes.add(ref.id, HashSet([ref.effectiveType.getOrThrow()]))
+            })
+
+        // After traversing, every class will have its own typeManager and variable environment set
         // So I can go in topological order and check the member shadowing.
         classTopoOrder.iterator().forEach({ classReference =>
             checkMemberShadowing(
                 classEnvironment.getGlobal(classReference.identifier.value).getOrThrow()
             )
         })
+
+        program.decls.iterator()
+            .filter({ d => !(d is ClassDeclWithRef) }) // Don't need to traverse class again.
+            .forEach({ d => d.traverse(this)})
     }
 
-    public override func visit(program: Program): Type {
+    public override func visit(program: Program): Unit {
         program.decls.iterator().forEach({ d => d.traverse(this) })
-        Type.DUMMY
     }
 
-    public override func visit(binaryExpr: BinaryExpr): Type {
-        let left: Type = binaryExpr.left.traverse(this)
-        let right: Type = binaryExpr.right.traverse(this)
-        typeManager.applyFunction(binaryExpr.oper.value, [[left], [right]],
-            expectedReturnType.peek())[0].effectiveType.getOrThrow()
+    public override func visit(binaryExpr: BinaryExpr): Unit {
+        binaryExpr.left.traverse(this)
+        let leftTypes: Set<Type> = nodePossibleTypes[binaryExpr.left.id]
+
+        binaryExpr.right.traverse(this)
+        let rightTypes: Set<Type> = nodePossibleTypes[binaryExpr.right.id]
+
+        let possFunc: ArrayList<FuncReference> = 
+            typeManager.applyFunction(binaryExpr.oper.value, [leftTypes, rightTypes], None)
+
+        validFunctionPool.add(binaryExpr.id, HashSet(possFunc))
+        nodePossibleTypes.add(binaryExpr.id, HashSet(Utils.refToType<FuncReference>(possFunc)))
     }
 
-    public override func visit(unaryExpr: UnaryExpr): Type {
-        let right: Type = unaryExpr.right.traverse(this)
-        typeManager.applyFunction(unaryExpr.oper.value, [[right]], expectedReturnType.peek())[0]
-            .effectiveType.getOrThrow()
+    public override func visit(unaryExpr: UnaryExpr): Unit {
+        unaryExpr.right.traverse(this)
+        let rightTypes: Set<Type> = nodePossibleTypes[unaryExpr.right.id]
+
+        let possFunc: ArrayList<FuncReference> =
+            typeManager.applyFunction(unaryExpr.oper.value, [rightTypes], None)
+
+        validFunctionPool.add(unaryExpr.id, HashSet(possFunc))
+        nodePossibleTypes.add(unaryExpr.id, HashSet(Utils.refToType(possFunc)))
     }
 
-    public override func visit(parenExpr: ParenExpr): Type {
+    public override func visit(parenExpr: ParenExpr): Unit {
         parenExpr.parenthesizedExpr.traverse(this)
+        nodePossibleTypes.add(parenExpr.id, nodePossibleTypes[parenExpr.parenthesizedExpr.id])
     }
 
-    public override func visit(litConstExpr: LitConstExpr): Type {
-        match (litConstExpr.literal.kind) {
-            // TODO: Change this, compiler can do implicit cast.
-            case TokenKind.INTEGER_LITERAL => return typeManager.getType("Int64")
-            case TokenKind.FLOAT_LITERAL => return typeManager.getType("Float64")
-            case TokenKind.BOOL_LITERAL => return typeManager.getType("Bool")
-            case TokenKind.STRING_LITERAL => return typeManager.getType("String")
-            case TokenKind.UNIT_LITERAL => return typeManager.getType("Unit")
-            // TODO: Add all other literals.
-            case _ => return Type.DUMMY
-        }
+    public override func visit(litConstExpr: LitConstExpr): Unit {
+        nodePossibleTypes.add(litConstExpr.id, HashSet([
+            match (litConstExpr.literal.kind) {
+                // TODO: Change this, compiler can do implicit cast.
+                case TokenKind.INTEGER_LITERAL => typeManager.getType("Int64")
+                case TokenKind.FLOAT_LITERAL => typeManager.getType("Float64")
+                case TokenKind.BOOL_LITERAL => typeManager.getType("Bool")
+                case TokenKind.STRING_LITERAL => typeManager.getType("String")
+                case TokenKind.UNIT_LITERAL => Type.UNIT
+                // TODO: Add all other literals.
+                case _ => throw Exception("You forgot to add all the literal types")
+            }])
+        )
     }
 
-    public override func visit(assignExpr: AssignExpr): Type {
-        let left: Type = assignExpr.left.traverse(this)
-
-        expectedReturnType.add(left)
-
-        let right: Type = assignExpr.right.traverse(this)
-        if (!left.isParent(right)) {
-            throw Exception("Cannot assign ${right.name} to ${left.name}")
-        }
-
-        expectedReturnType.remove()
-        typeManager.getType("Unit")
+    public override func visit(assignExpr: AssignExpr): Unit {
+        assignExpr.left.traverse(this)
+        assignExpr.right.traverse(this)
+        nodePossibleTypes.add(assignExpr.id, HashSet([Type.UNIT]))
     }
 
-    public override func visit(block: Block): Type {
+    public override func visit(block: Block): Unit {
         beginScope()
 
+        // TODO: We don't actually need to do this here, remove it to optimize.
         let lastId = block.nodes.last.getOrDefault({ => Expr() }).id
-        let returnType = block.nodes.iterator()
-            .map({ n => (n, n.traverse(this)) })
-            .filter({ n => n[0] is ReturnExpr || n[0].id == lastId })
-            .map({ n => n[1] })
-            .reduce({ a,b => typeManager.smallestCommonSupertype(a, b) })
-            .getOrDefault({ => typeManager.getType("Unit")})
+        block.nodes.iterator().forEach({ n => n.traverse(this) })
 
         endScope()
-        returnType
+        nodePossibleTypes.add(block.id, nodePossibleTypes.get(lastId)
+            .getOrDefault({ => HashSet([Type.UNIT])}))
     }
 
-    /*
-    * Here we want to find the lowest common supertype of all the branches.
-    */
-    public override func visit(ifExpr: IfExpr): Type {
-        if (ifExpr.condition.traverse(this) != typeManager.getType("Bool")) {
-            throw Exception("If condition must be bool.")
-        }
-        let ifType: Type = ifExpr.ifBlock.traverse(this)
-        let elseType: Type = ifExpr.elseBranch.traverse(this)
-        return typeManager.smallestCommonSupertype(ifType, elseType)
+    public override func visit(ifExpr: IfExpr): Unit {
+        ifExpr.condition.traverse(this)
+        ifExpr.ifBlock.traverse(this)
+        ifExpr.elseBranch.traverse(this)
+
+        let myTypes: Set<Type> = HashSet()
+        nodePossibleTypes[ifExpr.ifBlock.id].iterator().forEach({ t1 =>
+            nodePossibleTypes[ifExpr.ifBlock.id].iterator().forEach({ t2 =>
+                // Add all the common supertypes of t1 and t2.
+                myTypes.add(all: typeManager.smallestCommonSupertypeSet(t1, t2))
+            })
+        })
+        nodePossibleTypes.add(ifExpr.id, myTypes)
     }
 
-    public override func visit(whileExpr: WhileExpr): Type {
-        if (whileExpr.condition.traverse(this) != typeManager.getType("Bool")) {
-            throw Exception("While condition must be bool.")
-        }
+    public override func visit(whileExpr: WhileExpr): Unit {
+        whileExpr.condition.traverse(this)
         whileExpr.block.traverse(this)
-        typeManager.getType("Unit")
+        nodePossibleTypes.add(whileExpr.id, HashSet([Type.UNIT]))
     }
 
-    public override func visit(returnExpr: ReturnExpr): Type {
+    public override func visit(returnExpr: ReturnExpr): Unit {
         if (let Some(expr) <- returnExpr.expr) {
-            return expr.traverse(this)
+            expr.traverse(this)
         }
-        typeManager.getType("Unit")
+        nodePossibleTypes.add(returnExpr.id, HashSet([Type.NOTHING]))
     }
 
-    public override func visit(funcParam: FuncParam): Type {
+    public override func visit(funcParam: FuncParam): Unit {
         funcParam.paramType.traverse(this)
+        nodePossibleTypes.add(funcParam.id, nodePossibleTypes[funcParam.paramType.id])
     }
 
-    public override func visit(argument: Argument): Type {
+    public override func visit(argument: Argument): Unit {
         argument.expr.traverse(this)
+        nodePossibleTypes.add(argument.id, nodePossibleTypes[argument.expr.id])
     }
 
-    public override func visit(primitiveType: PrimitiveType): Type {
-        typeManager.getType(primitiveType.typeName.value)
+    public override func visit(primitiveType: PrimitiveType): Unit {
+        nodePossibleTypes.add(primitiveType.id,
+            HashSet([typeManager.getType(primitiveType.typeName.value)]))
     }
 
-    public override func visit(refType: RefType): Type {
-        typeManager.getType(refType.typeName.value)
+    public override func visit(refType: RefType): Unit {
+        nodePossibleTypes.add(refType.id,
+            HashSet([typeManager.getType(refType.typeName.value)]))
     }
 
-    public override func visit(varDeclWithRef: VarDeclWithRef): Type {
+    public override func visit(varDeclWithRef: VarDeclWithRef): Unit {
         let ref: Reference = varDeclWithRef.ref
         if (let Some(status) <- referenceStatus.get(ref)) {
             match (status) {
                 case Status.IN => throw Exception("Could not infer the type of " +
                     "${ref.identifier.value}")
-                case Status.VIS => return ref.effectiveType.getOrThrow()
+                case Status.VIS => return
             }
         }
         referenceStatus.add(ref, Status.IN)
 
-        var targetType: ?Type = if (let Some(declType) <- varDeclWithRef.declType) {
-            declType.traverse(this)
-        } else {
-            None
+        if (let Some(declType) <- varDeclWithRef.declType) {
+            nodePossibleTypes.add(ref.id, HashSet([declType.traverse(typeAssigner)]))
         }
 
-        let infType: ?Type = if (let Some(initzer) <- varDeclWithRef.initializer) {
+        if (let Some(initzer) <- varDeclWithRef.initializer) {
             initzer.traverse(this)
-        } else {
-            None
-        }
-
-        if (let Some(targetType) <- targetType) {
-            if (let Some(infType) <- infType && !targetType.isParent(infType)) {
-                throw Exception("Assigned type not correct, expected ${targetType.name} " +
-                    "found ${infType.name}")
+            if (nodePossibleTypes.get(ref.id).isNone()) {
+                nodePossibleTypes.add(ref.id, nodePossibleTypes[initzer.id])
             }
-        } else if (let Some(infType) <- infType) {
-            targetType = infType
-        } else {
-            throw Exception("Impossible to infer the type of ${ref.identifier.value}, there must " +
-                "be an initializer if there is no declaration type.")
         }
 
         referenceStatus.add(ref, Status.VIS)
-        ref.effectiveType = targetType
-        typeManager.getType("Unit")
+        nodePossibleTypes.add(varDeclWithRef.id, HashSet([varDeclWithRef.traverse(typeAssigner)]))
     }
 
-    public override func visit(funcDeclWithRef: FuncDeclWithRef): Type {
+    public override func visit(funcDeclWithRef: FuncDeclWithRef): Unit {
+        let precTypeManager: TypeManager = typeManager
+        typeManager = if (let Some(declTypeManager) <- declToTypeManager.get(funcDeclWithRef)) {
+            declTypeManager
+        } else {
+            typeManager
+        }
         let ref: FuncReference = funcDeclWithRef.funcRef
-        if (let Some(status) <- referenceStatus.get(ref) && status == Status.IN) {
-            throw Exception("Could not infer the type of ${ref.identifier.value}")
+        if (let Some(status) <- referenceStatus.get(ref)) {
+            match(status) {
+                case Status.IN => throw Exception("Could not infer the type of " + 
+                    "${ref.identifier.value}")
+                case Status.VIS => return
+            }
         }
         referenceStatus.add(ref, Status.IN)
 
         let params = funcDeclWithRef.params
         // Set effective type to parameters (= to declaration type)
         ref.paramRef.getOrThrow().iterator().enumerate()
-            .forEach({ v => v[1].effectiveType = params[v[0]].paramType.traverse(this) })
+            .forEach({ v => v[1].effectiveType = params[v[0]].paramType.traverse(typeAssigner) })
 
-        if (funcDeclWithRef.keyword.kind == TokenKind.INIT) {
-            ref.effectiveType = typeManager.getType(currentClassRef.getOrThrow()
-                .classReference.identifier.value)
-            funcDeclWithRef.block.traverse(this)
-        } else {
-            let infType: Type = funcDeclWithRef.block.traverse(this)
-            var targetType: Type = if (let Some(declType) <- funcDeclWithRef.declType) {
-                declType.traverse(this)
-            } else {
-                infType
-            }
-
-            if (!targetType.isParent(infType)) {
-                throw Exception("Type of function not correct, expected ${targetType.name}" +
-                    ", found: ${infType.name}")
-            }
-            ref.effectiveType = targetType
-        }
-        
-        // If I'm in global or body scope everything is already declared.
-        if (!typeManager.isGlobal && scopeType != ScopeType.BODY) {
+        // Declare function if it is not already declared.
+        if (declToTypeManager.get(funcDeclWithRef).isNone()) {
             typeManager.addFunction(ref)
         }
 
-        referenceStatus.add(ref, Status.VIS)
-        typeManager.getType("Unit")
-    }
-
-    public override func visit(mainDeclWithRef: MainDeclWithRef): Type {
-        let ref: MainReference = mainDeclWithRef.mainRef
-
-        // Set effective type to parameter (= to declaration type)
-        if (let Some(paramRef) <- ref.paramRef) {
-            paramRef.effectiveType = mainDeclWithRef.param.getOrThrow().traverse(this)
-        }
-
-        let infType: Type = mainDeclWithRef.block.traverse(this)
-        var targetType: Type = if (let Some(effectiveType) <- ref.effectiveType) {
-            effectiveType
-        } else if (let Some(declType) <- mainDeclWithRef.declType) {
+        if (let Some(declType) <- funcDeclWithRef.declType) {
             declType.traverse(this)
-        } else {
-            infType
         }
+        funcDeclWithRef.block.traverse(this)
         
-        if (!targetType.isParent(infType)) {
-            throw Exception("Type of main function not correct, expected ${targetType.name}" +
-                ", found: ${infType.name}")
-        }
+        nodePossibleTypes.add(funcDeclWithRef.id, HashSet([funcDeclWithRef.traverse(typeAssigner)]))
 
-        ref.effectiveType = targetType
-        typeManager.getType("Unit")
+        typeManager = precTypeManager
+
+        referenceStatus.add(ref, Status.VIS)
     }
 
-    public override func visit(varReference: VariableReference): Type {
-        // TODO: make it callable if lambda in the future.
+    public override func visit(mainDeclWithRef: MainDeclWithRef): Unit {
+        let ref: MainReference = mainDeclWithRef.mainRef
+        // Set effective type to parameter (= to declaration type)
+        if (let Some(param) <- mainDeclWithRef.param &&
+            let Some(paramRef) <- ref.paramRef
+        ) {
+            paramRef.effectiveType = param.traverse(typeAssigner)
+        }
+
+        mainDeclWithRef.block.traverse(this)
+
+        if (let Some(declType) <- mainDeclWithRef.declType) {
+            declType.traverse(this)
+        }
+        nodePossibleTypes.add(mainDeclWithRef.id, HashSet([mainDeclWithRef.traverse(typeAssigner)]))
+    }
+
+    public override func visit(varReference: VariableReference): Unit {
         if (let Some(effectiveType) <- varReference.effectiveType) {
-            return effectiveType
+            nodePossibleTypes.add(varReference.id, HashSet([effectiveType]))
+            return
         }
         let decl: Decl = refToDecl.get(varReference).getOrThrow()
         if (let Some(declType) <- decl.declType) {
-            return declType.traverse(this)
+            declType.traverse(this)
+            nodePossibleTypes.add(varReference.id, HashSet(nodePossibleTypes[declType.id]))
+            return
         }
         decl.traverse(this)
-        varReference.effectiveType.getOrThrow()
     }
 
-    public override func visit(classReference: ClassReference): Type {
+    public override func visit(classReference: ClassReference): Unit {
         callableField = ""
-        classReference.effectiveType.getOrThrow()
+        if (let Some(effective) <- classReference.effectiveType) {
+            nodePossibleTypes.add(classReference.id, HashSet([effective]))
+        } else {
+            let tp: Type = typeManager.getType(classReference.identifier.value)
+            classReference.effectiveType = tp
+            nodePossibleTypes.add(classReference.id, HashSet([tp]))
+        }
     }
 
-    public override func visit(funcReference: FuncReference): Type {
-        // This is not the real func reference, I cannot trust it.
+    public override func visit(funcReference: FuncReference): Unit {
+        if (let Some(effectiveType) <- funcReference.effectiveType) {
+            nodePossibleTypes.add(funcReference.id, HashSet([effectiveType]))
+        } else {
+            let decl = refToDecl[funcReference]
+            // If there is declaration type I assign it.
+            if (let Some(declType) <- decl.declType) {
+                let tp: Type = declType.traverse(typeAssigner)
+                nodePossibleTypes.add(funcReference.id, HashSet([tp]))
+                funcReference.effectiveType = tp
+            } else { // Otherwise I have to visit the declaration that will assign the type.
+                decl.traverse(this)
+                nodePossibleTypes.add(funcReference.id, HashSet([funcReference.effectiveType.getOrThrow()]))
+            }
+        }
         callableField = funcReference.identifier.value
-        Type.DUMMY
     }
 
-    public override func visit(refExprWithRef: RefExprWithRef): Type {
+    public override func visit(refExprWithRef: RefExprWithRef): Unit {
         refExprWithRef.ref.traverse(this)
+        nodePossibleTypes.add(refExprWithRef.id, HashSet(nodePossibleTypes[refExprWithRef.ref.id]))
     }
 
-    public override func visit(callExprWithRef: CallExprWithRef): Type {
+    public override func visit(callExprWithRef: CallExprWithRef): Unit {
+        callExprWithRef.callee.traverse(this)
+        let identifier: String = callableField.getOrThrow({ =>
+            Exception("Left of call expression not callable") })
+
         let typeManager: TypeManager = if (let Some(currentClassRef) <- currentClassRef) {
             currentClassRef.typeManager.getOrThrow()
         } else {
             typeManager
         }
 
-        let tp: Type = callExprWithRef.callee.traverse(this)
-        let identifier: String = callableField.getOrThrow({ =>
-            Exception("Left of call expression not callable") })
-        let params: Array<Array<Type>> = Utils.fold(callExprWithRef.arguments.iterator()
-            .map({ v => [v.traverse(this)] }), ArrayList()).toArray()
+        callExprWithRef.arguments.iterator().forEach({ v => v.traverse(this) })
+        let args: Array<Set<Type>> = Utils.fold(callExprWithRef.arguments.iterator()
+            .map({ v => nodePossibleTypes[v.id] }), ArrayList()).toArray()
 
-        var ref: FuncReference
         // Check first for a function call.
+        var possFunc: ArrayList<FuncReference>
         try {
-            let possFunc: ArrayList<FuncReference> =
-                typeManager.applyFunction(identifier, params, expectedReturnType.peek())
+            possFunc = typeManager.allFunctionsGlobal(identifier, args)
             if (possFunc.isEmpty()) {
                 throw Exception("Impossible to find a function to call")
             }
-            ref = possFunc[0]
-            if (ref.effectiveType.isNone()) {
-                let funcDecl: Decl = refToDecl.get(ref).getOrThrow()
-                if (let Some(declType) <- funcDecl.declType) {
-                    ref.effectiveType = declType.traverse(this)
-                } else {
-                    funcDecl.traverse(this)
-                }
-            }
+        } catch (e: NoneValueException) {
+            throw e
         } catch(e: Exception) {
+            let calleeTypes: Set<Type> = nodePossibleTypes[callExprWithRef.callee.id]
+            if (calleeTypes.size != 1) {
+                throw Exception("The callExpr is calling a classReference, it cannot have more " +
+                    "than one type")
+            }
+            let tp: Type = calleeTypes.iterator().first().getOrThrow()
             if (let Some(classRef) <- classEnvironment.getGlobal(tp.name)) {
-                ref = classRef.typeManager.getOrThrow()
-                    .applyFunction(identifier, params, expectedReturnType.peek())[0]
+                possFunc = ArrayList(classRef.typeManager.getOrThrow()
+                    .applyFunction(identifier, args, None))
             } else {
                 throw e
             }
         }
-
         callableField = None
 
-        // Set the reference to the correct one.
-        callExprWithRef.ref = ref
-        ref.effectiveType.getOrThrow()
+        validFunctionPool.add(callExprWithRef.id, HashSet(possFunc))
+        possFunc.iterator().forEach({ref => ref.traverse(this) })
+        let myTypes: Set<Type> = HashSet()
+        possFunc.iterator().forEach({ f => myTypes.add(f.effectiveType.getOrThrow()) })
+
+        nodePossibleTypes.add(callExprWithRef.id, myTypes)
     }
 
-    public override func visit(classDeclWithRef: ClassDeclWithRef): Type {
+    public override func visit(classDeclWithRef: ClassDeclWithRef): Unit {
         currentClassRef = classEnvironment.getGlobal(classDeclWithRef.ref.identifier.value)
             .getOrThrow({ => Exception("Unexpected, class should've been declared")})
+        typeAssigner.currentClassRef = currentClassRef
 
         classDeclWithRef.ref.effectiveType = typeManager.getType(classDeclWithRef.identifier.value)
         classDeclWithRef.body.traverse(this)
 
         currentClassRef = None
-        typeManager.getType("Unit")
+        typeAssigner.currentClassRef = currentClassRef
     }
 
-    public override func visit(body: Body): Type {
+    public override func visit(body: Body): Unit {
         beginScope()
-        scopeType = ScopeType.BODY
 
         let variableEnvironment: Environment<String, VariableReference> = Environment()
         let bodyDeclarator: Declarator =
-            DeclaratorFactory.bodyAsgDeclarator(variableEnvironment, typeManager, refToDecl)
+            DeclaratorFactory.bodyAsgDeclarator(variableEnvironment, typeManager, refToDecl, declToTypeManager)
         body.decls.iterator().forEach({ decl => decl.traverse(bodyDeclarator) })
 
-        currentClassRef.getOrThrow().typeManager = TypeManager(typeManager)
+        currentClassRef.getOrThrow().typeManager = typeManager
         currentClassRef.getOrThrow().variableEnvironment = variableEnvironment
 
         body.decls.iterator().forEach({ decl => decl.traverse(this) })
 
-        scopeType = ScopeType.NIL
         endScope()
 
         currentClassRef.getOrThrow().typeManager.getOrThrow().deleteHistory()
         currentClassRef.getOrThrow().variableEnvironment.getOrThrow().enclosing = None
-
-        Type.DUMMY
     }
 
-    public override func visit(memberAccess: MemberAccess): Type {
+    public override func visit(memberAccess: MemberAccess): Unit {
         // TODO: Remember to change this when we add other class-like structures.
-        var baseClass: ClassReferenceForTC =
-            classEnvironment.getGlobal((memberAccess.baseExpr.traverse(this).name))
+
+        // The baseExpr of a member access needs to be solved before calling the field, the class
+        // found does not depend on the field.
+        memberAccess.baseExpr.traverse(this)
+        let classType: Type = memberAccess.baseExpr.traverse(typeAssigner)
+
+        var baseClass: ClassReferenceForTC = classEnvironment.getGlobal(classType.name)
                 .getOrThrow({ => Exception("Base of member access is not a class!") })
+
         let field: String = memberAccess.field.value
         let (tp, isCallable) = getMemberType(baseClass, field)
         if (isCallable) {
             callableField = field
         }
-        return tp
+        nodePossibleTypes.add(memberAccess.id, HashSet([tp]))
+    }
+
+    public override func visit(thisSuperReference: ThisSuperReference): Unit {
+        let classReference: ClassReference = currentClassRef.getOrThrow({ =>
+            Exception("Cannot have ${thisSuperReference.keyword.value} outside of a class")})
+            .classReference
+
+        thisSuperReference.classReference = classReference
+        callableField = ""
+        if (thisSuperReference.keyword.kind == TokenKind.THIS) {
+            nodePossibleTypes.add(thisSuperReference.id,
+                HashSet([classReference.effectiveType.getOrThrow()]))
+            return
+        }
+
+        nodePossibleTypes.add(thisSuperReference.id, HashSet([classReference.parent.getOrThrow({ =>
+            Exception("Cannot invoke super without super type")}).effectiveType.getOrThrow()]))
     }
 
     /*
@@ -419,11 +477,12 @@ public class TypeChecker <: Visitor<Type> {
     }
 
     private func beginScope(): Unit {
-        typeManager.beginScope()
+        typeManager = TypeManager(typeManager)
     }
 
     private func endScope(): Unit {
-        typeManager.endScope()
+        typeManager = typeManager.enclosing.getOrThrow({ => Exception("Trying to close the global scope")})
+        // typeManager.endScope()
     }
 
     private func checkMemberShadowing(classReferenceTC: ClassReferenceForTC): Unit {
@@ -452,28 +511,17 @@ public class TypeChecker <: Visitor<Type> {
                 throw Exception("Cannot declare variables that shadows supertype members.")
             }
         }
-        for (funcName in classTypeManager.totalFuncEnvironment.elements.keys()) {
-            if (parentVariableEnvironment.getGlobal(funcName).isSome() ||
-                parentTypeManager.funcExists(funcName)
-            ) {
-                throw Exception("Cannot declare func that shadows supertype members.")
-            }
-        }
+        classTypeManager.totalFuncDef.keys().iterator()
+            .filter({ funcName => funcName != "" })
+            .forEach({ funcName =>
+                if (parentVariableEnvironment.getGlobal(funcName).isSome() ||
+                    parentTypeManager.funcExists(funcName)
+                ) {
+                    throw Exception("Cannot declare func that shadows supertype members.")
+                }
+            })
 
         variableEnvironment.enclosing = parentVariableEnvironment
         classTypeManager.setEnclosing(parentTypeManager)
-    }
-
-    public override func visit(thisSuperReference: ThisSuperReference): Type {
-        let classReference: ClassReference = currentClassRef.getOrThrow({ =>
-            Exception("Cannot have ${thisSuperReference.keyword.value} outside of a class")})
-            .classReference 
-        thisSuperReference.classReference = classReference
-        callableField = ""
-        if (thisSuperReference.keyword.kind == TokenKind.THIS) {
-            return classReference.effectiveType.getOrThrow()
-        }
-        classReference.parent.getOrThrow({ =>
-            Exception("Cannot invoke super without super type")}).effectiveType.getOrThrow()
     }
 }
