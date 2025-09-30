@@ -792,7 +792,7 @@ class TypeCheckTests {
         let testRightHard: String = """
             class D {}
             class C <: D {}
-            class B <: B {}
+            class B <: D {}
             func A(a: Int64, b: Any): B { B() }
             func A(a: Any, b: Any): Int64 { 1 }
 
