@@ -278,6 +278,34 @@ class TypeCheckTests {
     }
 
     @TestCase
+    func functionReturnTypeInferred_test() {
+        let testRight: String = """
+            func a(a: Int64) {
+                2
+            }
+            func a(a: Any) {
+                "string"
+            }
+            main(){
+                let c: String = a(1)
+            }
+            """
+        TypeChecker(getAsg(testRight))
+        let testWrong: String = """
+            func a(a: Int64) {
+                "string"
+            }
+            main(){
+                func a(a: Int64) {
+                    2
+                }
+                let c: String = a(1)
+            }
+            """
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+    }
+
+    @TestCase
     func memberAccessFound_test() {
         let testRight: String = """
             class a {
@@ -327,14 +355,16 @@ class TypeCheckTests {
             }
         }
         func f() {
-            g()
+            g(String())
             i()
         }
         func i() {
-            g()
+            g(String())
         }
-        func g() {
+        func g(a: Any) {
             h()
+        }
+        func g(a: String) {
         }
         func h() {
             return 1
@@ -464,6 +494,45 @@ class TypeCheckTests {
                 let b: a = a()
                 let c: Int64 = b()
             }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(test)))
+    }
+
+    @TestCase
+    func memberAccessMultipleOverloads_test() {
+        let test: String = """
+            class a {
+                func f(a: Int64, b: Any): Unit { }
+                func f(a: Any, b: Any): Int64 { 1 }
+                func f(a: Any, b: Int64): Int64 { 1 }
+            }
+            main(){
+                let b: a = a()
+                let c: Int64 = b.f(1, 1)
+            }"""
+        TypeChecker(getAsg(test))
+    }
+
+    @TestCase
+    func functionWrongReturnType_test() {
+        var test: String = """
+            class a {
+                func f(): Int64 { }
+            }
+            main(){
+            }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(test)))
+        test = """
+            func f(): Int64 { }
+            main(){
+            }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(test)))
+    }
+
+    @TestCase
+    func functionClassName_test() {
+        var test: String = """
+            func Any() {}
+            main(){ }"""
         @AssertThrows[Exception](TypeChecker(getAsg(test)))
     }
 
