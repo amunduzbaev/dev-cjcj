@@ -7,7 +7,7 @@ import std.collection.*
 /*
 * Reference nodes represent references to variables, functions, . . . inside the ASG.
 */
-public open class Reference <: Expr & Hashable & Equatable<Reference> & ToString {
+public open class Reference <: Expr & Equatable<Reference> & ToString {
     private var identifier_: Token
     private var effectiveType_: ?Type
 
@@ -23,10 +23,6 @@ public open class Reference <: Expr & Hashable & Equatable<Reference> & ToString
 
     public override open func traverse<R>(_: Visitor<R>): R {
         throw UnsupportedException("Unimplemented method")
-    }
-
-    public func hashCode(): Int64 {
-        this.id.hashCode()
     }
 
     public operator func ==(rhs: Reference): Bool{
@@ -65,7 +61,7 @@ public class VariableReference <: Reference {
     }
 }
 
-public class FuncReference <: Reference {
+public class FuncReference <: Reference & Equatable<FuncReference> {
     private var paramRef_: ?ArrayList<VariableReference> = None
     private var block_: ?Block = None
 
@@ -76,6 +72,14 @@ public class FuncReference <: Reference {
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
+    }
+
+    public operator func ==(other: FuncReference): Bool {
+        id == other.id
+    }
+
+    public operator func !=(other: FuncReference): Bool {
+        id != other.id
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {

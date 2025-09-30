@@ -23,7 +23,7 @@ public struct NodeId <: Hashable {
     }
 }
 
-public abstract class Node {
+public abstract class Node <: Hashable & Equatable<Node> {
     private var id_: NodeId
 
     public Node(id: NodeId) {
@@ -40,6 +40,18 @@ public abstract class Node {
     public mut prop id: NodeId {
         get() { id_ }
         set(v) { id_ = v }
+    }
+
+    public func hashCode(): Int64 {
+        id.hashCode()
+    }
+
+    public override operator func==(other: Node): Bool {
+        id == other.id
+    }
+
+    public override operator func!=(other: Node): Bool {
+        !(this == other)
     }
 }
 

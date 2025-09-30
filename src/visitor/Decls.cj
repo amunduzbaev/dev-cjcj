@@ -7,7 +7,7 @@ import cjcj.scanner.TokenKind
 
 import std.collection.ArrayList
 
-public abstract class Decl <: Node {
+public abstract class Decl <: Node & Equatable<Decl> {
     protected var identifier_: Token = Token()
     protected var keyword_: Token = identifier_
     protected var declType_: ?TypeNode = None
@@ -75,6 +75,14 @@ public abstract class Decl <: Node {
         if (identifier.kind != TokenKind.ILLEGAL) {
             printer.append(identifier.value)
         }
+    }
+
+    public override operator func==(other: Decl) {
+        id == other.id
+    }
+
+    public override operator func!=(other: Decl) {
+        !(this == other)
     }
 }
 
