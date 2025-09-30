@@ -5,6 +5,8 @@ import std.collection.*
 public class Type <: Equatable<Type> & Hashable {
     public static let DUMMY = Type("")
     public static let ANY: Type = Type("Any", ArrayList(), true, 0)
+    public static let NOTHING: Type = Type("Nothing", ArrayList([ANY]), false, 1)
+    public static let UNIT: Type = Type("Unit", ArrayList([ANY]), false, 1)
     
     private let parents_: ArrayList<Type>
     private let name_: String
@@ -84,6 +86,9 @@ public class Type <: Equatable<Type> & Hashable {
     }
 
     public func isParent(other: Type): Bool {
+        if (other == NOTHING) {
+            return true
+        }
         other.ancestorsUntil(this).isSome()
     }
 
