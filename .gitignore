@@ -5,3 +5,4 @@ target
 *.a
 *.macrocall
 testcode*.txt
+*.toml
