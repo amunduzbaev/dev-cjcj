@@ -709,4 +709,227 @@ class TypeCheckTests {
             }"""
         @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
     }
+
+    @TestCase
+    func contextTypeInference_test() {
+        let testRight: String = """
+            func F(a: Int64): String {
+                "One"
+            }
+
+            func F(a: Any): Int64 {
+                1
+            }
+
+            func sum(a: Int64, b: Int64) {
+                a + b
+            }
+
+            main(){
+                sum(F(1), F(1))
+            }
+            """
+        
+        TypeChecker(getAsg(testRight))
+    }
+
+    @TestCase 
+    func complexContextTypeInference_test() {
+        let testRight: String = """
+            class A {
+                func a() {
+
+                }
+            }
+            class B {
+                let a: Int64 = 1
+            }
+            func F(a: Int64) {
+                B()
+            }
+            func F(a: Any) {
+                A()
+            }
+            func dbl(a: Int64) {
+                a + a
+            }
+            main() {
+                let c: Int64 = F(1).a
+                let d = dbl(F(1).a)
+            }        
+            """
+
+        TypeChecker(getAsg(testRight))
+
+        let testWrong: String = """
+            class A {
+                let a: Int64 = 1
+            }
+            class B {
+                func a() {
+                }
+            }
+
+            func F(a: Int64) {
+                B()
+            }
+
+            func F(a: Any) {
+                A()
+            }
+            func dbl(a: Int64) {
+                a + a
+            }
+
+            main() {
+                let c: Int64 = F(1).a
+                let d = dbl(F(1).a)
+            }
+            """
+
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+
+        let testRightHard: String = """
+            class D {}
+            class C <: D {}
+            class B <: B {}
+            func A(a: Int64, b: Any): B { B() }
+            func A(a: Any, b: Any): Int64 { 1 }
+
+            func G(a: Int64): C { C() }
+            func G(a: Any): Int64{ 1 }
+
+            func sum(a: Int64, b: Int64) {
+                a + b
+            }
+
+            main(){
+                let c = sum (1, if ( true ) { A(1, 1) } else { G(1) })
+                let d = if ( true ) { A(1, 1) } else { G(1) } + 1
+                let e: Int64 = if ( true ) { A(1, 1) } else { G(1) } 
+                let f = if ( true) { A(1, 1) } else { G(1) }
+            }
+
+            // The type of f should be D, since best match for A(1, 1) has type B and best match for G(1) has
+            // type C, where the lowest common supertype of B and C is D
+            """
+
+        TypeChecker(getAsg(testRightHard))
+    }
+
+    @TestCase
+    func distinctClassesMemberFunctionsOverload_test() {
+        let testRight = """
+            class A{
+                func G(a: Int64) {
+                    a
+                }
+            }
+
+            class B{
+                func G(a: Int64) {
+                    "String"
+                }
+            }
+
+            func F(a: Int64) {
+                A()
+            }
+            func F(a: Any) {
+                B()
+            }
+
+            main(){
+                let c = F(1).G(1)           // OK (Type of c should be Int64)
+            }
+        """
+
+        let testWrong = """
+            class A{
+                func G(a: Int64) {
+                    a
+                }
+            }
+
+            class B{
+                func G(a: Int64) {
+                    "String"
+                }
+            }
+
+            func F(a: Int64) {
+                A()
+            }
+            func F(a: Any) {
+                B()
+            }
+
+            main(){
+                let d: String = F(1).G(1)   // ERR (Should not be able to infer the type)
+            }
+        """
+
+        TypeChecker(getAsg(testRight))
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+    }
+
+    @TestCase
+    func returnBestMatchAssignment_test() {
+        let testRight = """
+            class A {
+            }
+            class B {
+            }
+
+            func F(a: Any) {
+                B()
+            }
+
+            func F(a: Int64) {
+                A()
+            }
+
+            func F2() {
+                if(true) {
+                    return F(1)
+                } else {
+                    return A()
+                }
+            }
+
+            main(){
+                let a: A = F2()
+            }
+        """
+
+        let testWrong = """
+            class A {
+            }
+            class B {
+            }
+
+            func F(a: Any) {
+                A()
+            }
+
+            func F(a: Int64) {
+                B()
+            }
+
+            func F2() {
+                if(true) {
+                    return F(1)
+                } else {
+                    return A()
+                }
+            }
+
+            main(){
+                let a: A = F2()
+            }
+        """
+
+        TypeChecker(getAsg(testRight))
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+    }
 }
