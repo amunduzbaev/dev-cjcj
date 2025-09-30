@@ -355,7 +355,7 @@ public class AsgMaker <: Visitor<Node> {
 
     public override func visit(memberAccess: MemberAccess): Node {
         let baseExpr = memberAccess.baseExpr.traverse(this)
-        MemberAccess(NodeIdManager.nextId(), baseExpr, memberAccess.field)
+        MemberAccessWithRef(NodeIdManager.nextId(), baseExpr, memberAccess.field)
     }
 
     public override func visit(thisSuperExpr: ThisSuperExpr): Node {

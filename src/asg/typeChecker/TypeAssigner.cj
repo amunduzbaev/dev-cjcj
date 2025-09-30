@@ -338,23 +338,26 @@ public class TypeAssigner <: Visitor<Type> {
         matchReturnType(Type.DUMMY)
     }
 
-    public override func visit(memberAccess: MemberAccess): Type {
+    public override func visit(memberAccessWithRef: MemberAccessWithRef): Type {
         // TODO: Remember to change this when we add other class-like structures.
         let expected: ?Type = expectedReturnType
 
         // Call baseClass without exected return type because it is independent from outside.
         expectedReturnType = None
-        var baseClass: ClassReferenceForTC =
-            classEnvironment.getGlobal(memberAccess.baseExpr.traverse(this).name)
+        let baseClass: ClassReferenceForTC =
+            classEnvironment.getGlobal(memberAccessWithRef.baseExpr.traverse(this).name)
                 .getOrThrow({ => Exception("Base of member access is not a class!") })
 
         expectedReturnType = expected
-        let (tp, _) = baseClass.getMember(memberAccess.field.value).getOrThrow()
+        let (tp, _) = baseClass.getMember(memberAccessWithRef.field.value).getOrThrow()
         if (let Some(expected) <- expectedReturnType) {
             if (!expected.isParent(tp)) {
                 throw Exception("Expected ${expected.name} found ${tp.name}")
             }
         }
+
+        // Set the right reference to the member access.
+        memberAccessWithRef.ref = baseClass.classReference
         tp
     }
 

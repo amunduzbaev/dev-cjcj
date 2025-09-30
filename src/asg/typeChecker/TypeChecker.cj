@@ -29,7 +29,7 @@ public class TypeChecker <: Visitor<Unit> {
     private let declToTypeManager: Map<Decl, TypeManager> = HashMap()
 
     private var typeManager: TypeManager
-    private var classEnvironment: Environment<String, ClassReferenceForTC> = Environment()
+    public let classEnvironment: Environment<String, ClassReferenceForTC> = Environment()
     private var currentClassRef: ?ClassReferenceForTC = None
 
     // Contains the name of the last callable field if there is some.
@@ -421,23 +421,23 @@ public class TypeChecker <: Visitor<Unit> {
         currentClassRef.getOrThrow().variableEnvironment.getOrThrow().enclosing = None
     }
 
-    public override func visit(memberAccess: MemberAccess): Unit {
+    public override func visit(memberAccessWithRef: MemberAccessWithRef): Unit {
         // TODO: Remember to change this when we add other class-like structures.
 
         // The baseExpr of a member access needs to be solved before calling the field, the class
         // found does not depend on the field.
-        memberAccess.baseExpr.traverse(this)
-        let classType: Type = memberAccess.baseExpr.traverse(typeAssigner)
+        memberAccessWithRef.baseExpr.traverse(this)
+        let classType: Type = memberAccessWithRef.baseExpr.traverse(typeAssigner)
 
         var baseClass: ClassReferenceForTC = classEnvironment.getGlobal(classType.name)
                 .getOrThrow({ => Exception("Base of member access is not a class!") })
 
-        let field: String = memberAccess.field.value
+        let field: String = memberAccessWithRef.field.value
         let (tp, isCallable) = getMemberType(baseClass, field)
         if (isCallable) {
             callableField = field
         }
-        nodePossibleTypes.add(memberAccess.id, HashSet([tp]))
+        nodePossibleTypes.add(memberAccessWithRef.id, HashSet([tp]))
     }
 
     public override func visit(thisSuperReference: ThisSuperReference): Unit {
