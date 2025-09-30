@@ -2,6 +2,36 @@ package cjcj.asg.initChecker
 
 import cjcj.visitor.*
 import std.deriving.Derive
+import stdx.effect.Command
+
+public class ParameterDeclaration <: Command<Option<VariableReference>> {
+}
+
+public class InferBlockType <: Command<ScopeType> {
+}
+
+public class IfElseInitialization<K, V> <: Command<Unit> 
+        where K <: Hashable & Equatable<K> & ToString {
+    private let branchInitializations_: Environment<K, V>
+
+    init(branchInitializations: Environment<K, V>) {
+        branchInitializations_ = branchInitializations
+    }
+    init() {
+        this(Environment<K, V>())
+    }
+
+    public prop branchInitializations: Environment<K, V> {
+        get() { branchInitializations_ }
+    }
+}
+
+public class ExactVarReference <: Command<Unit> {
+    ExactVarReference(public let varReference: VariableReference) {}
+}
+public class ExactFuncReference <: Command<Unit> {
+    ExactFuncReference(public let funcReference: FuncReference) {}
+}
 
 extend<K, V> Environment<K, V> where K <: Hashable & Equatable<K> & ToString {
     public func destroy(key: K): Unit {

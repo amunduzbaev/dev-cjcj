@@ -50,7 +50,7 @@ public abstract class Decl <: Node & Equatable<Decl> {
     }
 
     public override open func traverse<R>(_: Visitor<R>): R {
-        throw UnsupportedException("Method not implemented")
+        throw UnsupportedException("Traverse for Decl is not implemented")
     }
 
     public mut open prop identifier: Token {

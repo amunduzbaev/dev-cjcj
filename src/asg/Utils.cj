@@ -4,6 +4,7 @@ import cjcj.visitor.*
 
 import std.collection.ArrayList
 import std.collection.List
+import std.collection.Stack
 
 public abstract class Utils {
     /*
@@ -35,6 +36,10 @@ public abstract class Utils {
     * Folds an iterator into a List.
     */
     public static func fold<T, R>(it: Iterator<T>, base: R): R where R <: List<T> {
+        it.fold<R>(base, { acc, v => acc.add(v); acc })
+    }
+
+    public static func foldToStack<T, R>(it: Iterator<T>, base: R): R where R <: Stack<T> {
         it.fold<R>(base, { acc, v => acc.add(v); acc })
     }
 }

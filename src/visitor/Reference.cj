@@ -121,13 +121,13 @@ public open class ClassReference <: Reference{
 }
 
 public class MainReference <: Reference {
-    private var paramRef_: ?Reference = None
+    private var paramRef_: ?VariableReference = None
 
     public init(id: NodeId) {
         super(id, Token(), None)
     }
 
-    public mut prop paramRef: ?Reference {
+    public mut prop paramRef: ?VariableReference {
         get() { paramRef_ }
         set(v) { paramRef_ = v }
     }

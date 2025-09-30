@@ -1,142 +1,131 @@
 package cjcj.asg.initChecker
 
+import cjcj.asg.Utils
 import cjcj.visitor.*
-import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import std.collection.Set
 import std.collection.HashSet
 
 import std.collection.ArrayList
+import std.collection.ArrayStack
+import std.collection.HashMap
 
-/*
-
-TODO : Global functions and variables 
-    Global access in variables, make sure used variables are referenced before the first call to 
-    the function, (as variable initialization)
-    Solution : By traversing in the order of declaration, go through the variable declarations and
-    for each function give the first variable that uses this function to intialize. 
-    Next, compare the first variable that uses this function with the first last varialbe that is
-    used in the function block. If the used variable is declared after the first variable that calls
-    the function, then it is an error, since we use the variable before its definition/declaration. 
-    (In the future, For static variables similar check can be done probably)
-
-*/
-
-public open class InitChecker <: Visitor<Unit> {
+public open class InitChecker <: DefaultVisitor<Unit> {
     protected var declareEnvironment = Environment<Reference, Int64>()
     protected var initializeEnvironment = Environment<Reference, Int64>()
-    protected var lastKilledEnvironment = Environment<Reference, Int64>()
     protected var currentScopeType: ScopeEnvironment = ScopeEnvironment()
-    protected var waitingDeclaration = HashSet<Reference>()
+    protected var lastKilledEnvironment = Environment<Reference, Int64>()
 
     public init(declareEnvironment_: Environment<Reference, Int64>, 
         initializeEnvironment_: Environment<Reference, Int64>,
         lastKilledEnvironment_: Environment<Reference, Int64>, 
         currentScopeType_: ScopeEnvironment){
+            super(())
             declareEnvironment = declareEnvironment_
             initializeEnvironment = initializeEnvironment_
             lastKilledEnvironment = lastKilledEnvironment_
             currentScopeType = currentScopeType_
     }
+
     public init() {
+        super(())
     }
 
     public func resolve(program: Program) {
         program.traverse(this)
+        StaticGlobalVariableInitializationChecker(program)
     }
 
-    public func visit(program: Program) {
-        program.decls.iterator().forEach({ decl => 
-            decl.traverse(this)
-        })
-    }
- 
-    public func visit(binaryExpr: BinaryExpr) {
-        binaryExpr.left.traverse(this)
-        binaryExpr.right.traverse(this)
-    }
-
-    public func visit(unaryExpr: UnaryExpr) {
-        unaryExpr.right.traverse(this)
-    }
-
-    public func visit(parenExpr: ParenExpr){
-        parenExpr.parenthesizedExpr.traverse(this)
-    }
-
-    public func visit(assignExpr: AssignExpr) {
+    // TODO: This should be completely changed and fixed for the member access mutations etc..
+    // For the same reason in case of the visit function for refExpr
+    // Also, RefExprWithRef should be removed in this case. For that, consider this in future, 
+    // when member access with ref is added.
+    public override func visit(assignExpr: AssignExpr) {
         assignExpr.right.traverse(this)
 
         if (let Some(refExpr) <- (assignExpr.left as RefExprWithRef)) {
-            let varReference = (refExpr.ref as VariableReference).getOrThrow({ => 
-                Exception("Can only assign to variables, can not assign to class or a function")})
+            try {
+                refExpr.ref.traverse(this)
+            } handle(exactVarReference: ExactVarReference) {
+                let varReference = exactVarReference.varReference
 
-            if (!isInitialized(varReference)) {
-                initialize(varReference)
-            } else if (varReference.keyword.kind == TokenKind.LET) {
-                throw Exception("Mutation of immutable variable ${varReference.identifier.value}")
-            }
-        }
-    }
-
-    public open func visit(refExpr: RefExprWithRef) {
-        match (refExpr.ref as VariableReference) {
-            case Some(varReference) => 
                 if (!isInitialized(varReference)) {
-                    throw Exception("Variable ${varReference.identifier} is referenced" + 
-                    " before initialization")
-                    // The position of this reference is stored at the position of the token 
-                    // refExpr.identifier
+                    initialize(varReference)
+                } else if (varReference.keyword.kind == TokenKind.LET) {
+                    throw Exception("Mutation of immutable variable ${varReference.identifier.value}")
                 }
-            case _ => ()
+                resume with ()
+            }
+        } else {
+            assignExpr.left.traverse(this)
         }
     }
 
-    protected var blockType: ScopeType = ScopeType.BLOCK
-    public func visit(block: Block) {
-        beginScope(blockType)
+    public override open func visit(varReference: VariableReference) {
+        perform ExactVarReference(varReference)
+    }
 
-        // Reset the blockType to default BLOCK
-        blockType = ScopeType.BLOCK
+    public override open func visit(refExpr: RefExprWithRef) {
+        try{
+            refExpr.ref.traverse(this)
+        }  handle(exactVarReference: ExactVarReference) {
+            if (!isInitialized(exactVarReference.varReference)) {
+                throw Exception("Variable ${exactVarReference.varReference.identifier} is" + 
+                "referenced before initialization in reference ${refExpr.identifier.value}")
+                // The position of this reference is stored at the position of the token 
+                // refIdentifier
+            }
+            resume with ()
+        }
+    }
 
-        block.nodes.iterator().forEach({ node => 
-            node.traverse(this)
-        })
+    public override func visit(block: Block) {
+        beginScope(perform InferBlockType())
+
+        while (let Some(paramReference) <- perform ParameterDeclaration()) {
+                declare(paramReference)
+                initialize(paramReference)
+        }
+
+        try {
+            block.nodes.iterator().forEach({ node => 
+                    node.traverse(this)
+            })
+        } handle(_: InferBlockType) {
+            resume with ScopeType.BLOCK
+        } handle(ifElseInit: IfElseInitialization<Reference, Int64>) {
+            let initialized = ifElseInit.branchInitializations.elements.iterator().fold(
+                ArrayList<Reference>(), { acc, entry => 
+                    acc.add(entry[0])
+                    acc
+                })
+
+            initialize(initialized)
+            resume with ()
+        }
 
         endScope()
     }
 
     // lastKilledEnvironment contains the initializeEnvironment of elseBranch
     // We need to merge the variables that are in both initializeEnvironments
-    private var inElseBranch: Bool = false
-    public func visit(ifExpr: IfExpr) {
-        let currentInElseBranch = inElseBranch
-
-        inElseBranch = (ifExpr.elseBranch is IfExpr)
-        ifExpr.elseBranch.traverse(this)
+    public override func visit(ifExpr: IfExpr) {
+        try{
+            ifExpr.elseBranch.traverse(this)
+        } handle(_: IfElseInitialization<Reference, Int64>) {
+            resume with ()
+        }
         let elseBranchInitializeEnvironment = lastKilledEnvironment
 
         ifExpr.condition.traverse(this)
         ifExpr.ifBlock.traverse(this)
 
         intersect(lastKilledEnvironment, elseBranchInitializeEnvironment)
-        if (!currentInElseBranch) {
-            let initialized = lastKilledEnvironment.elements.iterator().fold(ArrayList<Reference>(),
-            {   acc, entry => 
-                acc.add(entry[0])
-                acc
-            })
-
-            initialize(initialized)
-        }
+        perform IfElseInitialization(lastKilledEnvironment)
     }
 
-    public func visit(whileExpr: WhileExpr) {
-        whileExpr.block.traverse(this)
-        whileExpr.condition.traverse(this)
-    }
-
-    public func visit(callExpr: CallExprWithRef) {
+    // TODO : Maybe we can use effect handlers for this, maybe NOT?
+    public override open func visit(callExpr: CallExprWithRef) {
         callExpr.arguments.iterator().forEach({ arg => 
             arg.traverse(this)
         })
@@ -148,19 +137,10 @@ public open class InitChecker <: Visitor<Unit> {
         callExpr.callee.traverse(this)
     }
 
-    public func visit(returnExpr: ReturnExpr) {
-        match (returnExpr.expr) {
-            case Some(expr) => expr.traverse(this)
-            case _ => ()
-        }
-    }
-
-    public func visit(varDecl: VarDeclWithRef) {
+    public override func visit(varDecl: VarDeclWithRef) {
         declare(varDecl.ref)
         if (let Some(initzer) <- varDecl.initializer) {
             initzer.traverse(this)
-            initialize(varDecl.ref)
-        } else if (waitingDeclaration.remove(varDecl.ref)) {
             initialize(varDecl.ref)
         }
 
@@ -169,73 +149,45 @@ public open class InitChecker <: Visitor<Unit> {
         }
     }
 
-    public func visit(funcDecl: FuncDeclWithRef) {
-        funcDecl.funcRef.paramRef.getOrThrow().iterator().forEach({ ref => 
-            waitingDeclaration.add(ref)
-        })
-
+    public override func visit(funcDecl: FuncDeclWithRef) {
         if (let Some(declType) <- funcDecl.declType) {
             declType.traverse(this)
         }
 
-        blockType = ScopeType.FUNCBLOCK
-        funcDecl.block.traverse(this)
+        let paramRef = Utils.foldToStack(funcDecl.funcRef.paramRef.getOrDefault({ 
+            => ArrayList<VariableReference>()}).iterator(), ArrayStack<VariableReference>())
+        try {
+            funcDecl.block.traverse(this)
+        } handle(_: ParameterDeclaration) {
+            resume with paramRef.remove()
+        } handle(_: InferBlockType) {
+            resume with ScopeType.FUNCBLOCK
+        }
     }
 
-    public func visit(mainDecl: MainDeclWithRef) {
-        if (let Some(ref) <- mainDecl.mainRef.paramRef) {
-            waitingDeclaration.add(ref)
-        }
-
+    public override func visit(mainDecl: MainDeclWithRef) {
         if (let Some(declType) <- mainDecl.declType) {
             declType.traverse(this)
         }
 
-        blockType = ScopeType.FUNCBLOCK
-        mainDecl.block.traverse(this)
+        let paramRef = ArrayStack<VariableReference>()
+        match (mainDecl.mainRef.paramRef) {
+            case Some(varReference) => paramRef.add(varReference)
+            case _ => ()
+        }
+
+        try{
+            mainDecl.block.traverse(this)
+        } handle(_: ParameterDeclaration) {
+            resume with paramRef.remove()
+        } handle(_: InferBlockType) {
+            resume with ScopeType.FUNCBLOCK
+        }
     }
 
-    public open func visit(classDecl: ClassDeclWithRef): Unit {
+    public override open func visit(classDecl: ClassDeclWithRef): Unit {
         ClassInitChecker(declareEnvironment, initializeEnvironment, 
             lastKilledEnvironment, currentScopeType, classDecl)
-    }
-
-    public func visit(argument: Argument) {
-        argument.expr.traverse(this)
-    }
-
-    public func visit(memberAccess: MemberAccess) {
-        memberAccess.baseExpr.traverse(this)
-    }
-
-    public func visit(_: LitConstExpr) {
-    }
-
-    public func visit(_: JumpExpr) {
-    }
-
-    public func visit(_: TypeNode) {
-    }
-
-    public func visit(_: PrimitiveType) {
-    }
-
-    public func visit(_: RefType) {
-    }
-
-    public func visit(_: PrimitiveTypeExpr) {
-    }
-
-    public func visit(_: VariableReference) {
-        throw Exception("References should not be traversed")
-    }
-
-    public func visit(_: FuncReference) {
-        throw Exception("References should not be traversed")
-    }
-
-    public func visit(_: ClassReference) {
-        throw Exception("References should not be traversed")
     }
 
     protected func beginScope(newScopeType: ScopeType) {
@@ -307,10 +259,9 @@ public open class InitChecker <: Visitor<Unit> {
     }
 }
 
-
 /*
 Extension of the Checker above that checks initialization of a class 
-    TODO: Add "this"
+    TODO: Add "this" and fixed member access
     TODD: check init() function calls form a cycle. 
 */
 private class ClassInitChecker <: InitChecker {
@@ -318,6 +269,8 @@ private class ClassInitChecker <: InitChecker {
     private var initializedMemberVariables: Int64 = 0
     private var totalMemberVariables: Int64 = 0
     private var decls: Set<Reference> = HashSet<Reference>()
+    private let unvisitedConstructors = HashMap<Reference, FuncDeclWithRef>()
+    private let currentPathConstructors = HashSet<Reference>()
 
     init (declareEnvironment: Environment<Reference, Int64>, 
             initializeEnvironment: Environment<Reference, Int64>,
@@ -331,7 +284,7 @@ private class ClassInitChecker <: InitChecker {
         classDecl.traverse(this)
     }
 
-    public func visit(classDecl: ClassDeclWithRef) :Unit {
+    public override func visit(classDecl: ClassDeclWithRef) :Unit {
         classDecl.superTypes.iterator().forEach({ superType => 
             superType.traverse(this)
         })
@@ -339,7 +292,10 @@ private class ClassInitChecker <: InitChecker {
         classDecl.body.traverse(this)
     }
 
-    protected func visit(body: Body) {
+    // TODO : fix the body visitor (remove as)
+    // I need to think if this can be improved without use of a new visitor
+    // Currently I believe that this is not possible, but maybe we can use effect handlers for this
+    public override func visit(body: Body) {
         beginScope(ScopeType.BODY)
 
         totalMemberVariables = 0
@@ -372,63 +328,125 @@ private class ClassInitChecker <: InitChecker {
                 }
             acc
         })
- 
+
+        initDecls.iterator().forEach({ initDecl => 
+            unvisitedConstructors.add(initDecl.funcRef, initDecl) })
+
         varDecls.forEach({ varDecl => varDecl.traverse(this) })
-        initDecls.iterator().forEach({ initDecl => initVisit(initDecl) })
+        initDecls.iterator().forEach({ initDecl => tryVisitConstructor(initDecl.funcRef) })
         initializedMemberVariables = totalMemberVariables
         funcDecls.iterator().forEach({ funcDecl => funcDecl.traverse(this) })
 
         endScope()
     }
 
-    public func visit(refExpr: RefExprWithRef) {
-        if (let Some(varReference) <- (refExpr.ref as VariableReference)) {
+    public override func visit(funcReference: FuncReference) {
+        perform ExactFuncReference(funcReference)
+    }
+
+    public override func visit(refExpr: RefExprWithRef) {
+        try {
+            refExpr.ref.traverse(this)
+        } handle(exactVarReference: ExactVarReference) {
+            let varReference = exactVarReference.varReference
             if (!isInitialized(varReference)) {
                 throw Exception("Variable ${varReference.identifier} is referenced" + 
                 " before initialization")
                 // The position of this reference is stored at the position of the token 
                 // refExpr.identifier
             }
-        } else if (let Some(funcReference) <- (refExpr.ref as FuncReference) && 
-            decls.contains(funcReference) && !allClassMembersInitialized) {
-            
+        } handle(exactFuncReference: ExactFuncReference) {
+            let funcReference = exactFuncReference.funcReference
+            if (decls.contains(funcReference) && !allClassMembersInitialized) {
             throw Exception("Member function ${funcReference.identifier} is referenced before all"+
                 " member variables are initialized")
+            }
         }
     }
 
-    private func initBlock(block: Block) {
-        beginScope(blockType)
+    public override func visit(callExpr: CallExprWithRef) {
+        callExpr.arguments.iterator().forEach({ arg => 
+            arg.traverse(this)
+        })
+
+        match (callExpr.callee as ThisSuperReference) {
+            case Some(_) => throw Exception("can not call 'this'/'super' constructor functions")
+            case _ => ()
+        }
+        callExpr.callee.traverse(this)
+    }
+
+    private func visitConstructorBlock(block: Block) {
+        beginScope(perform InferBlockType())
 
         // Reset the blockType to default BLOCK
-        blockType = ScopeType.BLOCK
+        while (let Some(paramReference) <- perform ParameterDeclaration()) {
+                declare(paramReference)
+                initialize(paramReference)
+        }
+        
+        // TODO : Can we remove use of "as" here and make the code better?
+        match (block.nodes.get(0)) {
+            case Some(node) => 
+                match (node as CallExprWithRef) {
+                    case Some(callExpr) => 
+                        match (callExpr.callee as ThisSuperReference) {
+                            case Some(_) => 
+                                block.nodes.remove(at: 0)
+                                tryVisitConstructor(callExpr.ref.getOrThrow())
+                            case _ => ()
+                        }
+                    case _ => ()
+                }
+            case _ => ()
+        }
 
-        block.nodes.iterator().forEach({ node => 
-            node.traverse(this)
-        })
+        try {
+            block.nodes.iterator().forEach({ node => 
+                node.traverse(this)
+            })
+        } handle(_: InferBlockType) {
+            resume with ScopeType.BLOCK
+        } 
 
         endScope()
     }
 
-    private func initVisit(initDecl: FuncDeclWithRef) {
-        let initializedMemberVariablesBefore = initializedMemberVariables
-
-        initDecl.funcRef.paramRef.getOrThrow().iterator().forEach({ ref => 
-            waitingDeclaration.add(ref)
-        })
+    private func visitConstructor(initDecl: FuncDeclWithRef) {
+        let storedInitializedMemberVariables = initializedMemberVariables
 
         if (let Some(declType) <- initDecl.declType) {
             declType.traverse(this)
         }
 
-        blockType = ScopeType.FUNCBLOCK
-        initBlock(initDecl.block)
+        let paramRef = Utils.foldToStack(initDecl.funcRef.paramRef.getOrDefault({ 
+            => ArrayList<VariableReference>()}).iterator(), ArrayStack<VariableReference>())
+        try {
+            visitConstructorBlock(initDecl.block)
+        } handle(_: ParameterDeclaration) {
+            resume with paramRef.remove()
+        } handle(_: InferBlockType) {
+            resume with ScopeType.BLOCK
+        }
 
         if (!allClassMembersInitialized) {
             throw Exception("Constructor function does not" + 
             " initialize all variables")
         }
-        initializedMemberVariables = initializedMemberVariablesBefore
+        initializedMemberVariables = storedInitializedMemberVariables
+    }
+
+    protected func tryVisitConstructor(funcReference: Reference): Unit{ 
+        match (unvisitedConstructors.get(funcReference)) {
+            case Some(constructor) => 
+                unvisitedConstructors.remove(funcReference)
+                currentPathConstructors.add(funcReference)
+                visitConstructor(constructor)
+            case _ => 
+                if (currentPathConstructors.contains(funcReference)) {
+                    throw Exception("Constructor functions can not form a cycle")
+                }
+        }
     }
 
     protected override func initialize(reference: Reference) {
@@ -458,103 +476,39 @@ private class ClassInitChecker <: InitChecker {
 }
 
 /*
-TODO : Add static variables
+
+TODO : In the future, For static variables similar check can be done probably
+
 */
 
-private class StaticGlobalVariableInitializationChecker <: Visitor<Unit> {
+public class StaticGlobalVariableInitializationChecker <: DefaultVisitor<Unit> {
     private let unvisitedFunctions = Environment<Reference, FuncDeclWithRef>()
-    private let initializedVariables = HashSet<Reference>()
+    private let uninitializedVariables = HashSet<Reference>()
 
-    private init(program: Program) {
-        program.decls.iterator().forEach({ decl => declare(decl) })
+    public init(program: Program) {
+        super(())
+        program.decls.iterator().forEach({ decl => process(decl) })
 
         program.traverse(this)
     }
 
-    public func visit(program: Program) {
+    public override func visit(program: Program) {
         program.decls.iterator().forEach({ decl => 
-            decl.traverse(this)
-            
-            match (decl as VarDeclWithRef) {
-                case Some(varDecl) => declareVariable(varDecl)
-                case _ => ()
-            }
-        })
-    }
- 
-    public func visit(binaryExpr: BinaryExpr) {
-        binaryExpr.left.traverse(this)
-        binaryExpr.right.traverse(this)
-    }
-
-    public func visit(unaryExpr: UnaryExpr) {
-        unaryExpr.right.traverse(this)
-    }
-
-    public func visit(parenExpr: ParenExpr){
-        parenExpr.parenthesizedExpr.traverse(this)
-    }
-
-    public func visit(assignExpr: AssignExpr) {
-        assignExpr.right.traverse(this)
-    }
-
-    public func visit(refExpr: RefExprWithRef) {
-        if (let Some(ref) <- (refExpr.ref as VariableReference) && !isInitialized(ref)) {
-            throw Exception("Use of static/global variable ${ref.identifier.value} before " + 
-                "initialization")
-        } else if (let Some(ref) <- (refExpr.ref as FuncReference)) {
-            tryVisit(ref)
-        }
-    }
-
-    public func visit(block: Block) {
-        block.nodes.iterator().forEach({ node => 
-            node.traverse(this)
+            tryVisit(decl)
         })
     }
 
-    public func visit(ifExpr: IfExpr) {
-        ifExpr.elseBranch.traverse(this)
-        ifExpr.condition.traverse(this)
-        ifExpr.ifBlock.traverse(this)
-    }
-
-    public func visit(whileExpr: WhileExpr) {
-        whileExpr.block.traverse(this)
-        whileExpr.condition.traverse(this)
-    }
-
-    public func visit(callExpr: CallExprWithRef) {
+    public override func visit(callExpr: CallExprWithRef) {
         callExpr.arguments.iterator().forEach({ arg => 
             arg.traverse(this)
         })
 
-        // match (callExpr.callee as RefExprWithRef) {
-        //     case Some(refExpr) => refExpr.ref = callExpr.ref.getOrThrow()
-        //     case _ => ()
-        // }
+        tryVisit(callExpr.ref.getOrThrow())
         callExpr.callee.traverse(this)
     }
 
-    public func visit(returnExpr: ReturnExpr) {
-        match (returnExpr.expr) {
-            case Some(expr) => expr.traverse(this)
-            case _ => ()
-        }
-    }
-
-    public func visit(varDecl: VarDeclWithRef) {
-        if (let Some(initzer) <- varDecl.initializer) {
-            initzer.traverse(this)
-        }
-
-        if (let Some(declType) <- varDecl.declType) {
-            declType.traverse(this)
-        }
-    }
-
-    public func visit(funcDecl: FuncDeclWithRef) {
+    public override func visit(funcDecl: FuncDeclWithRef) {
+        unvisitedFunctions.destroy(funcDecl.funcRef)
         if (let Some(declType) <- funcDecl.declType) {
             declType.traverse(this)
         }
@@ -562,59 +516,55 @@ private class StaticGlobalVariableInitializationChecker <: Visitor<Unit> {
         funcDecl.block.traverse(this)
     }
 
-    public func visit(mainDecl: MainDeclWithRef) {
-        if (let Some(declType) <- mainDecl.declType) {
+    public override func visit(varDecl: VarDeclWithRef) {
+        if (let Some(initzer) <- varDecl.initializer) {
+            initzer.traverse(this)
+        }
+
+        if (let Some(declType) <- varDecl.declType) {
             declType.traverse(this)
         }
 
-        mainDecl.block.traverse(this)
+        initializeVariable(varDecl)
     }
 
-    public func visit(classDecl: ClassDeclWithRef): Unit {
-        classDecl.superTypes.iterator().forEach({ superType => superType.traverse(this) })
-        classDecl.body.traverse(this)
+    public override func visit(body: Body) {
+        body.decls.iterator().forEach({ decl => 
+            tryVisit(decl)
+        })
     }
 
-    public func visit(argument: Argument) {
-        argument.expr.traverse(this)
+    public override func visit(refExpr: RefExprWithRef) {
+        try { 
+            refExpr.ref.traverse(this)
+        } handle(exactVarReference: ExactVarReference) {
+            let varReference = exactVarReference.varReference
+
+            if (!isInitialized(varReference)) {
+                throw Exception("Use of static/global variable ${varReference.identifier.value}" + 
+                " before initialization")
+            }
+        }
     }
 
-    public func visit(memberAccess: MemberAccess) {
-        memberAccess.baseExpr.traverse(this)
+    public override func visit(varReference: VariableReference) {
+        perform ExactVarReference(varReference)
     }
 
-    public func visit(_: LitConstExpr) {
+    public override func visit(funcReference: FuncReference) {
+        tryVisit(funcReference)
     }
 
-    public func visit(_: JumpExpr) {
+    private func initializeVariable(varDecl: VarDeclWithRef): Unit {
+        uninitializedVariables.remove(varDecl.ref)
     }
 
-    public func visit(_: TypeNode) {
+    private func isInitialized(reference: Reference) {
+        !uninitializedVariables.contains(reference)
     }
 
-    public func visit(_: PrimitiveType) {
-    }
-
-    public func visit(_: RefType) {
-    }
-
-    public func visit(_: PrimitiveTypeExpr) {
-    }
-
-    public func visit(_: VariableReference) {
-        throw Exception("References should not be traversed")
-    }
-
-    public func visit(_: FuncReference) {
-        throw Exception("References should not be traversed")
-    }
-
-    public func visit(_: ClassReference) {
-        throw Exception("References should not be traversed")
-    }
-
-    private func declareVariable(varDecl: VarDeclWithRef): Unit {
-        initializedVariables.add(varDecl.ref)
+    private func declareVariable(varDecl: VarDeclWithRef) {
+        uninitializedVariables.add(varDecl.ref)
     }
 
     private func declareFunction(funcDecl: FuncDeclWithRef) {
@@ -623,16 +573,22 @@ private class StaticGlobalVariableInitializationChecker <: Visitor<Unit> {
         }
     }
 
-    private func declare(decl: Decl): Unit {
+    // TODO : Can we remove "as" and make the code of the following better?
+    private func process(decl: Decl): Unit {
         if (let Some(funcDecl) <- (decl as FuncDeclWithRef)) {
             declareFunction(funcDecl)
         } else if (let Some(classDecl) <- (decl as ClassDeclWithRef)) {
-            classDecl.body.decls.iterator().forEach{ decl => declare(decl) }
+            classDecl.body.decls.iterator().forEach({ decl => process(decl) })
+        } else if (let Some(varDecl) <- (decl as VarDeclWithRef)) {
+            declareVariable(varDecl)
         }
     }
 
-    private func isInitialized(reference: Reference) {
-        initializedVariables.contains(reference)
+    private func tryVisit(decl: Decl) {
+        match (decl as FuncDeclWithRef) {
+            case Some(funcDecl) => tryVisit(funcDecl.funcRef)
+            case _ => decl.traverse(this)
+        }
     }
 
     private func tryVisit(funcRef: FuncReference) {

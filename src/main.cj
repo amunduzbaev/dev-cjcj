@@ -9,7 +9,6 @@ import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.asg.initChecker.InitChecker
 
 import std.env.*
-import std.io.*
 import std.fs.File 
 
 
