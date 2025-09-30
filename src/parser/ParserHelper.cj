@@ -9,7 +9,7 @@ public open class ConsumeError <: FinalError { }
 public open class ParseError <: FinalError { }
 public open class FinalError <: Exception { }
 
-public class NodeIdManager {
+public abstract class NodeIdManager {
     // The ID 0 is a default invalid value.
     private static var count: Int64 = 1
 
