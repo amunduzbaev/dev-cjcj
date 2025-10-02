@@ -272,7 +272,24 @@ class TypeCheckTests {
 
     @TestCase
     func multipleCandidateFunction_test() {
-        let test: String = """
+        let testRight: String = """
+            func A(a: Any, b: Any): Unit {
+                5
+            }
+
+            func A(a: Int64, b: Int64): Int64 {
+                2
+            }
+
+            main(args: Int64) {
+                let a: Int64 = 1
+                let b: Int64 = 2
+
+                let c: Unit = A(a, b)
+            }
+            """
+        TypeChecker(getAsg(testRight))
+        let testWrong: String = """
             func A(a: Any, b: Any): Any {
                 a
             }
@@ -292,7 +309,7 @@ class TypeCheckTests {
                 let c = A(a, b)
             }
             """
-        @AssertThrows[Exception](TypeChecker(getAsg(test)))
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
     }
 
     @TestCase
