@@ -132,17 +132,32 @@ public class TypeChecker <: Visitor<Unit> {
     }
 
     public override func visit(litConstExpr: LitConstExpr): Unit {
-        nodePossibleTypes.add(litConstExpr.id, HashSet([
+        nodePossibleTypes.add(litConstExpr.id, HashSet(
             match (litConstExpr.literal.kind) {
                 // TODO: Change this, compiler can do implicit cast.
-                case TokenKind.INTEGER_LITERAL => typeManager.getType("Int64")
-                case TokenKind.FLOAT_LITERAL => typeManager.getType("Float64")
-                case TokenKind.BOOL_LITERAL => typeManager.getType("Bool")
-                case TokenKind.STRING_LITERAL => typeManager.getType("String")
-                case TokenKind.UNIT_LITERAL => Type.UNIT
+                case TokenKind.INTEGER_LITERAL => [
+                    typeManager.getType("Int64"),
+                    typeManager.getType("Int32"),
+                    typeManager.getType("Int16"),
+                    typeManager.getType("Int8"),
+                    typeManager.getType("IntNative"),
+                    typeManager.getType("UInt64"),
+                    typeManager.getType("UInt32"),
+                    typeManager.getType("UInt16"),
+                    typeManager.getType("UInt8"),
+                    typeManager.getType("UIntNative")
+                ]
+                case TokenKind.FLOAT_LITERAL => [
+                    typeManager.getType("Float64"),
+                    typeManager.getType("Float32"),
+                    typeManager.getType("Float16")
+                ]
+                case TokenKind.BOOL_LITERAL => [typeManager.getType("Bool")]
+                case TokenKind.STRING_LITERAL => [typeManager.getType("String")]
+                case TokenKind.UNIT_LITERAL => [Type.UNIT]
                 // TODO: Add all other literals.
                 case _ => throw Exception("You forgot to add all the literal types")
-            }])
+            })
         )
     }
 

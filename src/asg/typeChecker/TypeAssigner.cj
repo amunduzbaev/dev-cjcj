@@ -6,6 +6,7 @@ import cjcj.asg.TypeManager
 import cjcj.asg.Utils
 import cjcj.scanner.Token
 
+import std.convert.*
 import std.collection.*
 
 /*
@@ -65,11 +66,71 @@ public class TypeAssigner <: Visitor<Type> {
         matchReturnType(parenExpr.parenthesizedExpr.traverse(this))
     }
 
+    private func checkIntValue(value: String, tp: Type): Unit {
+        if (tp == typeManager.getType("Int64")) {
+            Int64.parse(value)
+        } else if (tp == typeManager.getType("Int32")) {
+            Int32.parse(value)
+        } else if (tp == typeManager.getType("Int16")) {
+            Int16.parse(value)
+        } else if (tp == typeManager.getType("Int8")) {
+            Int8.parse(value)
+        } else if (tp == typeManager.getType("IntNative")) {
+            let val: Int64 = Int64.parse(value)
+            if (val > Int64(IntNative.Max) || val < Int64(IntNative.Min)) {
+                throw Exception("the number '${val}' exceeds the value range of type 'IntNative'")
+            }
+        } else if (tp == typeManager.getType("UInt64")) {
+            UInt64.parse(value)
+        } else if (tp == typeManager.getType("UInt32")) {
+            UInt32.parse(value)
+        } else if (tp == typeManager.getType("UInt16")) {
+            UInt16.parse(value)
+        } else if (tp == typeManager.getType("UInt8")) {
+            UInt8.parse(value)
+        } else if (tp == typeManager.getType("UIntNative")) {
+            let val: UInt64 = UInt64.parse(value)
+            if (val > UInt64(UIntNative.Max) || val < UInt64(UIntNative.Min)) {
+                throw Exception("the number '${val}' exceeds the value range of type 'UIntNative'")
+            }
+        } else {
+            throw Exception("Type expected is not an integer")
+        }
+    }
+
+    private func checkFloatValue(value: String, tp: Type): Unit {
+        if (tp == typeManager.getType("Float64")) {
+            Float64.parse(value)
+        } else if (tp == typeManager.getType("Float32")) {
+            Float32.parse(value)
+        } else if (tp == typeManager.getType("Float16")) {
+            Float16.parse(value)
+        } else {
+            throw Exception("Type expected is not an integer")
+        }
+    }
+
     public override func visit(litConstExpr: LitConstExpr): Type {
         let tp: Type = match (litConstExpr.literal.kind) {
             // TODO: Change this, compiler can do implicit cast.
-            case TokenKind.INTEGER_LITERAL => typeManager.getType("Int64")
-            case TokenKind.FLOAT_LITERAL => typeManager.getType("Float64")
+            case TokenKind.INTEGER_LITERAL => if (let Some(expected) <- expectedReturnType) {
+                if (nodePossibleTypes.get(litConstExpr.id).getOrThrow().contains(expected)) {
+                    checkIntValue(litConstExpr.literal.value, expected)
+                    return expected
+                }
+                throw Exception("Expected ${expected.name} found interger literal")
+            } else {
+                typeManager.getType("Int64")
+            }
+            case TokenKind.FLOAT_LITERAL => if (let Some(expected) <- expectedReturnType) {
+                if (nodePossibleTypes.get(litConstExpr.id).getOrThrow().contains(expected)) {
+                    checkFloatValue(litConstExpr.literal.value, expected)
+                    return expected
+                }
+                throw Exception("Expected ${expected.name} found float literal")
+            } else {
+                typeManager.getType("Float64")
+            }
             case TokenKind.BOOL_LITERAL => typeManager.getType("Bool")
             case TokenKind.STRING_LITERAL => typeManager.getType("String")
             case TokenKind.UNIT_LITERAL => Type.UNIT
