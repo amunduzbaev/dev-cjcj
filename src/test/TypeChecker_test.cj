@@ -344,6 +344,21 @@ class TypeCheckTests {
         @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
     }
 
+
+    @TestCase
+    func noReturnInsideInit_test() {
+        let testWrong: String = """
+            class a {
+                init() {
+                    return 5
+                }
+            }
+            main(){
+            }
+            """
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+    }
+
     @TestCase
     func memberAccessFound_test() {
         let testRight: String = """

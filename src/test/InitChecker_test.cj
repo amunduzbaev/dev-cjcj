@@ -29,10 +29,16 @@ class InitCheckerTests {
         @Fail("Couldn't parse the program")
     }
     
-    private func getAsg(test: String): Program {
+    // private func getAsg(test: String): Program {
+    //     let asg = AsgMaker().resolve(getAst(test))
+    //     TypeChecker(asg)
+    //     asg
+    // }
+
+    private func resolve(test: String) {
         let asg = AsgMaker().resolve(getAst(test))
-        TypeChecker(asg)
-        asg
+
+        InitChecker(TypeChecker(asg).classEnvironment).resolve(asg)
     }
 
     @TestCase 
@@ -43,7 +49,7 @@ class InitCheckerTests {
                 let b = a
             }
         """
-       @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+       @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             main() {
@@ -52,7 +58,8 @@ class InitCheckerTests {
             }
         """
 
-       InitChecker().resolve(getAsg(testRight))
+        resolve(testRight)
+       resolve(testRight)
     }
 
     @TestCase 
@@ -66,7 +73,7 @@ class InitCheckerTests {
                 let b = a
             }
         """
-       @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+       @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             main() {
@@ -81,7 +88,7 @@ class InitCheckerTests {
             }
         """
 
-       InitChecker().resolve(getAsg(testRight))
+       resolve(testRight)
     }
 
 
@@ -100,7 +107,7 @@ class InitCheckerTests {
                 let b = a
             }
         """
-       @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+       @AssertThrows[Exception](resolve(testWrong))
 
         testWrong = """
             main() {
@@ -116,7 +123,7 @@ class InitCheckerTests {
                 let b = a
             }
         """
-       @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+       @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             main() {
@@ -133,7 +140,7 @@ class InitCheckerTests {
             }
         """
 
-       InitChecker().resolve(getAsg(testRight))
+       resolve(testRight)
     }
 
 
@@ -163,7 +170,7 @@ class InitCheckerTests {
 
             """
 
-        @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+        @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             main () {
@@ -187,7 +194,7 @@ class InitCheckerTests {
             }
             """
 
-        InitChecker().resolve(getAsg(testRight))
+        resolve(testRight)
     }
 
     @TestCase 
@@ -202,7 +209,7 @@ class InitCheckerTests {
                 let b = a
             }
         """
-       @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+       @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             main() {
@@ -216,7 +223,7 @@ class InitCheckerTests {
             }
         """
 
-       InitChecker().resolve(getAsg(testRight))
+       resolve(testRight)
     }
 
     @TestCase 
@@ -228,7 +235,7 @@ class InitCheckerTests {
             }
         """
 
-       InitChecker().resolve(getAsg(testRight))
+       resolve(testRight)
     }
 
 
@@ -241,7 +248,7 @@ class InitCheckerTests {
                 a = 2
             }
         """
-       @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+       @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             main() {
@@ -250,7 +257,7 @@ class InitCheckerTests {
             }
         """
 
-       InitChecker().resolve(getAsg(testRight))
+       resolve(testRight)
     }
 
     @TestCase
@@ -263,7 +270,7 @@ class InitCheckerTests {
                 }
             }
         """
-       @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+       @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             main() {
@@ -274,7 +281,7 @@ class InitCheckerTests {
             }
         """
 
-       InitChecker().resolve(getAsg(testRight))
+       resolve(testRight)
     }
 
 
@@ -296,7 +303,7 @@ class InitCheckerTests {
             }
             """
 
-        @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+        @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             main () {
@@ -314,7 +321,7 @@ class InitCheckerTests {
             }
             """
 
-        InitChecker().resolve(getAsg(testRight))
+        resolve(testRight)
     }
 
     @TestCase
@@ -327,7 +334,7 @@ class InitCheckerTests {
                 }
             }
         """
-       @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+       @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             main() {
@@ -338,7 +345,7 @@ class InitCheckerTests {
             }
         """
 
-       InitChecker().resolve(getAsg(testRight))
+       resolve(testRight)
     }
 
     @TestCase
@@ -352,7 +359,7 @@ class InitCheckerTests {
                 a("1", 2)
             }
         """
-       @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+       @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             main() {
@@ -363,7 +370,7 @@ class InitCheckerTests {
             }
         """
 
-       InitChecker().resolve(getAsg(testRight))
+       resolve(testRight)
 
     }
 
@@ -379,7 +386,7 @@ class InitCheckerTests {
             main() {
             }
         """
-       @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+       @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             class C{
@@ -392,7 +399,7 @@ class InitCheckerTests {
             }
         """
 
-       InitChecker().resolve(getAsg(testRight))
+       resolve(testRight)
     }
 
 
@@ -408,7 +415,7 @@ class InitCheckerTests {
             main() {
             }
         """
-       @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+       @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             class C{
@@ -422,7 +429,7 @@ class InitCheckerTests {
             }
         """
 
-       InitChecker().resolve(getAsg(testRight))
+       resolve(testRight)
     }
 
     @TestCase
@@ -441,7 +448,7 @@ class InitCheckerTests {
             main() {
             }
         """
-       @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+       @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             class C{
@@ -458,7 +465,7 @@ class InitCheckerTests {
             }
         """
 
-       InitChecker().resolve(getAsg(testRight))
+       resolve(testRight)
     }
 
 
@@ -476,7 +483,7 @@ class InitCheckerTests {
             main() {
             }
         """
-       @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+       @AssertThrows[Exception](resolve(testWrong))
     }
 
 
@@ -492,7 +499,7 @@ class InitCheckerTests {
             main() {
             }
         """
-       @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+       @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             class C{
@@ -505,7 +512,7 @@ class InitCheckerTests {
             }
         """
 
-       InitChecker().resolve(getAsg(testRight))
+       resolve(testRight)
     }
 
 
@@ -524,7 +531,7 @@ class InitCheckerTests {
             main() {
             }
         """
-       @AssertThrows[Exception](InitChecker().resolve(getAsg(testWrong)))
+       @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             class C{
@@ -540,21 +547,204 @@ class InitCheckerTests {
             }
         """
 
-       InitChecker().resolve(getAsg(testRight))
+       resolve(testRight)
     }
 
     @TestCase
-    func noReturnInsideInit_test() {
-        let test: String = """
-            class a {
+    func classReferenceBeforeInitialization_test() {
+        let testWrong: String = """
+            func External(a: CLASS) {
+                a
+            }
+
+            class CLASS{
+                let a: Int64
                 init() {
-                    return 5
+                    External(this)
+                    a = 1
                 }
             }
             main(){
-            }"""
-        @AssertThrows[Exception](InitChecker().resolve(getAsg(test)))
-    }
-}
+            }
+        """
+       @AssertThrows[Exception](resolve(testWrong))
 
+        let testRight: String = """
+            func External(a: CLASS) {
+                a
+            }
+
+            class CLASS{
+                let a: Int64
+                init() {
+                    a = 1
+                    External(this)
+                }
+            }
+            main(){
+            }
+        """
+
+       resolve(testRight)
+    }
+
+    @TestCase
+    func classInitSuperFunctionCall_test() {
+        let testWrong: String = """
+            class SCLASS {
+                func g(){
+                }
+            }
+
+            class CLASS <: SCLASS{
+                let a: Int64
+                init() {
+                    g()
+                    a = 1
+                }
+            }
+            main(){
+            }
+        """
+       @AssertThrows[Exception](resolve(testWrong))
+    }
+
+    @TestCase
+    func classInitSuperMemberAccess_test() {
+        let testRight: String = """
+            class SCLASS {
+                var a: Int64
+
+                init() {
+                    a = 1
+                }
+            }
+
+            class CLASS <: SCLASS {
+                init() {
+                    this.a = 1
+                    super.a = 1
+                    a = 1
+                }
+            }
+            main(){
+            }
+        """
+       resolve(testRight)
+
+        let testWrong: String = """
+            class SCLASS {
+                let a: Int64
+
+                init() {
+                    a = 1
+                }
+            }
+
+            class CLASS <: SCLASS {
+                init() {
+                    super.a = 1
+                }
+            }
+            main(){
+            }
+        """
+       @AssertThrows[Exception](resolve(testWrong))
+    }
+
+    @TestCase
+    func classInitMemberAccess_test() {
+        let testRight: String = """
+            class CLASS {
+                let a: Int64
+
+                init() {
+                    if(true) {
+                        a = 2
+                    }
+
+                    a = 1
+                }
+            }
+            main(){
+            }
+        """
+        resolve(testRight)
+
+        let testWrong: String = """
+            class CLASS {
+                let a: Int64
+
+                init() {
+                    if(true) {
+                        a = 2
+                    } else {
+                        f()
+                    }
+
+                    a = 1
+                }
+                func f() {
+                }
+            }
+            main(){
+            }
+        """
+       @AssertThrows[Exception](resolve(testWrong))
+    }
+
+    
+    @TestCase
+    func globalVarUseBeforeInitialization_test(){
+        let testRight: String = """
+            let var1 = CLASS2().F()
+            var var2 = 1
+
+            class CLASS2{
+                func F(){
+                    var2 = 1
+                }
+            }
+
+            main(){
+            }
+        """
+        resolve(testRight)
+
+        let testWrong: String = """
+            let var1 = CLASS2().F()
+            var var2 = 1
+
+            class CLASS2{
+                func F(){
+                    let x = var2
+                }
+            }
+
+            main(){
+            }
+        """
+        @AssertThrows[Exception](resolve(testWrong))
+
+        let testWrongHard: String = """
+            class CLASS {
+                let a = 1
+            }
+            let var1 = CLASS2().F()
+            var var2 = CLASS()
+
+            class CLASS2{
+                func F(){
+                    let x = var2.a
+                }
+            }
+
+            main(){
+            }
+        """
+        @AssertThrows[Exception](resolve(testWrongHard))
+    }
+
+    
+}
 

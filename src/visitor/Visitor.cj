@@ -341,6 +341,10 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
         memberAccess.baseExpr.traverse(this)
     }
 
+    public override open func visit(memberAccess: MemberAccessWithRef): R {
+        memberAccess.baseExpr.traverse(this)
+    }
+
     public override open func visit(_: PrimitiveTypeExpr): R {
         default
     }

@@ -3,9 +3,9 @@ package cjcj.asg.initChecker
 import cjcj.asg.Utils
 import cjcj.visitor.*
 import cjcj.scanner.TokenKind
-import std.collection.Set
-import std.collection.HashSet
+import cjcj.asg.typeChecker.ClassReferenceForTC
 
+import std.collection.HashSet
 import std.collection.ArrayList
 import std.collection.ArrayStack
 import std.collection.HashMap
@@ -15,50 +15,71 @@ public open class InitChecker <: DefaultVisitor<Unit> {
     protected var initializeEnvironment = Environment<Reference, Int64>()
     protected var currentScopeType: ScopeEnvironment = ScopeEnvironment()
     protected var lastKilledEnvironment = Environment<Reference, Int64>()
+    protected var classMembersContainer: Environment<String, ClassReferenceForTC>
 
-    public init(declareEnvironment_: Environment<Reference, Int64>, 
+    public init(
+        declareEnvironment_: Environment<Reference, Int64>, 
         initializeEnvironment_: Environment<Reference, Int64>,
         lastKilledEnvironment_: Environment<Reference, Int64>, 
-        currentScopeType_: ScopeEnvironment){
+        currentScopeType_: ScopeEnvironment,
+        classMembersContainer: Environment<String, ClassReferenceForTC>
+    ){
             super(())
             declareEnvironment = declareEnvironment_
             initializeEnvironment = initializeEnvironment_
             lastKilledEnvironment = lastKilledEnvironment_
             currentScopeType = currentScopeType_
+            this.classMembersContainer = classMembersContainer
     }
 
-    public init() {
+    public init(classMembersContainer: Environment<String, ClassReferenceForTC>) {
         super(())
+        this.classMembersContainer = classMembersContainer
     }
 
     public func resolve(program: Program) {
-        program.traverse(this)
+        try {
+            program.traverse(this)
+        } handle(exactVarReference: ExactVarReference) {
+            if (!isInitialized(exactVarReference.varReference)) {
+                throw Exception("Variable ${exactVarReference.varReference.identifier} is" + 
+                "referenced before initialization in reference " + 
+                "${exactVarReference.locationRef.getOrThrow().value}")
+                // The position of this reference is stored at the position of the token 
+                // refIdentifier
+            }
+            resume with ()
+        } handle(_: MemberVarReference) {
+            resume with ()
+        }
         StaticGlobalVariableInitializationChecker(program)
     }
 
-    // TODO: This should be completely changed and fixed for the member access mutations etc..
-    // For the same reason in case of the visit function for refExpr
-    // Also, RefExprWithRef should be removed in this case. For that, consider this in future, 
-    // when member access with ref is added.
-    public override func visit(assignExpr: AssignExpr) {
+    public open override func visit(assignExpr: AssignExpr) {
         assignExpr.right.traverse(this)
 
-        if (let Some(refExpr) <- (assignExpr.left as RefExprWithRef)) {
-            try {
-                refExpr.ref.traverse(this)
-            } handle(exactVarReference: ExactVarReference) {
-                let varReference = exactVarReference.varReference
-
-                if (!isInitialized(varReference)) {
-                    initialize(varReference)
-                } else if (varReference.keyword.kind == TokenKind.LET) {
-                    throw Exception("Mutation of immutable variable ${varReference.identifier.value}")
-                }
-                resume with ()
-            }
-        } else {
+        try {
             assignExpr.left.traverse(this)
+        } handle(exactVarReference: ExactVarReference) {
+            let varReference = exactVarReference.varReference
+
+            if (!isInitialized(varReference)) {
+                initialize(varReference)
+            } else if (varReference.keyword.kind == TokenKind.LET) {
+                throw Exception("Mutation of immutable variable" + 
+                "${varReference.identifier.value}")
+            }
+            resume with ()
+        } handle(memberVarReference: MemberVarReference) {
+            let varReference = memberVarReference.varReference
+
+            if (varReference.keyword.kind == TokenKind.LET) {
+                throw Exception("Mutation of immutable member variable" + 
+                "${varReference.identifier.value}")
+            }
+            resume with ()
         }
+        // For error reporting use the locationRef in MemberVarReference or ExactVarReference
     }
 
     public override open func visit(varReference: VariableReference) {
@@ -66,15 +87,11 @@ public open class InitChecker <: DefaultVisitor<Unit> {
     }
 
     public override open func visit(refExpr: RefExprWithRef) {
-        try{
+        try {
             refExpr.ref.traverse(this)
-        }  handle(exactVarReference: ExactVarReference) {
-            if (!isInitialized(exactVarReference.varReference)) {
-                throw Exception("Variable ${exactVarReference.varReference.identifier} is" + 
-                "referenced before initialization in reference ${refExpr.identifier.value}")
-                // The position of this reference is stored at the position of the token 
-                // refIdentifier
-            }
+        } handle(exactVarReference: ExactVarReference) {
+            exactVarReference.locationRef = refExpr.identifier
+            perform exactVarReference
             resume with ()
         }
     }
@@ -101,6 +118,17 @@ public open class InitChecker <: DefaultVisitor<Unit> {
                 })
 
             initialize(initialized)
+            resume with ()
+        } handle(exactVarReference: ExactVarReference) {
+            if (!isInitialized(exactVarReference.varReference)) {
+                throw Exception("Variable ${exactVarReference.varReference.identifier} is" + 
+                "referenced before initialization in reference " + 
+                "${exactVarReference.locationRef.getOrThrow().value}")
+                // The position of this reference is stored at the position of the token 
+                // refIdentifier
+            }
+            resume with ()
+        } handle(_: MemberVarReference) {
             resume with ()
         }
 
@@ -187,7 +215,34 @@ public open class InitChecker <: DefaultVisitor<Unit> {
 
     public override open func visit(classDecl: ClassDeclWithRef): Unit {
         ClassInitChecker(declareEnvironment, initializeEnvironment, 
-            lastKilledEnvironment, currentScopeType, classDecl)
+            lastKilledEnvironment, currentScopeType, classDecl, classMembersContainer)
+    }
+
+    public override open func visit(memberAccess: MemberAccessWithRef): Unit {
+        try {
+            memberAccess.baseExpr.traverse(this)
+        } handle(exactVarReference: ExactVarReference) {
+            if (!isInitialized(exactVarReference.varReference)) {
+                throw Exception("Variable ${exactVarReference.varReference.identifier} is" + 
+                "referenced before initialization in reference " + 
+                "${exactVarReference.locationRef.getOrThrow().value}")
+            }
+            resume with ()
+        } handle(_: MemberVarReference) {
+            resume with ()
+        }
+
+        match (classMembersContainer.getGlobal(memberAccess.ref.getOrThrow().identifier.value)
+            .getOrThrow().getMembersReference(memberAccess.field.value)){
+            case Some(ref) => 
+                try {
+                    ref.traverse(this)
+                } handle(exactVarReference: ExactVarReference) {
+                    perform MemberVarReference(exactVarReference.varReference, memberAccess.field)
+                    resume with ()
+                }
+            case _ => ()
+        }
     }
 
     protected func beginScope(newScopeType: ScopeType) {
@@ -265,21 +320,29 @@ Extension of the Checker above that checks initialization of a class
     TODD: check init() function calls form a cycle. 
 */
 private class ClassInitChecker <: InitChecker {
-    private var enclosingClassReference: ClassReference
+    private var accessibleMembers: ClassReferenceForTC
     private var initializedMemberVariables: Int64 = 0
     private var totalMemberVariables: Int64 = 0
-    private var decls: Set<Reference> = HashSet<Reference>()
+    private var superIsInitialized: Bool = false
+    private var decls: HashSet<Reference> = HashSet<Reference>()
     private let unvisitedConstructors = HashMap<Reference, FuncDeclWithRef>()
     private let currentPathConstructors = HashSet<Reference>()
 
-    init (declareEnvironment: Environment<Reference, Int64>, 
-            initializeEnvironment: Environment<Reference, Int64>,
-            lastKilledEnvironment: Environment<Reference, Int64>, 
-            currentScopeType: ScopeEnvironment, classDecl: ClassDeclWithRef){
+    init (
+        declareEnvironment: Environment<Reference, Int64>, 
+        initializeEnvironment: Environment<Reference, Int64>,
+        lastKilledEnvironment: Environment<Reference, Int64>, 
+        currentScopeType: ScopeEnvironment, 
+        classDecl: ClassDeclWithRef, 
+        classMembersContainer: Environment<String, ClassReferenceForTC>
+    ){
 
         super(declareEnvironment, initializeEnvironment, 
-            lastKilledEnvironment, currentScopeType)
-        enclosingClassReference = classDecl.ref
+            lastKilledEnvironment, currentScopeType, classMembersContainer)
+        accessibleMembers = classMembersContainer.getGlobal(classDecl.identifier.value).getOrThrow({
+            => Exception("Can not find the class ${classDecl.identifier.value} in class Member" + 
+            " Containers")
+        })
 
         classDecl.traverse(this)
     }
@@ -348,22 +411,54 @@ private class ClassInitChecker <: InitChecker {
         try {
             refExpr.ref.traverse(this)
         } handle(exactVarReference: ExactVarReference) {
-            let varReference = exactVarReference.varReference
-            if (!isInitialized(varReference)) {
-                throw Exception("Variable ${varReference.identifier} is referenced" + 
-                " before initialization")
-                // The position of this reference is stored at the position of the token 
-                // refExpr.identifier
-            }
+            exactVarReference.locationRef = refExpr.identifier
+            perform exactVarReference
+
+            resume with ()
         } handle(exactFuncReference: ExactFuncReference) {
             let funcReference = exactFuncReference.funcReference
             if (decls.contains(funcReference) && !allClassMembersInitialized) {
-            throw Exception("Member function ${funcReference.identifier} is referenced before all"+
-                " member variables are initialized")
+                throw Exception("Member function ${funcReference.identifier} is referenced before" +
+                " all member variables are initialized")
             }
+            resume with ()
         }
     }
 
+    public override func visit(memberAccess: MemberAccessWithRef) {
+        try {
+            memberAccess.baseExpr.traverse(this)
+        } handle(exactVarReference: ExactVarReference) {
+            if (!isInitialized(exactVarReference.varReference)) {
+                throw Exception("Variable ${exactVarReference.varReference.identifier} is" + 
+                "referenced before initialization in reference " + 
+                "${exactVarReference.locationRef.getOrThrow().value}")
+            }
+            resume with ()
+        } handle(_: MemberVarReference) {
+            resume with ()
+        }
+
+        match (classMembersContainer.getGlobal(memberAccess.ref.getOrThrow().identifier.value)
+            .getOrThrow().getMembersReference(memberAccess.field.value)) {
+            case Some(ref) => 
+                try {
+                    ref.traverse(this)
+                } handle(exactVarReference: ExactVarReference) {
+                    if (memberAccess.baseExpr is ThisSuperExpr) {
+                        exactVarReference.locationRef = memberAccess.field
+                        perform exactVarReference
+                    } else {
+                        perform MemberVarReference(exactVarReference.varReference, memberAccess.field)
+                    }
+                    resume with ()
+                }
+            case _ => ()
+        }
+    }
+
+    // TODO : Fix by removing the "as"/"is", add Effect handlers for ThisSuperReference and 
+    // function call check
     public override func visit(callExpr: CallExprWithRef) {
         callExpr.arguments.iterator().forEach({ arg => 
             arg.traverse(this)
@@ -371,27 +466,47 @@ private class ClassInitChecker <: InitChecker {
 
         match (callExpr.callee as ThisSuperReference) {
             case Some(_) => throw Exception("can not call 'this'/'super' constructor functions")
-            case _ => ()
+            case _ => 
+                match (callExpr.callee as MemberAccessWithRef) {
+                    case Some(memberAccess) => 
+                        if (memberAccess.baseExpr is ThisSuperReference) {
+                            try {
+                                callExpr.ref.getOrThrow().traverse(this)
+                            } handle(exactFuncReference: ExactFuncReference) {
+                                let funcReference = exactFuncReference.funcReference
+                                if (decls.contains(funcReference) && !allClassMembersInitialized) {
+                                    throw Exception("Member function ${funcReference.identifier}" + 
+                                    " is referenced before all member variables are initialized")
+                                }
+                                resume with ()
+                            }
+                        }
+                    case _ => ()
+                }
         }
+
         callExpr.callee.traverse(this)
     }
 
-    private func visitConstructorBlock(block: Block) {
-        beginScope(perform InferBlockType())
-
-        // Reset the blockType to default BLOCK
-        while (let Some(paramReference) <- perform ParameterDeclaration()) {
-                declare(paramReference)
-                initialize(paramReference)
+    public override func visit(_: ThisSuperReference){
+        if (!allClassMembersInitialized) {
+            throw Exception("Can not reference this/super before initialization of member " + 
+            "variables")
         }
-        
+    }
+
+    private func visitConstructorBlock(block: Block) {
         // TODO : Can we remove use of "as" here and make the code better?
+        // I believe it is possible to remove "as" here using effect handlers. Figure out the best
+        // way to implement it
+        // TODO : Also need to check if super() is called explicitly, and it not, check if super 
+        // class contains default constructor
         match (block.nodes.get(0)) {
             case Some(node) => 
                 match (node as CallExprWithRef) {
                     case Some(callExpr) => 
                         match (callExpr.callee as ThisSuperReference) {
-                            case Some(_) => 
+                            case Some(thisSuperReference) => 
                                 block.nodes.remove(at: 0)
                                 tryVisitConstructor(callExpr.ref.getOrThrow())
                             case _ => ()
@@ -401,13 +516,41 @@ private class ClassInitChecker <: InitChecker {
             case _ => ()
         }
 
+        beginScope(perform InferBlockType())
+        superIsInitialized = true
+
+        while (let Some(paramReference) <- perform ParameterDeclaration()) {
+                declare(paramReference)
+                initialize(paramReference)
+        }
+
         try {
             block.nodes.iterator().forEach({ node => 
                 node.traverse(this)
             })
         } handle(_: InferBlockType) {
             resume with ScopeType.BLOCK
-        } 
+        } handle(ifElseInit: IfElseInitialization<Reference, Int64>) {
+            let initialized = ifElseInit.branchInitializations.elements.iterator().fold(
+                ArrayList<Reference>(), { acc, entry => 
+                    acc.add(entry[0])
+                    acc
+                })
+
+            initialize(initialized)
+            resume with ()
+        } handle(exactVarReference: ExactVarReference) {
+            if (!isInitialized(exactVarReference.varReference)) {
+                throw Exception("Variable ${exactVarReference.varReference.identifier} is" + 
+                "referenced before initialization in reference " + 
+                "${exactVarReference.locationRef.getOrThrow().value}")
+                // The position of this reference is stored at the position of the token 
+                // refIdentifier
+            }
+            resume with ()
+        } handle(_: MemberVarReference) {
+            resume with ()
+        }
 
         endScope()
     }
@@ -461,14 +604,18 @@ private class ClassInitChecker <: InitChecker {
         }
     }
 
-    protected override func isInitialized(reference: Reference) {
+    protected override func isInitialized(reference: Reference): Bool {
         if (decls.contains(reference)) {
             allClassMembersInitialized || initializeEnvironment.getGlobal(reference).isSome()
+        } else if (
+            let Some(ref) <- accessibleMembers.getMembersReference(reference.identifier.value) &&
+            ref == reference
+        ) {
+            superIsInitialized
         } else {
             initializeEnvironment.getGlobal(reference).isSome()
         }
     }
-
 
     private prop allClassMembersInitialized: Bool {
         get() { totalMemberVariables == initializedMemberVariables }
@@ -544,6 +691,7 @@ public class StaticGlobalVariableInitializationChecker <: DefaultVisitor<Unit> {
                 throw Exception("Use of static/global variable ${varReference.identifier.value}" + 
                 " before initialization")
             }
+            resume with ()
         }
     }
 
@@ -574,6 +722,8 @@ public class StaticGlobalVariableInitializationChecker <: DefaultVisitor<Unit> {
     }
 
     // TODO : Can we remove "as" and make the code of the following better?
+    // I believe the removal of "as"/"is" here will not result in "better" code. They do not cause 
+    // a lot of harm. Hence, I think it is okay to leave them here
     private func process(decl: Decl): Unit {
         if (let Some(funcDecl) <- (decl as FuncDeclWithRef)) {
             declareFunction(funcDecl)

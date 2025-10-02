@@ -3,6 +3,7 @@ package cjcj.asg.initChecker
 import cjcj.visitor.*
 import std.deriving.Derive
 import stdx.effect.Command
+import cjcj.scanner.Token
 
 public class ParameterDeclaration <: Command<Option<VariableReference>> {
 }
@@ -27,7 +28,14 @@ public class IfElseInitialization<K, V> <: Command<Unit>
 }
 
 public class ExactVarReference <: Command<Unit> {
-    ExactVarReference(public let varReference: VariableReference) {}
+    ExactVarReference(public let varReference: VariableReference, public var locationRef: ?Token) {}
+    init(varReference_: VariableReference) {
+        varReference = varReference_
+        locationRef = None
+    }
+}
+public class MemberVarReference <: Command<Unit> {
+    MemberVarReference(public let varReference: VariableReference, public var locationRef: Token){}
 }
 public class ExactFuncReference <: Command<Unit> {
     ExactFuncReference(public let funcReference: FuncReference) {}

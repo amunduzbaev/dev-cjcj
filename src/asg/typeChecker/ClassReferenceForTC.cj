@@ -42,4 +42,8 @@ public class ClassReferenceForTC {
         }
         None
     }
+
+    public func getMembersReference(field: String): ?VariableReference {
+        variableEnvironment.getOrThrow().getGlobal(field)
+    }
 }

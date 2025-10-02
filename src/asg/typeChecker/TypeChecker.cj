@@ -437,6 +437,8 @@ public class TypeChecker <: Visitor<Unit> {
         if (isCallable) {
             callableField = field
         }
+
+        memberAccessWithRef.ref = baseClass.classReference
         nodePossibleTypes.add(memberAccessWithRef.id, HashSet([tp]))
     }
 

@@ -114,15 +114,7 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(assignExpr: AssignExpr): Node {
-        let left: RefExprWithRef
-        if (let Some(l) <- (assignExpr.left.traverse(this) as RefExprWithRef)) {
-            left = l
-        } else {
-            // TODO: This probably can never happen because it's an error caught
-            // while parsing so we can probably remove it.
-            println("No reference on the left part of an assignment")
-            throw AssignExprError()
-        }
+        let left: Expr = (assignExpr.left.traverse(this) as Expr).getOrThrow()
         let right: Expr = (assignExpr.right.traverse(this) as Expr).getOrThrow()
         AssignExpr(NodeIdManager.nextId(), left, right)
     }

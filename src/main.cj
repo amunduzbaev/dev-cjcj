@@ -36,12 +36,11 @@ public class Cj {
         let asg: Program
         parser.logErrors()
 
-        let initChecker = InitChecker()
         if (let Some(p) <- program) {
             asg = asgMaker.resolve(p)
             asg.prettyPrint(printer)
 
-            TypeChecker(asg)
+            let initChecker = InitChecker(TypeChecker(asg).classEnvironment)
             initChecker.resolve(asg)
 
             println(printer.toString())
