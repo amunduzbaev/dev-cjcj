@@ -530,11 +530,24 @@ class TypeCheckTests {
         let testRight: String = """
             main(){
                 1 + 2 * 4 ** 10
+                let a: Int32 = 5
+                let b: Float32 = 10.67
+                let c: Int32 = 1 + 1
             }"""
         TypeChecker(getAsg(testRight))
-        let testWrong: String = """
+        var testWrong: String = """
             main(){
                 1 + 2 * 4 ** -10
+            }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        testWrong = """
+            main(){
+                let a: Int32 = 1.5
+            }"""
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        testWrong = """
+            main(){
+                let a: Float32 = 1
             }"""
         @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
     }
