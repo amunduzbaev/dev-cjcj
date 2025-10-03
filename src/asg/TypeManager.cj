@@ -3,12 +3,18 @@ package cjcj.asg
 import cjcj.visitor.Type
 import cjcj.visitor.FuncReference
 import cjcj.scanner.Token
-import cjcj.visitor.Visitor
+import cjcj.visitor.Reference
 
 import stdx.effect.*
 import std.collection.*
 
-public class VisitorEffect<T> <: Command<Visitor<T>> {}
+public class TypeEffect <: Command<Type> {
+    public TypeEffect(private let ref_: Reference) {}
+
+    public prop ref: Reference {
+        get() { ref_ }
+    }
+}
 
 public class TypeManager {
 
@@ -82,6 +88,9 @@ public class TypeManager {
         nameToType.get(typeName).getOrThrow({ => Exception("Type ${typeName} does not exist")})
     }
 
+    /*
+    * Returns true if a function with the given name exists.
+    */
     public func funcExists(funcName: String): Bool {
         var tmpTypeManager = this
         while (let Some(enclosing) <- tmpTypeManager.enclosing) {
@@ -94,14 +103,11 @@ public class TypeManager {
     }
 
     /*
-    * Extension for method applyFunction
-    * For a function call with name : funcName and arguments : args
-    * Find the functions which are the closest to the types of arguments in the call and returns its
-    * references. 
-    * In other words, find the functions where each parameter type is the subtype of the types of
-    * the parameters at the same index in other functions and return its reference.
+    * For a function call with name, arguments and expected return type, groups all the overloads
+    * that respect the argument constraints by return type. Every function is added in all groups
+    * of the ancestors of its return type. Then the best function between all groups is chosen.
     */
-    private func findClosestSuperType(
+    private func functionTypeGroup(
         funcName: String, args: Array<Set<Type>>, expectedReturnType: ?Type
     ): Map<Type, ?FuncReference> {
         let candidates: ArrayStack<FuncReference> =
@@ -110,11 +116,12 @@ public class TypeManager {
         let returnTypeGrouping: Map<Type, Set<FuncReference>> = HashMap()
 
         candidates.iterator().forEach({ f: FuncReference =>
-            if (f.effectiveType.isNone()) {
-                f.traverse(perform VisitorEffect<Unit>())
+            let returnType: Type = if (f.effectiveType.isNone()) {
+                // If I don't know the type I ask for it.
+                perform TypeEffect(f)
+            } else {
+                f.effectiveType.getOrThrow()
             }
-            let returnType: Type = f.effectiveType.getOrThrow()
-            // Every type is in the group of itself and its ancestors. 
             returnType.ancestors.iterator().forEach({ a =>
                 if(let Some(prev) <- returnTypeGrouping.get(a)) {
                     prev.add(f)
@@ -124,7 +131,6 @@ public class TypeManager {
             })
         })
 
-        // Take the best function for each return type.
         returnTypeGrouping.iterator().map({ funcs => (funcs[0], bestFunction(funcs[1])) })
             .fold<Map<Type, ?FuncReference>>(HashMap(), { acc, v => acc.add(v[0], v[1]); acc })
     }
@@ -155,9 +161,9 @@ public class TypeManager {
     }
 
     /*
-    * Returns the reference of the possible function called with the given arguments.
-    * Returns also the types that the functions can be. This happens because some types may be
-    * impossible even though some functions that return a subtype may exist.
+    * Returns the grouping by return type of the functions that respect the name and args given.
+    * In the grouping some links may be None because there's no best function, it means that the
+    * type is impossible to get.
     */
     public func applyFunction(funcName: String, args: Array<Set<Type>>,
         expectedReturnType: ?Type): Map<Type, ?FuncReference>
@@ -165,11 +171,11 @@ public class TypeManager {
         var tmpTypeManager: TypeManager = this
         var res: Map<Type, ?FuncReference> = HashMap()
         while(let Some(enclosing) <- tmpTypeManager.enclosing && res.isEmpty()) {
-            res = tmpTypeManager.findClosestSuperType(funcName, args, expectedReturnType)
+            res = tmpTypeManager.functionTypeGroup(funcName, args, expectedReturnType)
             tmpTypeManager = enclosing
         }
         if (res.isEmpty()) {
-            return tmpTypeManager.findClosestSuperType(funcName, args, expectedReturnType)
+            return tmpTypeManager.functionTypeGroup(funcName, args, expectedReturnType)
         }
         res
     }
@@ -185,31 +191,29 @@ public class TypeManager {
         let signs: Set<String> = HashSet()
         var tmpTypeManager = this
         while (let Some(enclosing) <- tmpTypeManager.enclosing) {
-            tmpTypeManager.findClosestSuperType(funcName, args, None)
-                .iterator().forEach({ entry =>
-                    // We want to keep only the first type and unique signatures.
-                    if (let Some(f) <- entry[1]) {
-                        if (signs.add(funcHashConcat(funcName, Utils.refToType(f.paramRef.getOrThrow())))) {
-                            map.addIfAbsent(entry[0], entry[1])
-                        }
-                        return
-                    }
-                    map.addIfAbsent(entry[0], entry[1])
-                })
+            tmpTypeManager.accumulateGroup(funcName, args, map, signs)
             tmpTypeManager = enclosing
         }
-        tmpTypeManager.findClosestSuperType(funcName, args, None)
+        tmpTypeManager.accumulateGroup(funcName, args, map, signs)
+        map
+    }
+
+    private func accumulateGroup(funcName: String, args: Array<Set<Type>>, 
+        map: Map<Type, ?FuncReference>, signatures: Set<String>
+    ): Unit {
+        functionTypeGroup(funcName, args, None)
             .iterator().forEach({ entry =>
                 // We want to keep only the first type and unique signatures.
                 if (let Some(f) <- entry[1]) {
-                    if (signs.add(funcHashConcat(funcName, Utils.refToType(f.paramRef.getOrThrow())))) {
+                    if (signatures.add(
+                        funcHashConcat(funcName,Utils.refToType(f.paramRef.getOrThrow()))
+                    )) {
                         map.addIfAbsent(entry[0], entry[1])
                     }
                     return
                 }
                 map.addIfAbsent(entry[0], entry[1])
             })
-        map
     }
 
     private func allFunctionsLocal(funcName: String, args: Array<Set<Type>>,
@@ -318,34 +322,6 @@ public class TypeManager {
             union.add(t)
         } })
         union
-    }
-
-    /*
-    * Returns the contiguous subsequens starting from 0 where all the elements are equal.
-    */
-    private func equalSubarray<T>(a: Array<T>, b: Array<T>, equal: (T, T) -> Bool) {
-        var f: Int64 = 0
-        var s: Int64 = 0
-        while (f < a.size && equal(a[f], a[0])) { f++ }
-        while (s < b.size && equal(b[s], b[0])) { s++ }
-        (a[0..f], b[0..s])
-    }
-
-    /*
-    * Returns the common elements of 2 arrays sorted by the 'cmp' compare function.
-    */
-    private func commonElements<T>(a: Array<T>, b: Array<T>, cmp: (T, T) -> Ordering): ArrayList<T>{
-        let res: ArrayList<T> = ArrayList()
-        var f: Int64 = 0
-        var s: Int64 = 0
-        while (f < a.size && s < b.size) {
-            match (cmp(a[f], b[s])) {
-                case Ordering.LT => f++
-                case Ordering.GT => s++
-                case Ordering.EQ => res.add(a[f]); f++; s++
-            }
-        }
-        res
     }
 
     public prop isGlobal: Bool {

@@ -8,7 +8,7 @@ import cjcj.asg.DeclaratorFactory
 import cjcj.asg.Utils
 import cjcj.scanner.Token
 import cjcj.parser.NodeIdManager
-import cjcj.asg.VisitorEffect
+import cjcj.asg.TypeEffect
 
 import std.collection.*
 
@@ -394,12 +394,6 @@ public class TypeChecker <: Visitor<Unit> {
                 if (funcGrouping.isEmpty()) {
                     throw Exception("Impossible to find a function to call")
                 }
-                // Everything is possible at first.
-                // possFunc.iterator().forEach({ f =>
-                //     f.traverse(this)
-                //     funcGrouping.add(all: Utils.fold(f.effectiveType.getOrThrow().ancestorSet.iterator()
-                //         .map({ t => (t, Option.Some(f)) }), ArrayList()))
-                // }) 
             } catch (e: NoneValueException) {
                 throw e
             } catch(e: Exception) {
@@ -418,8 +412,9 @@ public class TypeChecker <: Visitor<Unit> {
                 // TODO: Maybe functions that are not visited do not have a ref.effectiveType set.
                 // possFunc.iterator().forEach({ref => ref.traverse(this) })
             }
-        } handle(_: VisitorEffect<Unit>) {
-            resume with this
+        } handle(eff: TypeEffect) {
+            eff.ref.traverse(this)
+            resume with eff.ref.effectiveType.getOrThrow()
         }
         callableField = None
 
