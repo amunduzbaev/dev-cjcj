@@ -26,40 +26,72 @@ public class TypeAssigner <: Visitor<Type> {
         private let nodePossibleTypes: Map<NodeId, Set<Type>>,
         private var classEnvironment: Environment<String, ClassReferenceForTC>,
         private let typeManager: TypeManager,
-        private let validFunctionPool: Map<NodeId, Set<FuncReference>>
+        private let functionTypeGrouping: Map<NodeId, Map<Type, ?FuncReference>>
     ) {}
 
     public override func visit(binaryExpr: BinaryExpr): Type {
         let exp: ?Type = expectedReturnType
-        validFunctionPool[binaryExpr.id] = matchReturnType(validFunctionPool[binaryExpr.id])
-        if (let Some(bestFunc) <- typeManager.bestFunction(validFunctionPool[binaryExpr.id])) {
-            let refTypes: Array<Type> = Utils.refToType(bestFunc.paramRef.getOrThrow())
+        functionTypeGrouping[binaryExpr.id] = matchReturnType(functionTypeGrouping[binaryExpr.id])
 
-            expectedReturnType = refTypes[0]
-            binaryExpr.left.traverse(this)
-
-            expectedReturnType = refTypes[1]
-            binaryExpr.right.traverse(this)
-
-            expectedReturnType = exp
-            return bestFunc.traverse(this)
+        var bestFunc: ?FuncReference = None
+        if (let Some(expected) <- exp) {
+            if (let Some(fun) <- functionTypeGrouping[binaryExpr.id].get(expected)) {
+                bestFunc = fun
+            } else if (let Some(fun) <- functionTypeGrouping[binaryExpr.id].get(Type.NOTHING)) {
+                bestFunc = fun
+            }
+        } else {
+            if (let Some(fun) <- typeManager.bestFunction(
+                functionTypeGrouping[binaryExpr.id].iterator().filter({ v => v[1].isSome()})
+                    .map({ v => v[1].getOrThrow() }).fold(HashSet(), { acc, v => acc.add(v); acc })
+            )) {
+                bestFunc = fun
+            }
         }
-        throw Exception("Could not find a function for ${binaryExpr.oper.value}")
+
+        let refTypes: Array<Type> = Utils.refToType(bestFunc.getOrThrow({ =>
+            Exception("Could not find a function for ${binaryExpr.oper.value}") }).paramRef.getOrThrow())
+
+        expectedReturnType = refTypes[0]
+        binaryExpr.left.traverse(this)
+
+        expectedReturnType = refTypes[1]
+        binaryExpr.right.traverse(this)
+
+        expectedReturnType = exp
+        bestFunc.getOrThrow().traverse(this)
     }
 
     public override func visit(unaryExpr: UnaryExpr): Type {
         let exp: ?Type = expectedReturnType
-        validFunctionPool[unaryExpr.id] = matchReturnType(validFunctionPool[unaryExpr.id])
-        if (let Some(bestFunc) <- typeManager.bestFunction(validFunctionPool[unaryExpr.id])) {
-            let refTypes: Array<Type> = Utils.refToType(bestFunc.paramRef.getOrThrow())
+        functionTypeGrouping[unaryExpr.id] = matchReturnType(functionTypeGrouping[unaryExpr.id])
 
-            expectedReturnType = refTypes[0]
-            unaryExpr.right.traverse(this)
+        functionTypeGrouping[unaryExpr.id].iterator().forEach({ v => println(v[0].name)})
 
-            expectedReturnType = exp
-            return bestFunc.traverse(this)
+        var bestFunc: ?FuncReference = None
+        if (let Some(expected) <- exp) {
+            if (let Some(fun) <- functionTypeGrouping[unaryExpr.id].get(expected)) {
+                bestFunc = fun
+            } else if (let Some(fun) <- functionTypeGrouping[unaryExpr.id].get(Type.NOTHING)) {
+                bestFunc = fun
+            }
+        } else {
+            if (let Some(fun) <- typeManager.bestFunction(
+                functionTypeGrouping[unaryExpr.id].iterator().filter({ v => v[1].isSome()})
+                    .map({ v => v[1].getOrThrow() }).fold(HashSet(), { acc, v => acc.add(v); acc })
+            )) {
+                bestFunc = fun
+            }
         }
-        throw Exception("Could not find a function for ${unaryExpr.oper.value}")
+
+        let refTypes: Array<Type> = Utils.refToType(bestFunc.getOrThrow({ =>
+            Exception("Could not find a function for ${unaryExpr.oper.value}") }).paramRef.getOrThrow())
+        
+        expectedReturnType = refTypes[0]
+        unaryExpr.right.traverse(this)
+
+        expectedReturnType = exp
+        bestFunc.getOrThrow().traverse(this)
     }
 
     public override func visit(parenExpr: ParenExpr): Type {
@@ -256,6 +288,7 @@ public class TypeAssigner <: Visitor<Type> {
             initType.getOrThrow({ => Exception("No declaration type and not initializer found")}) })
 
         expectedReturnType = varDeclExpectedReturn
+        // println("Type of ${varDeclWithRef.identifier.value} is ${ref.effectiveType.getOrThrow().name}")
         matchReturnType(Type.UNIT)
     }
 
@@ -372,26 +405,42 @@ public class TypeAssigner <: Visitor<Type> {
     }
 
     public override func visit(callExprWithRef: CallExprWithRef): Type {
+        var bestFunc: ?FuncReference = None
+        let exp: ?Type = expectedReturnType
+
         if (let Some(expected) <- expectedReturnType) {
-            // In functions I keep all the pososible types so expected doesn't have to be a parent
-            // but needs to be contained.
-            if (!nodePossibleTypes[callExprWithRef.id].contains(expected)) {
-                throw Exception("Wrong type, expected ${expected.name}")
+            if (let Some(fun) <- functionTypeGrouping[callExprWithRef.id].get(expected)) {
+                bestFunc = fun
+            } else if (let Some(fun) <- functionTypeGrouping[callExprWithRef.id].get(Type.NOTHING)) {
+                bestFunc = fun
             }
-            // Keep only valid functions.
-            validFunctionPool.add(callExprWithRef.id, validFunctionPool[callExprWithRef.id]
-                .iterator().filter({ f => expected.isParent(f.traverse(this)) })
-                .fold(HashSet(), { acc, v => acc.add(v); acc }))
+        } else {
+            if (let Some(fun) <- typeManager.bestFunction(
+                functionTypeGrouping[callExprWithRef.id].iterator().filter({ v => v[1].isSome()})
+                    .map({ v => v[1].getOrThrow() }).fold(HashSet(), { acc, v => acc.add(v); acc })
+            )) {
+                bestFunc = fun
+            }
         }
 
-        let ref: FuncReference = typeManager.bestFunction(validFunctionPool[callExprWithRef.id])
-            .getOrThrow({ => Exception("Couldn't find best match") })
+        let paramRef: ArrayList<VariableReference> = bestFunc.getOrThrow({ =>
+            Exception("Could not find a function to call")
+        }).paramRef.getOrThrow()
+        let refTypes: Array<Type> = Utils.refToType(paramRef)
+
+        let expectedReturnType: Box<?Type> = Box(expectedReturnType)
+        refTypes.iterator().enumerate().forEach({ entry =>
+            let (id, tp) = entry
+            expectedReturnType.value = tp
+            paramRef[id].traverse(this)
+        })
+        expectedReturnType.value = exp
 
         // TODO: I don't visit my calle because in every case it'll be fixed, think about it.
 
         // Set the reference to the correct one.
-        callExprWithRef.ref = ref
-        ref.effectiveType.getOrThrow()
+        callExprWithRef.ref = bestFunc.getOrThrow()
+        bestFunc.getOrThrow().effectiveType.getOrThrow()
     }
 
     public override func visit(classDeclWithRef: ClassDeclWithRef): Type {
@@ -439,13 +488,17 @@ public class TypeAssigner <: Visitor<Type> {
     /*
     * Filter the functions by return type.
     */
-    private func matchReturnType(funcs: Set<FuncReference>): Set<FuncReference> {
+    private func matchReturnType(funcs: Map<Type, ?FuncReference>): Map<Type, ?FuncReference> {
         if (let Some(expected) <- expectedReturnType) {
-            funcs.iterator().filter({ f => expected.isParent(f.traverse(this)) })
-                .fold(HashSet(), { acc, v => acc.add(v); acc })
-        } else {
-            funcs
+            return funcs.iterator().map({ entry: (Type, ?FuncReference) =>
+                let (tp, opf) = entry
+                if (let Some(f) <- opf && !expected.isParent(f.traverse(this))) {
+                    return (tp, Option<FuncReference>.None)
+                }
+                return entry
+            }).fold(HashMap(), { acc, v => acc.add(v[0], v[1]); acc })
         }
+        funcs
     }
     
     /*

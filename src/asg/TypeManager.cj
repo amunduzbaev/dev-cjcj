@@ -3,8 +3,12 @@ package cjcj.asg
 import cjcj.visitor.Type
 import cjcj.visitor.FuncReference
 import cjcj.scanner.Token
+import cjcj.visitor.Visitor
 
+import stdx.effect.*
 import std.collection.*
+
+public class VisitorEffect<T> <: Command<Visitor<T>> {}
 
 public class TypeManager {
 
@@ -99,14 +103,16 @@ public class TypeManager {
     */
     private func findClosestSuperType(
         funcName: String, args: Array<Set<Type>>, expectedReturnType: ?Type
-    ): (ArrayList<FuncReference>, Set<Type>) {
+    ): Map<Type, ?FuncReference> {
         let candidates: ArrayStack<FuncReference> =
             allFunctionsLocal(funcName, args, expectedReturnType)
 
         let returnTypeGrouping: Map<Type, Set<FuncReference>> = HashMap()
-        let possTypes: Set<Type> = HashSet()
 
         candidates.iterator().forEach({ f: FuncReference =>
+            if (f.effectiveType.isNone()) {
+                f.traverse(perform VisitorEffect<Unit>())
+            }
             let returnType: Type = f.effectiveType.getOrThrow()
             // Every type is in the group of itself and its ancestors. 
             returnType.ancestors.iterator().forEach({ a =>
@@ -119,13 +125,8 @@ public class TypeManager {
         })
 
         // Take the best function for each return type.
-        (Utils.fold<FuncReference, ArrayList<FuncReference>>(
-            returnTypeGrouping.iterator().map({ funcs => (funcs[0], bestFunction(funcs[1])) })
-                .filter({ f =>
-                    f[1].isSome()
-                }).map({ f => possTypes.add(f[0]); f[1].getOrThrow() }),
-            ArrayList()
-        ), possTypes)
+        returnTypeGrouping.iterator().map({ funcs => (funcs[0], bestFunction(funcs[1])) })
+            .fold<Map<Type, ?FuncReference>>(HashMap(), { acc, v => acc.add(v[0], v[1]); acc })
     }
 
     /*
@@ -159,46 +160,18 @@ public class TypeManager {
     * impossible even though some functions that return a subtype may exist.
     */
     public func applyFunction(funcName: String, args: Array<Set<Type>>,
-        expectedReturnType: ?Type): (ArrayList<FuncReference>, Set<Type>)
+        expectedReturnType: ?Type): Map<Type, ?FuncReference>
     {
-        // We can check for 100% match if we have only one option for each argument.
-        var immediateArgs: ?Array<Type> = None
-        if (args.iterator().all({ poss => poss.size == 1 })) {
-            immediateArgs = Utils.fold(args.iterator()
-                .map({ v => v.iterator().first().getOrThrow() }), ArrayList()).toArray()
-        }
-
         var tmpTypeManager: TypeManager = this
-        var (possFunc, possTypes): (ArrayList<FuncReference>, Set<Type>) = (ArrayList(), HashSet())
-        // TODO: For error message: If there are candidates with parameters but not with expected
-        // return take the first and print something like (expected "this" found "that" where that
-        // is the first)
-        while(let Some(enclosing) <- tmpTypeManager.enclosing &&
-            possFunc.isEmpty()
-        ) {
-            if (let Some(immediateArgs) <- immediateArgs) {
-                if (
-                    let Some(immediate) <- tmpTypeManager.checkImmediate(funcName, immediateArgs)
-                ) {
-                    possFunc.add(immediate)
-                    return (possFunc, immediate.effectiveType.getOrThrow().ancestorSet)
-                }
-            }
-            (possFunc, possTypes) = tmpTypeManager.findClosestSuperType(funcName, args, expectedReturnType)
+        var res: Map<Type, ?FuncReference> = HashMap()
+        while(let Some(enclosing) <- tmpTypeManager.enclosing && res.isEmpty()) {
+            res = tmpTypeManager.findClosestSuperType(funcName, args, expectedReturnType)
             tmpTypeManager = enclosing
         }
-        if (possFunc.isEmpty()) {
-            if (let Some(immediateArgs) <- immediateArgs) {
-                if (
-                    let Some(immediate) <- tmpTypeManager.checkImmediate(funcName, immediateArgs)
-                ) {
-                    possFunc.add(immediate)
-                    return (possFunc, HashSet([immediate.effectiveType.getOrThrow()]))
-                }
-            }
-            (possFunc, possTypes) = tmpTypeManager.findClosestSuperType(funcName, args, expectedReturnType)
+        if (res.isEmpty()) {
+            return tmpTypeManager.findClosestSuperType(funcName, args, expectedReturnType)
         }
-        (possFunc, possTypes)
+        res
     }
 
     /*
@@ -206,28 +179,37 @@ public class TypeManager {
     * argument types and expected return type.
     * If there are multiple functions with the exact same parameters the closest one will be chosen.
     */
-    public func allFunctionsGlobal(funcName: String, args: Array<Set<Type>>): ArrayList<FuncReference> {
-        let map: Map<String, FuncReference> = HashMap()
+    public func allFunctionsGlobal(funcName: String, args: Array<Set<Type>>): Map<Type, ?FuncReference> {
+        let map: Map<Type, ?FuncReference> = HashMap()
+
+        let signs: Set<String> = HashSet()
         var tmpTypeManager = this
         while (let Some(enclosing) <- tmpTypeManager.enclosing) {
-            tmpTypeManager.allFunctionsLocal(funcName, args, None)
-                .iterator().forEach({ f =>
-                    map.addIfAbsent(
-                        funcHashConcat(
-                            f.identifier.value, Utils.refToType(f.paramRef.getOrThrow())
-                        ), f
-                    )
+            tmpTypeManager.findClosestSuperType(funcName, args, None)
+                .iterator().forEach({ entry =>
+                    // We want to keep only the first type and unique signatures.
+                    if (let Some(f) <- entry[1]) {
+                        if (signs.add(funcHashConcat(funcName, Utils.refToType(f.paramRef.getOrThrow())))) {
+                            map.addIfAbsent(entry[0], entry[1])
+                        }
+                        return
+                    }
+                    map.addIfAbsent(entry[0], entry[1])
                 })
             tmpTypeManager = enclosing
         }
-        tmpTypeManager.allFunctionsLocal(funcName, args, None)
-            .iterator().forEach({ f =>
-                map.addIfAbsent(
-                    funcHashConcat(f.identifier.value, Utils.refToType(f.paramRef.getOrThrow())),
-                    f
-                )
+        tmpTypeManager.findClosestSuperType(funcName, args, None)
+            .iterator().forEach({ entry =>
+                // We want to keep only the first type and unique signatures.
+                if (let Some(f) <- entry[1]) {
+                    if (signs.add(funcHashConcat(funcName, Utils.refToType(f.paramRef.getOrThrow())))) {
+                        map.addIfAbsent(entry[0], entry[1])
+                    }
+                    return
+                }
+                map.addIfAbsent(entry[0], entry[1])
             })
-        Utils.fold(map.values().iterator(), ArrayList())
+        map
     }
 
     private func allFunctionsLocal(funcName: String, args: Array<Set<Type>>,
@@ -245,7 +227,7 @@ public class TypeManager {
             }
             // Go through arguments.
             return args.iterator().enumerate()
-                .fold(paramsList, { 
+                .fold(validParamsList, { 
                     consider: ArrayStack<FuncReference>, entry: (Int64, Set<Type>) =>
                         let (id, possArg) = entry 
 
@@ -275,11 +257,6 @@ public class TypeManager {
                 })
         }
         ArrayStack()
-    }
-
-    private func checkImmediate(funcName: String, args: Array<Type>
-    ): ?FuncReference {
-        immediateFuncDef.get(funcHashConcat(funcName, args))
     }
 
     public func addFunction(reference: FuncReference): Unit {

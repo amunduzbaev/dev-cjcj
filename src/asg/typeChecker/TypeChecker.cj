@@ -8,6 +8,7 @@ import cjcj.asg.DeclaratorFactory
 import cjcj.asg.Utils
 import cjcj.scanner.Token
 import cjcj.parser.NodeIdManager
+import cjcj.asg.VisitorEffect
 
 import std.collection.*
 
@@ -38,14 +39,14 @@ public class TypeChecker <: Visitor<Unit> {
     // TODO: Maybe make a map of Nodes directly.
     private let nodePossibleTypes: Map<NodeId, Set<Type>> = HashMap()
     private let typeAssigner: TypeAssigner
-    private let validFunctionPool: Map<NodeId, Set<FuncReference>> = HashMap()
+    private let functionTypeGrouping: Map<NodeId, Map<Type, ?FuncReference>> = HashMap()
 
     public init(program: Program) {
         // Declare every type.
         let classTopoOrder: Array<ClassReference>
         (typeManager, classTopoOrder) = TypeDeclarationChecker().resolve(program)
         typeAssigner = TypeAssigner(
-            nodePossibleTypes, classEnvironment, typeManager, validFunctionPool
+            nodePossibleTypes, classEnvironment, typeManager, functionTypeGrouping
         )
 
         // Need to declare classes in topological order to have the reference to the supertypes.
@@ -61,28 +62,19 @@ public class TypeChecker <: Visitor<Unit> {
         tmpClassEnvironment.elements.iterator()
             .forEach({ cr => classEnvironment.declare(cr[0], ClassReferenceForTC(cr[1])) })
 
+        // Add empty init to all the builtin classes.
+        // TODO: This will change with interfaces, they cannot be instanciated, for now we assume
+        // everything is a class.
+        addDefaultInit(classEnvironment.elements.values().iterator()
+            .filter({ c => BUILTIN_TYPES.contains(c.classReference.identifier.value) }))
+
         // Traverse the classes first
         program.decls.iterator()
             .filter({ d => d is ClassDeclWithRef })
             .forEach({ d => d.traverse(this)})
 
-        // Add empty init to all the classes that don't have one.
-        // TODO: This will change with interfaces, they cannot be instanciated, for now we assume
-        // everything is a class.
-        classEnvironment.elements.values().iterator()
-            .map<(String, TypeManager)>({ c => 
-                if (c.typeManager.isNone()) {
-                    c.typeManager = TypeManager()
-                }
-                (c.classReference.identifier.value, c.typeManager.getOrThrow())})
-            .filter({ t => !t[1].funcExists("") })
-            .forEach({ t =>
-                let ref: FuncReference = FuncReference(NodeIdManager.nextId(), Token())
-                ref.effectiveType = typeManager.getType(t[0])
-                ref.paramRef = ArrayList()
-                t[1].addFunction(ref)
-                nodePossibleTypes.add(ref.id, HashSet([ref.effectiveType.getOrThrow()]))
-            })
+        addDefaultInit(classEnvironment.elements.values().iterator()
+            .filter({ c => !BUILTIN_TYPES.contains(c.classReference.identifier.value) }))
 
         // After traversing, every class will have its own typeManager and variable environment set
         // So I can go in topological order and check the member shadowing.
@@ -97,6 +89,25 @@ public class TypeChecker <: Visitor<Unit> {
             .forEach({ d => d.traverse(this)})
     }
 
+    private func addDefaultInit(classes: Iterator<ClassReferenceForTC>) {
+        // Add empty init to all the classes that don't have one.
+        // TODO: This will change with interfaces, they cannot be instanciated, for now we assume
+        // everything is a class.
+        classes.map<(String, TypeManager)>({ c => 
+                if (c.typeManager.isNone()) {
+                    c.typeManager = TypeManager()
+                }
+                (c.classReference.identifier.value, c.typeManager.getOrThrow())})
+            .filter({ t => !t[1].funcExists("") })
+            .forEach({ t =>
+                let ref: FuncReference = FuncReference(NodeIdManager.nextId(), Token())
+                ref.effectiveType = typeManager.getType(t[0])
+                ref.paramRef = ArrayList()
+                t[1].addFunction(ref)
+                nodePossibleTypes.add(ref.id, HashSet([ref.effectiveType.getOrThrow()]))
+            })
+    }
+
     public override func visit(program: Program): Unit {
         program.decls.iterator().forEach({ d => d.traverse(this) })
     }
@@ -108,22 +119,22 @@ public class TypeChecker <: Visitor<Unit> {
         binaryExpr.right.traverse(this)
         let rightTypes: Set<Type> = nodePossibleTypes[binaryExpr.right.id]
 
-        let (possFunc, possTypes): (ArrayList<FuncReference>, Set<Type>) = 
+        let typeGrouping: Map<Type, ?FuncReference> =
             typeManager.applyFunction(binaryExpr.oper.value, [leftTypes, rightTypes], None)
 
-        validFunctionPool.add(binaryExpr.id, HashSet(possFunc))
-        nodePossibleTypes.add(binaryExpr.id, possTypes)
+        functionTypeGrouping.add(binaryExpr.id, typeGrouping)
+        nodePossibleTypes.add(binaryExpr.id, HashSet(typeGrouping.keys()))
     }
 
     public override func visit(unaryExpr: UnaryExpr): Unit {
         unaryExpr.right.traverse(this)
         let rightTypes: Set<Type> = nodePossibleTypes[unaryExpr.right.id]
 
-        let (possFunc, possTypes): (ArrayList<FuncReference>, Set<Type>) =
+        let typeGrouping: Map<Type, ?FuncReference> =
             typeManager.applyFunction(unaryExpr.oper.value, [rightTypes], None)
 
-        validFunctionPool.add(unaryExpr.id, HashSet(possFunc))
-        nodePossibleTypes.add(unaryExpr.id, possTypes)
+        functionTypeGrouping.add(unaryExpr.id, typeGrouping)
+        nodePossibleTypes.add(unaryExpr.id, HashSet(typeGrouping.keys()))
     }
 
     public override func visit(parenExpr: ParenExpr): Unit {
@@ -157,14 +168,15 @@ public class TypeChecker <: Visitor<Unit> {
                 case TokenKind.UNIT_LITERAL => [Type.UNIT]
                 // TODO: Add all other literals.
                 case _ => throw Exception("You forgot to add all the literal types")
-            })
+            } // TODO: Add all supertypes.
+            )
         )
     }
 
     public override func visit(assignExpr: AssignExpr): Unit {
         assignExpr.left.traverse(this)
         assignExpr.right.traverse(this)
-        nodePossibleTypes.add(assignExpr.id, HashSet([Type.UNIT]))
+        nodePossibleTypes.add(assignExpr.id, Type.UNIT.ancestorSet)
     }
 
     public override func visit(block: Block): Unit {
@@ -176,7 +188,7 @@ public class TypeChecker <: Visitor<Unit> {
 
         endScope()
         nodePossibleTypes.add(block.id, nodePossibleTypes.get(lastId)
-            .getOrDefault({ => HashSet([Type.UNIT])}))
+            .getOrDefault({ => Type.UNIT.ancestorSet}))
     }
 
     public override func visit(ifExpr: IfExpr): Unit {
@@ -198,7 +210,7 @@ public class TypeChecker <: Visitor<Unit> {
         whileExpr.condition.traverse(this)
         whileExpr.block.traverse(this)
         whileExpr.traverse(typeAssigner)
-        nodePossibleTypes.add(whileExpr.id, HashSet([Type.UNIT]))
+        nodePossibleTypes.add(whileExpr.id, Type.UNIT.ancestorSet)
     }
 
     public override func visit(returnExpr: ReturnExpr): Unit {
@@ -374,40 +386,46 @@ public class TypeChecker <: Visitor<Unit> {
             .map({ v => nodePossibleTypes[v.id] }), ArrayList()).toArray()
 
         // Check first for a function call.
-        let (possFunc, possTypes): (ArrayList<FuncReference>, Set<Type>) = (ArrayList(), HashSet())
+        let funcGrouping: Map<Type, ?FuncReference> = HashMap()
+
         try {
-            possFunc.add(all: typeManager.allFunctionsGlobal(identifier, args))
-            if (possFunc.isEmpty()) {
-                throw Exception("Impossible to find a function to call")
-            }
-            // Everything is possible at first.
-            possFunc.iterator().forEach({ f =>
-                f.traverse(this); possTypes.add(all: f.effectiveType.getOrThrow().ancestorSet)
-            }) 
-        } catch (e: NoneValueException) {
-            throw e
-        } catch(e: Exception) {
-            let calleeTypes: Set<Type> = nodePossibleTypes[callExprWithRef.callee.id]
-            if (calleeTypes.size != 1) {
-                throw Exception("The callExpr is calling a classReference, it cannot have more " +
-                    "than one type")
-            }
-            let tp: Type = calleeTypes.iterator().first().getOrThrow()
-            if (let Some(classRef) <- classEnvironment.getGlobal(tp.name)) {
-                let (funcs, types) = classRef.typeManager.getOrThrow()
-                    .applyFunction(identifier, args, None)
-                possFunc.add(all: funcs)
-                possTypes.add(all: types)
-            } else {
+            try {
+                funcGrouping.add(all: typeManager.allFunctionsGlobal(identifier, args))
+                if (funcGrouping.isEmpty()) {
+                    throw Exception("Impossible to find a function to call")
+                }
+                // Everything is possible at first.
+                // possFunc.iterator().forEach({ f =>
+                //     f.traverse(this)
+                //     funcGrouping.add(all: Utils.fold(f.effectiveType.getOrThrow().ancestorSet.iterator()
+                //         .map({ t => (t, Option.Some(f)) }), ArrayList()))
+                // }) 
+            } catch (e: NoneValueException) {
                 throw e
+            } catch(e: Exception) {
+                let calleeTypes: Set<Type> = nodePossibleTypes[callExprWithRef.callee.id]
+                if (calleeTypes.size != 1) {
+                    throw Exception("The callExpr is calling a classReference, it cannot have more " +
+                        "than one type")
+                }
+                let tp: Type = calleeTypes.iterator().first().getOrThrow()
+                if (let Some(classRef) <- classEnvironment.getGlobal(tp.name)) {
+                    funcGrouping.add(all: classRef.typeManager.getOrThrow()
+                        .applyFunction(identifier, args, None))
+                } else {
+                    throw e
+                }
+                // TODO: Maybe functions that are not visited do not have a ref.effectiveType set.
+                // possFunc.iterator().forEach({ref => ref.traverse(this) })
             }
-            possFunc.iterator().forEach({ref => ref.traverse(this) })
+        } handle(_: VisitorEffect<Unit>) {
+            resume with this
         }
         callableField = None
 
-        validFunctionPool.add(callExprWithRef.id, HashSet(possFunc))
+        functionTypeGrouping.add(callExprWithRef.id, funcGrouping)
 
-        nodePossibleTypes.add(callExprWithRef.id, possTypes)
+        nodePossibleTypes.add(callExprWithRef.id, HashSet(funcGrouping.keys()))
     }
 
     public override func visit(classDeclWithRef: ClassDeclWithRef): Unit {

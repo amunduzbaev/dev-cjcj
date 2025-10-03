@@ -128,8 +128,6 @@ public class AsgMaker <: Visitor<Node> {
 
         let nodes: ArrayList<Node> = ArrayList()
         while (let Some((last, declType)) <- waitingDeclarations.remove()) {
-            // nodes.add(VarDeclWithRef(NodeIdManager.nextId(), last.keyword, last.identifier, last,
-            //     declType))
             declareVar(last.identifier, last)
         }
         block.nodes.iterator().forEach({ n => nodes.add(n.traverse(this)) })
