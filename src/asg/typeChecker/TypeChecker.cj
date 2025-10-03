@@ -197,6 +197,7 @@ public class TypeChecker <: Visitor<Unit> {
     public override func visit(whileExpr: WhileExpr): Unit {
         whileExpr.condition.traverse(this)
         whileExpr.block.traverse(this)
+        whileExpr.traverse(typeAssigner)
         nodePossibleTypes.add(whileExpr.id, HashSet([Type.UNIT]))
     }
 
