@@ -108,22 +108,22 @@ public class TypeChecker <: Visitor<Unit> {
         binaryExpr.right.traverse(this)
         let rightTypes: Set<Type> = nodePossibleTypes[binaryExpr.right.id]
 
-        let possFunc: ArrayList<FuncReference> = 
+        let (possFunc, possTypes): (ArrayList<FuncReference>, Set<Type>) = 
             typeManager.applyFunction(binaryExpr.oper.value, [leftTypes, rightTypes], None)
 
         validFunctionPool.add(binaryExpr.id, HashSet(possFunc))
-        nodePossibleTypes.add(binaryExpr.id, HashSet(Utils.refToType<FuncReference>(possFunc)))
+        nodePossibleTypes.add(binaryExpr.id, possTypes)
     }
 
     public override func visit(unaryExpr: UnaryExpr): Unit {
         unaryExpr.right.traverse(this)
         let rightTypes: Set<Type> = nodePossibleTypes[unaryExpr.right.id]
 
-        let possFunc: ArrayList<FuncReference> =
+        let (possFunc, possTypes): (ArrayList<FuncReference>, Set<Type>) =
             typeManager.applyFunction(unaryExpr.oper.value, [rightTypes], None)
 
         validFunctionPool.add(unaryExpr.id, HashSet(possFunc))
-        nodePossibleTypes.add(unaryExpr.id, HashSet(Utils.refToType(possFunc)))
+        nodePossibleTypes.add(unaryExpr.id, possTypes)
     }
 
     public override func visit(parenExpr: ParenExpr): Unit {
@@ -373,12 +373,16 @@ public class TypeChecker <: Visitor<Unit> {
             .map({ v => nodePossibleTypes[v.id] }), ArrayList()).toArray()
 
         // Check first for a function call.
-        var possFunc: ArrayList<FuncReference>
+        let (possFunc, possTypes): (ArrayList<FuncReference>, Set<Type>) = (ArrayList(), HashSet())
         try {
-            possFunc = typeManager.allFunctionsGlobal(identifier, args)
+            possFunc.add(all: typeManager.allFunctionsGlobal(identifier, args))
             if (possFunc.isEmpty()) {
                 throw Exception("Impossible to find a function to call")
             }
+            // Everything is possible at first.
+            possFunc.iterator().forEach({ f =>
+                f.traverse(this); possTypes.add(all: f.effectiveType.getOrThrow().ancestorSet)
+            }) 
         } catch (e: NoneValueException) {
             throw e
         } catch(e: Exception) {
@@ -389,20 +393,20 @@ public class TypeChecker <: Visitor<Unit> {
             }
             let tp: Type = calleeTypes.iterator().first().getOrThrow()
             if (let Some(classRef) <- classEnvironment.getGlobal(tp.name)) {
-                possFunc = ArrayList(classRef.typeManager.getOrThrow()
-                    .applyFunction(identifier, args, None))
+                let (funcs, types) = classRef.typeManager.getOrThrow()
+                    .applyFunction(identifier, args, None)
+                possFunc.add(all: funcs)
+                possTypes.add(all: types)
             } else {
                 throw e
             }
+            possFunc.iterator().forEach({ref => ref.traverse(this) })
         }
         callableField = None
 
         validFunctionPool.add(callExprWithRef.id, HashSet(possFunc))
-        possFunc.iterator().forEach({ref => ref.traverse(this) })
-        let myTypes: Set<Type> = HashSet()
-        possFunc.iterator().forEach({ f => myTypes.add(f.effectiveType.getOrThrow()) })
 
-        nodePossibleTypes.add(callExprWithRef.id, myTypes)
+        nodePossibleTypes.add(callExprWithRef.id, possTypes)
     }
 
     public override func visit(classDeclWithRef: ClassDeclWithRef): Unit {

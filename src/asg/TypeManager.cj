@@ -99,11 +99,13 @@ public class TypeManager {
     */
     private func findClosestSuperType(
         funcName: String, args: Array<Set<Type>>, expectedReturnType: ?Type
-    ): ArrayList<FuncReference> {
+    ): (ArrayList<FuncReference>, Set<Type>) {
         let candidates: ArrayStack<FuncReference> =
             allFunctionsLocal(funcName, args, expectedReturnType)
 
         let returnTypeGrouping: Map<Type, Set<FuncReference>> = HashMap()
+        let possTypes: Set<Type> = HashSet()
+
         candidates.iterator().forEach({ f: FuncReference =>
             let returnType: Type = f.effectiveType.getOrThrow()
             // Every type is in the group of itself and its ancestors. 
@@ -117,11 +119,13 @@ public class TypeManager {
         })
 
         // Take the best function for each return type.
-        return Utils.fold<FuncReference, ArrayList<FuncReference>>(
-            returnTypeGrouping.values().iterator().map({ funcs => bestFunction(funcs) })
-                .filter({ f => f.isSome() }).map({ f => f.getOrThrow() }),
+        (Utils.fold<FuncReference, ArrayList<FuncReference>>(
+            returnTypeGrouping.iterator().map({ funcs => (funcs[0], bestFunction(funcs[1])) })
+                .filter({ f =>
+                    f[1].isSome()
+                }).map({ f => possTypes.add(f[0]); f[1].getOrThrow() }),
             ArrayList()
-        )
+        ), possTypes)
     }
 
     /*
@@ -150,10 +154,12 @@ public class TypeManager {
     }
 
     /*
-    * Returns the reference of the function called with the given arguments.
+    * Returns the reference of the possible function called with the given arguments.
+    * Returns also the types that the functions can be. This happens because some types may be
+    * impossible even though some functions that return a subtype may exist.
     */
     public func applyFunction(funcName: String, args: Array<Set<Type>>,
-        expectedReturnType: ?Type): ArrayList<FuncReference>
+        expectedReturnType: ?Type): (ArrayList<FuncReference>, Set<Type>)
     {
         // We can check for 100% match if we have only one option for each argument.
         var immediateArgs: ?Array<Type> = None
@@ -163,36 +169,36 @@ public class TypeManager {
         }
 
         var tmpTypeManager: TypeManager = this
-        var res: ArrayList<FuncReference> = ArrayList()
+        var (possFunc, possTypes): (ArrayList<FuncReference>, Set<Type>) = (ArrayList(), HashSet())
         // TODO: For error message: If there are candidates with parameters but not with expected
         // return take the first and print something like (expected "this" found "that" where that
         // is the first)
         while(let Some(enclosing) <- tmpTypeManager.enclosing &&
-            res.isEmpty()
+            possFunc.isEmpty()
         ) {
             if (let Some(immediateArgs) <- immediateArgs) {
                 if (
                     let Some(immediate) <- tmpTypeManager.checkImmediate(funcName, immediateArgs)
                 ) {
-                    res.add(immediate)
-                    return res
+                    possFunc.add(immediate)
+                    return (possFunc, immediate.effectiveType.getOrThrow().ancestorSet)
                 }
             }
-            res = tmpTypeManager.findClosestSuperType(funcName, args, expectedReturnType)
+            (possFunc, possTypes) = tmpTypeManager.findClosestSuperType(funcName, args, expectedReturnType)
             tmpTypeManager = enclosing
         }
-        if (res.isEmpty()) {
+        if (possFunc.isEmpty()) {
             if (let Some(immediateArgs) <- immediateArgs) {
                 if (
                     let Some(immediate) <- tmpTypeManager.checkImmediate(funcName, immediateArgs)
                 ) {
-                    res.add(immediate)
-                    return res
+                    possFunc.add(immediate)
+                    return (possFunc, HashSet([immediate.effectiveType.getOrThrow()]))
                 }
             }
-            res = tmpTypeManager.findClosestSuperType(funcName, args, expectedReturnType)
+            (possFunc, possTypes) = tmpTypeManager.findClosestSuperType(funcName, args, expectedReturnType)
         }
-        res
+        (possFunc, possTypes)
     }
 
     /*

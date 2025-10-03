@@ -373,6 +373,11 @@ public class TypeAssigner <: Visitor<Type> {
 
     public override func visit(callExprWithRef: CallExprWithRef): Type {
         if (let Some(expected) <- expectedReturnType) {
+            // In functions I keep all the pososible types so expected doesn't have to be a parent
+            // but needs to be contained.
+            if (!nodePossibleTypes[callExprWithRef.id].contains(expected)) {
+                throw Exception("Wrong type, expected ${expected.name}")
+            }
             // Keep only valid functions.
             validFunctionPool.add(callExprWithRef.id, validFunctionPool[callExprWithRef.id]
                 .iterator().filter({ f => expected.isParent(f.traverse(this)) })
