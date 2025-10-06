@@ -20,10 +20,15 @@ public class TypeManager {
 
     // Returns the concatenation of the string representation of the hash of the funcName and of the
     // name of the types.
-    public static func funcHashConcat(funcName: String, params: Array<Type>): String {
-        funcName + params.iterator()
-            .map({ t => t.name.hashCode().toString() })
+    public static func funcHashConcat(funcName: String, paramsTypeName: Array<String>): String {
+        funcName + paramsTypeName.iterator()
+            .map({ t => t.hashCode().toString() })
             .fold(StringBuilder(), { acc, v => acc.append(v); acc }).toString()
+    }
+
+    public static func funcHashConcat(funcName: String, params: Array<Type>): String {
+        funcHashConcat(funcName,
+            Utils.fold(params.iterator().map({ t => t.name }), ArrayList()).toArray())
     }
 
     private var enclosing_: ?TypeManager = None
@@ -206,7 +211,7 @@ public class TypeManager {
                 // We want to keep only the first type and unique signatures.
                 if (let Some(f) <- entry[1]) {
                     if (signatures.add(
-                        funcHashConcat(funcName,Utils.refToType(f.paramRef.getOrThrow()))
+                        funcHashConcat(funcName, Utils.refToType(f.paramRef.getOrThrow()))
                     )) {
                         map.addIfAbsent(entry[0], entry[1])
                     }
