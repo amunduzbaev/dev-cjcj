@@ -12,27 +12,27 @@ import std.collection.Map
 */
 private class ReferenceDeclarator <: Declarator {
     public ReferenceDeclarator(
-        private let visitVar!: (VarDeclWithRef) -> ?Reference = { _ => None },
-        private let visitFunc!: (FuncDeclWithRef) -> ?Reference = { _ => None },
-        private let visitClass!: (ClassDeclWithRef) -> ?Reference = { _ => None },
-        private let visitMain!: (MainDeclWithRef) -> ?Reference = { _ => None }
+        private let visitVar!: (VarDeclWithRef) -> Unit = { _ => () },
+        private let visitFunc!: (FuncDeclWithRef) -> Unit = { _ => () },
+        private let visitClass!: (ClassDeclWithRef) -> Unit = { _ => () },
+        private let visitMain!: (MainDeclWithRef) -> Unit = { _ => () }
     ) {
         super()
     }
 
-    public override func visit(funcDeclWithRef: FuncDeclWithRef): ?Reference {
+    public override func visit(funcDeclWithRef: FuncDeclWithRef): Unit {
         visitFunc(funcDeclWithRef)
     }
-    
-    public override func visit(varDeclWithRef: VarDeclWithRef): ?Reference {
+
+    public override func visit(varDeclWithRef: VarDeclWithRef): Unit {
         visitVar(varDeclWithRef)
     }
 
-    public override func visit(classDeclWithRef: ClassDeclWithRef): ?Reference {
+    public override func visit(classDeclWithRef: ClassDeclWithRef): Unit {
         visitClass(classDeclWithRef)
     }
 
-    public override func visit(mainDeclWithRef: MainDeclWithRef): ?Reference {
+    public override func visit(mainDeclWithRef: MainDeclWithRef): Unit {
         visitMain(mainDeclWithRef)
     }
 }
@@ -47,13 +47,15 @@ public abstract class DeclaratorFactory {
     */
     public static func bodyAstDeclarator(
         funcEnvironment: Environment<String, FuncReference>,
+        funcNameEnvironment: Environment<String, FuncReference>,
         variableEnvironment: Environment<String, VariableReference>
     ): Declarator {
         let canDeclare: (String) -> Bool = canDeclare([
-            { k => variableEnvironment.getLocal(k).isNone() }
+            { k => variableEnvironment.getLocal(k).isNone() },
+            { k => funcNameEnvironment.getLocal(k).isNone() }
         ])
         Declarator(
-            visitFunc: functionAstDeclaration(funcEnvironment, canDeclare),
+            visitFunc: functionAstDeclaration(funcEnvironment, funcNameEnvironment, canDeclare),
             visitVar: variableAstDeclaration(variableEnvironment, canDeclare)
         )
     }
@@ -63,13 +65,15 @@ public abstract class DeclaratorFactory {
     */
     public static func globalAstDeclarator(
         funcEnvironment: Environment<String, FuncReference>,
+        funcNameEnvironment: Environment<String, FuncReference>,
         classEnvironment: Environment<String, ClassReference>
     ): Declarator {
         let canDeclare: (String) -> Bool = canDeclare([
-            { k => classEnvironment.getLocal(k).isNone() }
+            { k => classEnvironment.getLocal(k).isNone() },
+            { k => funcNameEnvironment.getLocal(k).isNone() }
         ])
         Declarator(
-            visitFunc: functionAstDeclaration(funcEnvironment, canDeclare),
+            visitFunc: functionAstDeclaration(funcEnvironment, funcNameEnvironment, canDeclare),
             visitClass: classAstDeclaration(classEnvironment, canDeclare)
         )
     }
@@ -118,13 +122,13 @@ public abstract class DeclaratorFactory {
     private static func variableAstDeclaration(
         environment: Environment<String, VariableReference>,
         canDeclare: (String) -> Bool
-    ): (VarDecl) -> ?Reference {
+    ): (VarDecl) -> Unit {
         { varDecl: VarDecl =>
             let ref: VariableReference = VariableReference(NodeIdManager.nextId(), 
                 varDecl.identifier, varDecl.keyword)
             if (canDeclare(varDecl.identifier.value)) {
                 environment.declare(varDecl.identifier.value, ref)
-                return ref
+                return
             }
             throw declareError(varDecl.identifier.value)
         }
@@ -134,13 +138,13 @@ public abstract class DeclaratorFactory {
         environment: Environment<String, VariableReference>,
         canDeclare: (String) -> Bool,
         refToDecl: Map<Reference, Decl>
-    ): (VarDeclWithRef) -> ?Reference {
+    ): (VarDeclWithRef) -> Unit {
         { varDeclWithRef: VarDeclWithRef =>
             let ref: VariableReference = varDeclWithRef.ref
             if (canDeclare(varDeclWithRef.identifier.value)) {
                 refToDecl.add(ref, varDeclWithRef)
                 environment.declare(varDeclWithRef.identifier.value, ref)
-                return ref
+                return
             }
             throw declareError(varDeclWithRef.identifier.value)
         }
@@ -148,16 +152,25 @@ public abstract class DeclaratorFactory {
 
     private static func functionAstDeclaration(
         environment: Environment<String, FuncReference>,
+        funcNameEnvironment: Environment<String, FuncReference>,
         canDeclare: (String) -> Bool
-    ): (FuncDecl) -> ?Reference {
+    ): (FuncDecl) -> Unit {
         { funcDecl: FuncDecl =>
             let ref: FuncReference = FuncReference(NodeIdManager.nextId(), funcDecl.identifier)
             let funcName: String = funcDecl.identifier.value
+            let funcHashConcat: String = TypeManager.funcHashConcat(
+                funcName, Utils.fold(
+                    funcDecl.params.iterator().map({ p => p.paramType.typeName.value }),
+                    ArrayList()
+                ).toArray()
+            )
             if (canDeclare(funcName)) {
-                if (environment.getLocal(funcName).isNone()) {
-                    environment.declare(funcName, ref)
-                }
-                return ref
+                funcNameEnvironment.declare(funcName, ref)
+                environment.declare(funcHashConcat, ref)
+                return
+            } else if (funcNameEnvironment.getLocal(funcName).isSome()) {
+                environment.declare(funcHashConcat, ref)
+                return
             }
             throw declareError(funcName)
         }
@@ -168,7 +181,7 @@ public abstract class DeclaratorFactory {
         canDeclare: (String) -> Bool,
         refToDecl: Map<Reference, Decl>,
         declToTypeManager: Map<Decl, TypeManager>
-    ): (FuncDeclWithRef) -> ?Reference {
+    ): (FuncDeclWithRef) -> Unit {
         { funcDeclWithRef: FuncDeclWithRef =>
             let ref: FuncReference = funcDeclWithRef.funcRef
             let funcName: String = ref.identifier.value
@@ -177,12 +190,11 @@ public abstract class DeclaratorFactory {
                 funcDeclWithRef.params, ref.paramRef.getOrThrow(), typeManager
             )
             let params: Array<Type> = Utils.refToType(paramRef)
-            let funcHashParamName: String = TypeManager.funcHashConcat(funcName, params)
-            if (canDeclare(funcHashParamName)) {
+            if (canDeclare(funcName)) {
                 refToDecl.add(ref, funcDeclWithRef)
                 declToTypeManager.add(funcDeclWithRef, typeManager)
                 typeManager.addFunction(ref)
-                return ref
+                return
             }
             throw declareError(
                 funcName +
@@ -195,13 +207,13 @@ public abstract class DeclaratorFactory {
     private static func classAstDeclaration(
         environment: Environment<String, ClassReference>,
         canDeclare: (String) -> Bool
-    ): (ClassDecl) -> ?Reference {
+    ): (ClassDecl) -> Unit {
         { classDecl: ClassDecl =>
             // TODO: At the moment every class is considered open.
             let ref: ClassReference = ClassReference(NodeIdManager.nextId(), classDecl.identifier, true)
             if (canDeclare(classDecl.identifier.value)) {
                 environment.declare(classDecl.identifier.value, ref)
-                return ref
+                return
             }
             throw declareError(ref.identifier.value)
         }
@@ -210,12 +222,12 @@ public abstract class DeclaratorFactory {
     private static func classAsgDeclaration(
         environment: Environment<String, ClassReference>,
         canDeclare: (String) -> Bool
-    ): (ClassDeclWithRef) -> ?Reference {
+    ): (ClassDeclWithRef) -> Unit {
         { classDecl: ClassDeclWithRef =>
             let ref: ClassReference = classDecl.ref
             if (canDeclare(classDecl.identifier.value)) {
                 environment.declare(classDecl.identifier.value, ref)
-                return ref
+                return
             }
             throw declareError(ref.identifier.value)
         }
