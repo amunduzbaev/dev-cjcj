@@ -200,10 +200,18 @@ class AsgMakerTests {
 
     @TestCase
     func classDeclFuncConflict_test() {
-        let test: String = """
+        var test: String = """
             class a {
             }
             func a() {
+            }
+            main(){
+            }"""
+        @AssertThrows[Exception](getAsg(test))
+        test = """
+            func a() {
+            }
+            class a {
             }
             main(){
             }"""
