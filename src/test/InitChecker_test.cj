@@ -1,6 +1,5 @@
 package cjcj.test
 
-import cjcj.asg.typeChecker.TypeChecker
 import cjcj.asg.AsgMaker
 import cjcj.asg.initChecker.*
 import cjcj.visitor.Program
@@ -28,17 +27,10 @@ class InitCheckerTests {
         }
         @Fail("Couldn't parse the program")
     }
-    
-    // private func getAsg(test: String): Program {
-    //     let asg = AsgMaker().resolve(getAst(test))
-    //     TypeChecker(asg)
-    //     asg
-    // }
 
     private func resolve(test: String) {
-        let asg = AsgMaker().resolve(getAst(test))
-
-        InitChecker(TypeChecker(asg).classEnvironment).resolve(asg)
+        let boxbox = Box(getAst(test))
+        InitChecker(AsgMaker(boxbox).totalClass).resolve(boxbox.value)
     }
 
     @TestCase 
@@ -669,7 +661,7 @@ class InitCheckerTests {
             main(){
             }
         """
-        resolve(testRight)
+        @AssertThrows[Exception](resolve(testRight))
 
         let testWrong: String = """
             class CLASS {

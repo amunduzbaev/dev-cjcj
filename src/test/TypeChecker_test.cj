@@ -1,6 +1,5 @@
 package cjcj.test
 
-import cjcj.asg.typeChecker.TypeChecker
 import cjcj.asg.AsgMaker
 import cjcj.visitor.Program
 import cjcj.parser
@@ -20,7 +19,9 @@ class TypeCheckTests {
         let parser: parser.Parser = parser.Parser(tokens.toArray(), reporter)
         let program: ?Program = parser.parse()
         if (let Some(p) <- program) {
-            return AsgMaker().resolve(p)
+            let program: Box<Program> = Box(p)
+            AsgMaker(program)
+            return program.value
         }
         @Fail("Couldn't parse the program")
     }
@@ -38,7 +39,7 @@ class TypeCheckTests {
             }
         """
 
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
 
         let testRight: String = """
             main() {
@@ -61,7 +62,7 @@ class TypeCheckTests {
             }
         """
 
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
     }
 
     @TestCase
@@ -71,14 +72,14 @@ class TypeCheckTests {
                 let a: Int64 = "string"
             }
             """
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
 
         let testRight: String = """
             main() {
                 let a: Int64 = 2543
             }
             """
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
     }
 
     @TestCase
@@ -89,14 +90,14 @@ class TypeCheckTests {
                 a = "string"
             }
             """
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
         let testRight: String = """
             main() {
                 var a: Int64 = 5
                 a = 16
             }
             """
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
     }
 
     @TestCase
@@ -108,7 +109,7 @@ class TypeCheckTests {
                 a = a + b
             }
             """
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
         let testRight: String = """
             main() {
                 var a: Int64 = 5
@@ -116,7 +117,7 @@ class TypeCheckTests {
                 a = a + b
             }
             """
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
     }
 
     @TestCase
@@ -128,7 +129,7 @@ class TypeCheckTests {
                 }
             }
             """
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
         let testRight: String = """
             main() {
                 func a(): Int64 {
@@ -136,7 +137,7 @@ class TypeCheckTests {
                 }
             }
             """
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
     }
 
     @TestCase
@@ -146,13 +147,13 @@ class TypeCheckTests {
                 "string"
             }
             """
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
         let testRight: String = """
             main(): Int64 {
                 5
             }
             """
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
     }
 
     @TestCase
@@ -165,7 +166,7 @@ class TypeCheckTests {
                 a(2, "1")
             }
             """
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
         let testRight: String = """
             main() {
                 func a(b: String, c: Int64): Int64 {
@@ -174,7 +175,7 @@ class TypeCheckTests {
                 a("1", 2)
             }
             """
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
     }
 
     @TestCase
@@ -195,7 +196,7 @@ class TypeCheckTests {
                 }
             }
             """
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
         let testRight: String = """
             main() {
                 func a(b: String, c: Int64): Int64 {
@@ -204,7 +205,7 @@ class TypeCheckTests {
                 a("1", 2)
             }
             """
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
     }
 
     @TestCase
@@ -218,14 +219,14 @@ class TypeCheckTests {
                 }
             }
             """
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
         let testRight: String = """
             main() {
                 if(true) {
                 }
             }
             """
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
     }
 
     @TestCase
@@ -243,7 +244,7 @@ class TypeCheckTests {
                 a(1, 1)
             }
             """
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
     }
 
     @TestCase
@@ -267,7 +268,7 @@ class TypeCheckTests {
                 let c = A(a, b)
             }
             """
-        TypeChecker(getAsg(test))
+        getAsg(test)
     }
 
     @TestCase
@@ -288,7 +289,7 @@ class TypeCheckTests {
                 let c: Unit = A(a, b)
             }
             """
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
         let testWrong: String = """
             func A(a: Any, b: Any): Any {
                 a
@@ -309,7 +310,7 @@ class TypeCheckTests {
                 let c = A(a, b)
             }
             """
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
     }
 
     @TestCase
@@ -330,7 +331,7 @@ class TypeCheckTests {
                 c = A(a, b)
             }
             """
-        @AssertThrows[Exception](TypeChecker(getAsg(test)))
+        @AssertThrows[Exception](getAsg(test))
     }
 
     @TestCase
@@ -346,7 +347,7 @@ class TypeCheckTests {
                 let c: String = a(1)
             }
             """
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
         let testWrong: String = """
             func a(a: Int64) {
                 "string"
@@ -358,7 +359,7 @@ class TypeCheckTests {
                 let c: String = a(1)
             }
             """
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
     }
 
 
@@ -373,7 +374,7 @@ class TypeCheckTests {
             main(){
             }
             """
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
     }
 
     @TestCase
@@ -391,7 +392,7 @@ class TypeCheckTests {
                 let c: Int64 = a().b
                 let f: Unit = b.f()
             }"""
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
         let testWrong: String = """
             class a {
                 let b: Int64
@@ -404,7 +405,7 @@ class TypeCheckTests {
                 let b = a()
                 let c: String = b.b
             }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
     }
 
     @TestCase
@@ -442,7 +443,7 @@ class TypeCheckTests {
         }
         main(){
         }"""
-        TypeChecker(getAsg(test))
+        getAsg(test)
         // TODO: We can make this test not fail if we let the assigner go into the blocks. It will
         // mean implement all the empty visit functions but it could be worth it, cjc doesn't do it.
         let testHard = """
@@ -465,7 +466,7 @@ class TypeCheckTests {
         }
         main(){
         }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(testHard)))
+        @AssertThrows[Exception](getAsg(testHard))
     }
 
     @TestCase
@@ -482,7 +483,7 @@ class TypeCheckTests {
             }
             main() {
             }"""
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
         let testWrong: String = """
             func f() {
                 g()
@@ -495,7 +496,7 @@ class TypeCheckTests {
             }
             main() {
             }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
     }
 
     @TestCase
@@ -507,7 +508,7 @@ class TypeCheckTests {
                 let b = a()
                 let c: Int64 = a().b
             }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(test)))
+        @AssertThrows[Exception](getAsg(test))
     }
 
     @TestCase
@@ -518,7 +519,7 @@ class TypeCheckTests {
             }
             main(){
             }"""
-        TypeChecker(getAsg(test))
+        getAsg(test)
         test = """
             class a {
                 func f() {
@@ -529,7 +530,7 @@ class TypeCheckTests {
             }
             main(){
             }"""
-        TypeChecker(getAsg(test))
+        getAsg(test)
         test = """
             main(){
                 func g(a: Int64, b: String) {
@@ -538,7 +539,7 @@ class TypeCheckTests {
                     g(1 + 2 * 4, "abcd")
                 }
             }"""
-        TypeChecker(getAsg(test))
+        getAsg(test)
     }
 
     @TestCase
@@ -551,22 +552,22 @@ class TypeCheckTests {
                 let b: Float32 = 10.67
                 let c: Int32 = 1 + 1
             }"""
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
         var testWrong: String = """
             main(){
                 1 + 2 * 4 ** -10
             }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
         testWrong = """
             main(){
                 let a: Int32 = 1.5
             }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
         testWrong = """
             main(){
                 let a: Float32 = 1
             }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
     }
 
     @TestCase
@@ -578,7 +579,7 @@ class TypeCheckTests {
                 let b: a = a()
                 let c: Int64 = b()
             }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(test)))
+        @AssertThrows[Exception](getAsg(test))
     }
 
     @TestCase
@@ -593,7 +594,7 @@ class TypeCheckTests {
                 let b: a = a()
                 let c: Int64 = b.f(1, 1)
             }"""
-        TypeChecker(getAsg(test))
+        getAsg(test)
     }
 
     @TestCase
@@ -604,12 +605,12 @@ class TypeCheckTests {
             }
             main(){
             }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(test)))
+        @AssertThrows[Exception](getAsg(test))
         test = """
             func f(): Int64 { }
             main(){
             }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(test)))
+        @AssertThrows[Exception](getAsg(test))
     }
 
     @TestCase
@@ -617,7 +618,7 @@ class TypeCheckTests {
         var test: String = """
             func Any() {}
             main(){ }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(test)))
+        getAsg(test)
     }
 
     @TestCase
@@ -643,7 +644,7 @@ class TypeCheckTests {
                 let v: Int64 = a.cvar
                 let f: Unit = a.bfunc()
             }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(testFunc)))
+        @AssertThrows[Exception](getAsg(testFunc))
         let testVar: String = """
             class c {
                 let cvar = 5
@@ -662,7 +663,7 @@ class TypeCheckTests {
                 let v: Int64 = a.cvar
                 let f: Unit = a.bfunc()
             }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(testVar)))
+        @AssertThrows[Exception](getAsg(testVar))
     }
 
     @TestCase
@@ -692,7 +693,7 @@ class TypeCheckTests {
             main(){
                 let test = a()
             }"""
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
     }
 
     @TestCase
@@ -714,7 +715,7 @@ class TypeCheckTests {
                 let v: Int64 = a.cvar
                 let f: Unit = a.bfunc()
             }"""
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
         let testWrong: String = """
             class c {
                 let common = 5
@@ -732,7 +733,7 @@ class TypeCheckTests {
                 let v: String = a.common
                 let f: Unit = a.bfunc()
             }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
     }
 
     @TestCase
@@ -744,7 +745,7 @@ class TypeCheckTests {
             }
             main(){
             }"""
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
         let testWrong: String = """
             let a = f()
             func f() {
@@ -752,7 +753,7 @@ class TypeCheckTests {
             }
             main(){
             }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
     }
 
     @TestCase
@@ -775,7 +776,7 @@ class TypeCheckTests {
             }
             """
         
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
     }
 
     @TestCase 
@@ -804,7 +805,7 @@ class TypeCheckTests {
             }        
             """
 
-        TypeChecker(getAsg(testRight))
+        getAsg(testRight)
 
         let testWrong: String = """
             class A {
@@ -832,7 +833,7 @@ class TypeCheckTests {
             }
             """
 
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        @AssertThrows[Exception](getAsg(testWrong))
 
         let testRightHard: String = """
             class D {}
@@ -859,7 +860,7 @@ class TypeCheckTests {
             // type C, where the lowest common supertype of B and C is D
             """
 
-        TypeChecker(getAsg(testRightHard))
+        getAsg(testRightHard)
     }
 
     @TestCase
@@ -914,8 +915,8 @@ class TypeCheckTests {
             }
         """
 
-        TypeChecker(getAsg(testRight))
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        getAsg(testRight)
+        @AssertThrows[Exception](getAsg(testWrong))
     }
 
     @TestCase
@@ -974,7 +975,7 @@ class TypeCheckTests {
             }
         """
 
-        TypeChecker(getAsg(testRight))
-        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+        getAsg(testRight)
+        @AssertThrows[Exception](getAsg(testWrong))
     }
 }

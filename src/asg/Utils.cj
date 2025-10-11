@@ -22,6 +22,17 @@ public abstract class Utils {
             p[1].effectiveType = typeManager.getType(funcParams[p[0]].paramType.typeName.value) })
     }
 
+    public static func funcParamToParamRef(
+        funcParams: ArrayList<FuncParam>,
+        typeManager: TypeManager,
+        funcParamToRef: (FuncParam) -> (VariableReference)
+    ): ArrayList<VariableReference> {
+        let paramRefs: ArrayList<VariableReference> = ArrayList()
+        funcParams.iterator().map({ p => funcParamToRef(p) }).forEach({ p => paramRefs.add(p) })
+        funcParamToParamRef(funcParams, paramRefs, typeManager)
+        paramRefs
+    }
+
     /*
     * Returns a list of effective types of the references.
     * @param refs the list of references

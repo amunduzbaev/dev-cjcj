@@ -1,4 +1,4 @@
-package cjcj.asg.typeChecker
+package cjcj.asg
 import std.collection.ArrayList
 import std.collection.HashMap
 import std.collection.Map
@@ -137,7 +137,9 @@ public let BUILTIN_FUNCTIONS:
             (ArrayList(["Int8", "Int8"]), "Int8"),
             (ArrayList(["IntNative"]), "IntNative"),
             (ArrayList(["IntNative", "IntNative"]), "IntNative")
-            // TODO: Negation of UInt should not return UInt (in cjc it does, that's weird)
+            /* TODO: Negation of UInt should not return UInt (in cjc it does, that's weird, we 
+            * should think about this more)
+            */
             // (ArrayList(["UInt16"]), "UInt16"),
             // (ArrayList(["UInt16", "UInt16"]), "UInt16"),
             // (ArrayList(["UInt32"]), "UInt32"),

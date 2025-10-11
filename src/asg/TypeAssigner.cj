@@ -1,13 +1,15 @@
-package cjcj.asg.typeChecker
+package cjcj.asg
 
 import cjcj.visitor.*
 import cjcj.scanner.TokenKind
-import cjcj.asg.TypeManager
-import cjcj.asg.Utils
 import cjcj.scanner.Token
 
 import std.convert.*
 import std.collection.*
+
+import stdx.effect.*
+
+private class GetReferenceEffect <: Command<Reference> { }
 
 /*
 * Tries to assign a single type to every node by loooking at the node possible types given.
@@ -23,72 +25,96 @@ public class TypeAssigner <: Visitor<Type> {
     private var functionStackInfo: ArrayStack<?(?Type, Set<Type>)> = ArrayStack()
 
     public TypeAssigner(
-        private let nodePossibleTypes: Map<NodeId, Set<Type>>,
-        private var classEnvironment: Environment<String, ClassReferenceForTC>,
+        private let nodePossibleTypes: Map<Node, Set<Type>>,
+        private var totalClass: Environment<String, ClassReferenceForTC>,
         private let typeManager: TypeManager,
-        private let functionTypeGrouping: Map<NodeId, Map<Type, ?FuncReference>>
+        private let functionTypeGrouping: Map<Node, Map<Type, ?FuncReference>>
     ) {}
 
     public override func visit(binaryExpr: BinaryExpr): Type {
         let exp: ?Type = expectedReturnType
-        functionTypeGrouping[binaryExpr.id] = matchReturnType(functionTypeGrouping[binaryExpr.id])
+        functionTypeGrouping[binaryExpr] = matchReturnType(functionTypeGrouping[binaryExpr])
 
         var bestFunc: ?FuncReference = None
         if (let Some(expected) <- exp) {
-            if (let Some(fun) <- functionTypeGrouping[binaryExpr.id].get(expected)) {
+            if (let Some(fun) <- functionTypeGrouping[binaryExpr].get(expected)) {
                 bestFunc = fun
-            } else if (let Some(fun) <- functionTypeGrouping[binaryExpr.id].get(Type.NOTHING)) {
+            } else if (let Some(fun) <- functionTypeGrouping[binaryExpr].get(Type.NOTHING)) {
                 bestFunc = fun
             }
         } else {
             if (let Some(fun) <- typeManager.bestFunction(
-                functionTypeGrouping[binaryExpr.id].iterator().filter({ v => v[1].isSome()})
+                functionTypeGrouping[binaryExpr].iterator().filter({ v => v[1].isSome()})
                     .map({ v => v[1].getOrThrow() }).fold(HashSet(), { acc, v => acc.add(v); acc })
             )) {
                 bestFunc = fun
             }
         }
 
-        let refTypes: Array<Type> = Utils.refToType(bestFunc.getOrThrow({ =>
-            Exception("Could not find a function for ${binaryExpr.oper.value}") }).paramRef.getOrThrow())
+        if (let Some(best) <- bestFunc) {
+            let refTypes: Array<Type> = Utils.refToType(bestFunc.getOrThrow({ =>
+                Exception("Could not find a function for ${binaryExpr.oper.value}")
+            }).paramRef.getOrThrow())
 
-        expectedReturnType = refTypes[0]
-        binaryExpr.left.traverse(this)
+            expectedReturnType = refTypes[0]
+            binaryExpr.left.traverse(this)
 
-        expectedReturnType = refTypes[1]
-        binaryExpr.right.traverse(this)
+            expectedReturnType = refTypes[1]
+            binaryExpr.right.traverse(this)
+        } else {
+            expectedReturnType = None
+            let leftType: Type = binaryExpr.left.traverse(this)
+            let rightType: Type = binaryExpr.right.traverse(this)
+
+            bestFunc = typeManager.bestFunction(
+                typeManager.applyFunction(
+                    binaryExpr.oper.value, [HashSet([leftType]), HashSet([rightType])], None
+                ).values().iterator().filter({ v => v.isSome() }).map({ v => v.getOrThrow() })
+                .fold(HashSet(), { acc, v => acc.add(v); acc })
+            )
+        }
 
         expectedReturnType = exp
-        bestFunc.getOrThrow().traverse(this)
+        matchReturnType(bestFunc.getOrThrow().traverse(this))
     }
 
     public override func visit(unaryExpr: UnaryExpr): Type {
         let exp: ?Type = expectedReturnType
-        functionTypeGrouping[unaryExpr.id] = matchReturnType(functionTypeGrouping[unaryExpr.id])
-
-        functionTypeGrouping[unaryExpr.id].iterator().forEach({ v => println(v[0].name)})
+        functionTypeGrouping[unaryExpr] = matchReturnType(functionTypeGrouping[unaryExpr])
 
         var bestFunc: ?FuncReference = None
         if (let Some(expected) <- exp) {
-            if (let Some(fun) <- functionTypeGrouping[unaryExpr.id].get(expected)) {
+            if (let Some(fun) <- functionTypeGrouping[unaryExpr].get(expected)) {
                 bestFunc = fun
-            } else if (let Some(fun) <- functionTypeGrouping[unaryExpr.id].get(Type.NOTHING)) {
+            } else if (let Some(fun) <- functionTypeGrouping[unaryExpr].get(Type.NOTHING)) {
                 bestFunc = fun
             }
         } else {
             if (let Some(fun) <- typeManager.bestFunction(
-                functionTypeGrouping[unaryExpr.id].iterator().filter({ v => v[1].isSome()})
+                functionTypeGrouping[unaryExpr].iterator().filter({ v => v[1].isSome()})
                     .map({ v => v[1].getOrThrow() }).fold(HashSet(), { acc, v => acc.add(v); acc })
             )) {
                 bestFunc = fun
             }
         }
+        if (let Some(best) <- bestFunc) {
+            let refTypes: Array<Type> = Utils.refToType(bestFunc.getOrThrow({ =>
+                Exception("Could not find a function for ${unaryExpr.oper.value}")
+            }).paramRef.getOrThrow())
 
-        let refTypes: Array<Type> = Utils.refToType(bestFunc.getOrThrow({ =>
-            Exception("Could not find a function for ${unaryExpr.oper.value}") }).paramRef.getOrThrow())
-        
-        expectedReturnType = refTypes[0]
-        unaryExpr.right.traverse(this)
+            expectedReturnType = refTypes[0]
+            unaryExpr.right.traverse(this)
+        } else {
+            expectedReturnType = None
+            let rightType: Type = unaryExpr.right.traverse(this)
+
+            bestFunc = typeManager.bestFunction(
+                typeManager.applyFunction(
+                    unaryExpr.oper.value, [HashSet([rightType])], None
+                ).values().iterator().filter({ v => v.isSome() }).map({ v => v.getOrThrow() })
+                .fold(HashSet(), { acc, v => acc.add(v); acc })
+            )
+        }
 
         expectedReturnType = exp
         bestFunc.getOrThrow().traverse(this)
@@ -144,18 +170,17 @@ public class TypeAssigner <: Visitor<Type> {
 
     public override func visit(litConstExpr: LitConstExpr): Type {
         let tp: Type = match (litConstExpr.literal.kind) {
-            // TODO: Change this, compiler can do implicit cast.
             case TokenKind.INTEGER_LITERAL => if (let Some(expected) <- expectedReturnType) {
-                if (nodePossibleTypes.get(litConstExpr.id).getOrThrow().contains(expected)) {
+                if (nodePossibleTypes.get(litConstExpr).getOrThrow().contains(expected)) {
                     checkIntValue(litConstExpr.literal.value, expected)
                     return expected
                 }
-                throw Exception("Expected ${expected.name} found interger literal")
+                throw Exception("Expected ${expected.name} found integer literal")
             } else {
                 typeManager.getType("Int64")
             }
             case TokenKind.FLOAT_LITERAL => if (let Some(expected) <- expectedReturnType) {
-                if (nodePossibleTypes.get(litConstExpr.id).getOrThrow().contains(expected)) {
+                if (nodePossibleTypes.get(litConstExpr).getOrThrow().contains(expected)) {
                     checkFloatValue(litConstExpr.literal.value, expected)
                     return expected
                 }
@@ -288,7 +313,6 @@ public class TypeAssigner <: Visitor<Type> {
             initType.getOrThrow({ => Exception("No declaration type and not initializer found")}) })
 
         expectedReturnType = varDeclExpectedReturn
-        // println("Type of ${varDeclWithRef.identifier.value} is ${ref.effectiveType.getOrThrow().name}")
         matchReturnType(Type.UNIT)
     }
 
@@ -370,11 +394,11 @@ public class TypeAssigner <: Visitor<Type> {
         }
 
         // If I haven't seen it before it must have only one possible type
-        if (nodePossibleTypes[varReference.id].size != 1) {
+        if (nodePossibleTypes[varReference].size != 1) {
             throw Exception("Impossible to infer the value of var reference " + 
                 "${varReference.identifier.value}")
         }
-        let tp: Type = nodePossibleTypes[varReference.id].iterator().first().getOrThrow()
+        let tp: Type = nodePossibleTypes[varReference].iterator().first().getOrThrow()
         varReference.effectiveType = tp
         matchReturnType(tp)
     }
@@ -384,10 +408,10 @@ public class TypeAssigner <: Visitor<Type> {
             return effectiveType
         }
         // If I haven't seen it before it must have only one possible type
-        if (nodePossibleTypes[classReference.id].size != 1) {
+        if (nodePossibleTypes[classReference].size != 1) {
             throw Exception("Impossible to infer the value of class reference ${classReference.identifier.value}")
         }
-        let tp: Type = nodePossibleTypes[classReference.id].iterator().first().getOrThrow()
+        let tp: Type = nodePossibleTypes[classReference].iterator().first().getOrThrow()
         classReference.effectiveType = tp
         matchReturnType(tp)
     }
@@ -401,7 +425,12 @@ public class TypeAssigner <: Visitor<Type> {
     }
 
     public override func visit(refExprWithRef: RefExprWithRef): Type {
-        matchReturnType(refExprWithRef.ref.traverse(this))
+        if (let Some(ref) <- refExprWithRef.ref) {
+            matchReturnType(refExprWithRef.ref.getOrThrow().traverse(this))
+        } else {
+            refExprWithRef.ref = perform GetReferenceEffect()
+            matchReturnType(refExprWithRef.ref.getOrThrow().traverse(this))
+        }
     }
 
     public override func visit(callExprWithRef: CallExprWithRef): Type {
@@ -409,14 +438,14 @@ public class TypeAssigner <: Visitor<Type> {
         let exp: ?Type = expectedReturnType
 
         if (let Some(expected) <- expectedReturnType) {
-            if (let Some(fun) <- functionTypeGrouping[callExprWithRef.id].get(expected)) {
+            if (let Some(fun) <- functionTypeGrouping[callExprWithRef].get(expected)) {
                 bestFunc = fun
-            } else if (let Some(fun) <- functionTypeGrouping[callExprWithRef.id].get(Type.NOTHING)) {
+            } else if (let Some(fun) <- functionTypeGrouping[callExprWithRef].get(Type.NOTHING)) {
                 bestFunc = fun
             }
         } else {
             if (let Some(fun) <- typeManager.bestFunction(
-                functionTypeGrouping[callExprWithRef.id].iterator().filter({ v => v[1].isSome()})
+                functionTypeGrouping[callExprWithRef].iterator().filter({ v => v[1].isSome()})
                     .map({ v => v[1].getOrThrow() }).fold(HashSet(), { acc, v => acc.add(v); acc })
             )) {
                 bestFunc = fun
@@ -436,10 +465,16 @@ public class TypeAssigner <: Visitor<Type> {
         })
         expectedReturnType.value = exp
 
-        // TODO: I don't visit my calle because in every case it'll be fixed, think about it.
-
         // Set the reference to the correct one.
         callExprWithRef.ref = bestFunc.getOrThrow()
+
+        // Visit the callee and eventually set the reference
+        try {
+            callExprWithRef.callee.traverse(this)
+        } handle(_: GetReferenceEffect) {
+            resume with callExprWithRef.ref.getOrThrow()
+        }
+
         bestFunc.getOrThrow().effectiveType.getOrThrow()
     }
 
@@ -459,21 +494,22 @@ public class TypeAssigner <: Visitor<Type> {
 
         // Call baseClass without exected return type because it is independent from outside.
         expectedReturnType = None
-        let baseClass: ClassReferenceForTC =
-            classEnvironment.getGlobal(memberAccessWithRef.baseExpr.traverse(this).name)
-                .getOrThrow({ => Exception("Base of member access is not a class!") })
+        let classType: Type = memberAccessWithRef.baseExpr.traverse(this)
 
-        expectedReturnType = expected
-        let (tp, _) = baseClass.getMember(memberAccessWithRef.field.value).getOrThrow()
-        if (let Some(expected) <- expectedReturnType) {
-            if (!expected.isParent(tp)) {
-                throw Exception("Expected ${expected.name} found ${tp.name}")
-            }
-        }
+        var baseClass: ClassReferenceForTC = totalClass.getGlobal(classType.name)
+                .getOrThrow({ => Exception("Base of member access is not a class!") })
 
         // Set the right reference to the member access.
         memberAccessWithRef.ref = baseClass.classReference
-        tp
+
+        expectedReturnType = expected
+
+        // TODO: Change namings, I try to first get a variable and then a function.
+        if (let Some(ref) <- baseClass.getMembersReference(memberAccessWithRef.field.value)) {
+            return matchReturnType(ref.effectiveType.getOrThrow())
+        } else {
+            return matchReturnType((perform GetReferenceEffect()).effectiveType.getOrThrow())
+        }
     }
 
     public override func visit(thisSuperReference: ThisSuperReference): Type {
@@ -483,6 +519,10 @@ public class TypeAssigner <: Visitor<Type> {
         }
         matchReturnType(classReference.parent.getOrThrow({ =>
             Exception("Cannot invoke super without super type")}).effectiveType.getOrThrow())
+    }
+
+    public override func visit(_: JumpExpr): Type {
+        Type.NOTHING
     }
 
     /*

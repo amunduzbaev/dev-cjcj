@@ -48,6 +48,24 @@ public class TypeManager {
         get() { totalFuncDef_ }
     }
 
+    public prop totalFuncDefGlobal: Map<String, ArrayStack<FuncReference>> {
+        get() {
+            let tmpTypeManager: TypeManager = this
+            let res: Map<String, ArrayStack<FuncReference>> = HashMap()
+            while (let Some(enclosing) <- tmpTypeManager.enclosing) {
+                let mp = tmpTypeManager.totalFuncDef
+                mp.iterator().forEach({ entry =>
+                    let (funcName, overloads) = entry
+                    res.addIfAbsent(funcName, ArrayStack())
+                    overloads.iterator().forEach({ ref =>
+                        res[funcName].add(ref)
+                    })
+                })
+            }
+            res
+        }
+    }
+
     public prop enclosing: ?TypeManager {
         get() { enclosing_ }
     }
@@ -70,9 +88,7 @@ public class TypeManager {
     */
     public func addType(typeName: String, parents: ArrayList<String>, isOpen!: Bool = false): Unit {
         addType(Type(typeName,
-            parents.iterator().map({ s => getType(s)}).fold(ArrayList<Type>(),
-                { r: ArrayList<Type>, t: Type => r.add(t); r}
-            ), isOpen))
+            Utils.fold(parents.iterator().map({ s => getType(s)}), ArrayList()), isOpen))
     }
 
     /*
@@ -97,14 +113,36 @@ public class TypeManager {
     * Returns true if a function with the given name exists.
     */
     public func funcExists(funcName: String): Bool {
-        var tmpTypeManager = this
+        totalFuncDef.get(funcName).isSome()
+    }
+
+    /*
+    * Returns true if a function with the given name exists here or in some parent.
+    */
+    public func funcExistsGlobal(funcName: String): Bool {
+        var tmpTypeManager: TypeManager = this
         while (let Some(enclosing) <- tmpTypeManager.enclosing) {
-            if (tmpTypeManager.totalFuncDef.get(funcName).isSome()) {
+            if (tmpTypeManager.funcExists(funcName)) {
                 return true
             }
             tmpTypeManager = enclosing
         }
-        tmpTypeManager.totalFuncDef.get(funcName).isSome()
+        tmpTypeManager.funcExists(funcName)
+    }
+
+    public func exactFuncExists(funcHashConcat: String): Bool {
+        immediateFuncDef.get(funcHashConcat).isSome()
+    }
+
+    public func exactFuncExistsGlobal(funcHashConcat: String): Bool {
+        var tmpTypeManager: TypeManager = this
+        while (let Some(enclosing) <- tmpTypeManager.enclosing) {
+            if (tmpTypeManager.exactFuncExists(funcHashConcat)) {
+                return true
+            }
+            tmpTypeManager = enclosing
+        }
+        tmpTypeManager.exactFuncExists(funcHashConcat)
     }
 
     /*
@@ -225,11 +263,9 @@ public class TypeManager {
         expectedReturnType: ?Type
     ): ArrayStack<FuncReference> {
         if (let Some(paramsList) <- totalFuncDef.get(funcName)) {
-            let validParamsList: ArrayStack<FuncReference> = paramsList.iterator()
+            let validParamsList: ArrayStack<FuncReference> = Utils.foldToStack(paramsList.iterator()
                 .filter({ f => f.paramRef.isSome() })
-                .filter({ f => f.paramRef.getOrThrow().size == args.size })
-                .fold(ArrayStack(), { acc, v => acc.add(v); acc })
-            
+                .filter({ f => f.paramRef.getOrThrow().size == args.size }), ArrayStack())
             // Weird things happen when you iterate through an empty list.
             if (args.size == 0) {
                 return validParamsList
@@ -300,12 +336,10 @@ public class TypeManager {
         if (a == Type.NOTHING) { return b }
         if (b == Type.NOTHING) { return a }
         let ancB: Set<Type> = b.ancestorSet
-        let commonSuperTypes: Array<Type> = a.ancestorSet.iterator()
-            .filter({ t => ancB.contains(t) })
-            .fold<ArrayList<Type>>(ArrayList(), { res, v => res.add(v); res }).toArray()
-        let validCandidates = commonSuperTypes.iterator()
-            .filter({ t => t.ancestorSet.contains(all: commonSuperTypes) })
-            .fold<ArrayList<Type>>(ArrayList(), { res, v => res.add(v); res })
+        let commonSuperTypes: Array<Type> = Utils.fold(a.ancestorSet.iterator()
+            .filter({ t => ancB.contains(t) }), ArrayList()).toArray()
+        let validCandidates = Utils.fold(commonSuperTypes.iterator()
+            .filter({ t => t.ancestorSet.contains(all: commonSuperTypes) }), ArrayList())
         if (validCandidates.size != 1) {
             throw Exception("Cannot find smallest common supertype")
         }

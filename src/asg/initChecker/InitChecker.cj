@@ -3,7 +3,7 @@ package cjcj.asg.initChecker
 import cjcj.asg.Utils
 import cjcj.visitor.*
 import cjcj.scanner.TokenKind
-import cjcj.asg.typeChecker.ClassReferenceForTC
+import cjcj.asg.ClassReferenceForTC
 
 import std.collection.HashSet
 import std.collection.ArrayList
@@ -88,7 +88,7 @@ public open class InitChecker <: DefaultVisitor<Unit> {
 
     public override open func visit(refExpr: RefExprWithRef) {
         try {
-            refExpr.ref.traverse(this)
+            refExpr.ref.getOrThrow().traverse(this)
         } handle(exactVarReference: ExactVarReference) {
             exactVarReference.locationRef = refExpr.identifier
             perform exactVarReference
@@ -409,7 +409,7 @@ private class ClassInitChecker <: InitChecker {
 
     public override func visit(refExpr: RefExprWithRef) {
         try {
-            refExpr.ref.traverse(this)
+            refExpr.ref.getOrThrow().traverse(this)
         } handle(exactVarReference: ExactVarReference) {
             exactVarReference.locationRef = refExpr.identifier
             perform exactVarReference
@@ -683,7 +683,7 @@ public class StaticGlobalVariableInitializationChecker <: DefaultVisitor<Unit> {
 
     public override func visit(refExpr: RefExprWithRef) {
         try { 
-            refExpr.ref.traverse(this)
+            refExpr.ref.getOrThrow().traverse(this)
         } handle(exactVarReference: ExactVarReference) {
             let varReference = exactVarReference.varReference
 

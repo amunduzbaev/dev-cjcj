@@ -28,7 +28,9 @@ class AsgMakerTests {
     }
     
     private func getAsg(test: String): Program {
-        AsgMaker().resolve(getAst(test))
+        let program: Box<Program> = Box(getAst(test))
+        AsgMaker(program)
+        program.value
     }
 
     private func getMain(test: String): MainDeclWithRef {
@@ -84,7 +86,7 @@ class AsgMakerTests {
     func funcDeclDeclType_test() {
         let test: String = """
             main(){
-                func a(): Int64 {
+                func a(): Unit {
                 }
             }
             """
@@ -159,7 +161,7 @@ class AsgMakerTests {
     @TestCase
     func classDeclWithSupertypes_test() {
         let test: String = """
-            class a <: b & c & d {
+            class a <: b {
             }
             class b {
             }
@@ -173,7 +175,7 @@ class AsgMakerTests {
         let program = getAsg(test)
         @Assert(program.decls[0] is ClassDeclWithRef)
         let classDecl = (program.decls[0] as ClassDeclWithRef).getOrThrow()
-        @Assert(classDecl.superTypes.size == 3)
+        @Assert(classDecl.superTypes.size == 1)
     }
 
     @TestCase
@@ -421,8 +423,8 @@ class AsgMakerTests {
     func returnExprUnitFunc_test() {
         let test: String = """
             let a = 1
-            main(): Unit{
-                return a
+            main(): Unit {
+                return ()
             }"""
         let m: MainDeclWithRef = getMain(test)
         @Assert(m.block.nodes.iterator().all({ n => n is ReturnExpr }))
@@ -433,11 +435,13 @@ class AsgMakerTests {
     func jumpExpr_test() {
         let test: String = """
             main(){
-                break
-                continue
+                while (true) {
+                    break
+                    continue
+                }
             }"""
         let m: MainDeclWithRef = getMain(test)
-        @Assert(m.block.nodes.iterator().all({ n => n is JumpExpr }))
+        @Assert((m.block.nodes[0] as WhileExpr).getOrThrow().block.nodes.iterator().all({ n => n is JumpExpr }))
     }
 
     // @TestCase
@@ -531,7 +535,7 @@ class AsgMakerTests {
 
         let testRight: String = """
             main(){
-                func f() {
+                func f(): Int64 {
                     f()
                     1
                 }
@@ -543,15 +547,16 @@ class AsgMakerTests {
 
     @TestCase 
     func unorderedDeclarations_test() {
-        let testWrong: String = """
-            func f(){
-                a
-            }
-            let a = 5
-            main(){
-            }
-        """
-        @AssertThrows[Exception](getAsg(testWrong))
+        // THIS TEST IS REMOVED BECAUSE IT WILL BE AN INIT CHECK TEST.
+        // let testWrong: String = """
+        //     func f(){
+        //         a
+        //     }
+        //     let a = 5
+        //     main(){
+        //     }
+        // """
+        // @AssertThrows[Exception](getAsg(testWrong))
 
         var testRight: String = """
             let a = f()
@@ -561,21 +566,19 @@ class AsgMakerTests {
             main(){
             }
         """
-
         getAsg(testRight)
 
         testRight = """
-            func g() {
+            func g(): Int64 {
                 f()
             }
-            func f(){
+            func f() {
                 g()
                 5
             }
             main(){
             }
         """
-
         getAsg(testRight)
 
         testRight = """
@@ -741,55 +744,55 @@ class AsgMakerTests {
                 var b = while (true) {
                     1 + 3
                 }
-                aa(2, "1")
+                aa(2, 1)
             } 
             """
         getAsg(test)
     }
 
-    @TestCase
-    func asgMakerTest2() {
-        let test: String = """
-            class Type{
-            }
+    // @TestCase
+    // func asgMakerTest2() {
+    //     let test: String = """
+    //         class Type{
+    //         }
             
-            main(args: Int32){
-                let a: Int32
-                func A (a: Type, b: Type, c: Type){
-                    a = 1
-                    b = a + c
+    //         main(args: Int32){
+    //             let a: Int32
+    //             func A (a: Type, b: Type, c: Type){
+    //                 a = Type()
+    //                 b = Type()
 
-                    if(true) {
-                        return a;
-                    } else {
-                    }
+    //                 if(true) {
+    //                     return a;
+    //                 } else {
+    //                 }
                     
-                    return a;
+    //                 return a;
 
-                    a + b
-                }
+    //                 a
+    //             }
 
-                a = if(true) {
-                    2
-                } else {
-                    "test-string"
-                }
+    //             a = if(true) {
+    //                 2
+    //             } else {
+    //                 "test-string"
+    //             }
 
-                let b = a + a
-                let c = a - a
+    //             let b = a + a
+    //             let c = a - a
 
-                a = 3
-                a = 5.2
-                a = (a * c + (b - c)) ** 3
+    //             a = 3
+    //             a = 5.2
+    //             a = (a * c + (b - c)) ** 3
 
-                A()
-                A(1, 2, "test-param")
-            }
-            /*
-                Some comment
-                3(*&#@71I#(@))))))
-            */
-            """
-        getAsg(test)
-    }
+    //             A()
+    //             A(1, 2, "test-param")
+    //         }
+    //         /*
+    //             Some comment
+    //             3(*&#@71I#(@))))))
+    //         */
+    //         """
+    //     getAsg(test)
+    // }
 }

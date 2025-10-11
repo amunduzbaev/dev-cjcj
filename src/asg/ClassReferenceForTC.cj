@@ -1,8 +1,7 @@
-package cjcj.asg.typeChecker
+package cjcj.asg
 
 import cjcj.visitor.*
 import cjcj.scanner.Token
-import cjcj.asg.TypeManager
 
 public class ClassReferenceForTC {
     private var variableEnvironment_: ?Environment<String, VariableReference> = None
@@ -35,7 +34,7 @@ public class ClassReferenceForTC {
         }
 
         // Try to find a function.
-        if (typeManager.getOrThrow().funcExists(field)) {
+        if (typeManager.getOrThrow().funcExistsGlobal(field)) {
             // I cannot know the return type of the function so I just tell the callExpr who to call
             // and from which class.
             return (typeManager.getOrThrow().getType(classReference.identifier.value), true)

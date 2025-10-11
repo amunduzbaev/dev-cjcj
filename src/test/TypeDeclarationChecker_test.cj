@@ -1,6 +1,6 @@
 package cjcj.test
 
-import cjcj.asg.typeChecker.TypeDeclarationChecker
+import cjcj.asg.TypeDeclarationChecker
 import cjcj.asg.AsgMaker
 import cjcj.visitor.Program
 import cjcj.parser
@@ -19,7 +19,7 @@ class TypeDeclarationCheckerTests {
         let parser: parser.Parser = parser.Parser(tokens.toArray(), reporter)
         let program: ?Program = parser.parse()
         if (let Some(p) <- program) {
-            return AsgMaker().resolve(p)
+            return p
         }
         @Fail("Couldn't parse the program")
     }

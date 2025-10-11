@@ -1,11 +1,9 @@
-package cjcj.asg.typeChecker
+package cjcj.asg
 
 import cjcj.visitor.*
 import cjcj.parser.NodeIdManager
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
-import cjcj.asg.TypeManager
-import cjcj.asg.Utils
 
 import std.ast.Position
 import std.collection.*
@@ -28,13 +26,14 @@ public enum Status {
 public class TypeDeclarationChecker <: Visitor<Unit> {
     private let declTypes: Map<String, ClassReference> = HashMap()
     private let edges: Map<Reference, String> = HashMap()
+    private let refToDecl: Map<Reference, Decl> = HashMap()
 
     /*
     * Creates and returns:
     *   - the typeManager filled with all the type declarations.
     *   - the list of class references of the program in topological order of inheritance.
     */
-    public func resolve(program: Program): (TypeManager, Array<ClassReference>) {
+    public func resolve(program: Program): (TypeManager, Array<ClassReference>, Map<Reference, Decl>) {
         let typeManager: TypeManager = TypeManager()
         declareBuiltinTypes()
         program.traverse(this)
@@ -45,7 +44,7 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
         }, isOpen: t.isOpen) })
         // After I have added all types I can add the builtin functions.
         defineBuiltinFunctions(typeManager)
-        (typeManager, toposort)
+        (typeManager, toposort, refToDecl)
     }
 
     private func declareBuiltinTypes() {
@@ -125,24 +124,28 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
     }
 
     // I only want to visit declarations of new types, I can skip everything else.
-    public override func visit(classDeclWithRef: ClassDeclWithRef): Unit {
-        if (classDeclWithRef.superTypes.isEmpty()) {
-            edges.add(classDeclWithRef.ref, "Object")
+    public override func visit(classDecl: ClassDecl): Unit {
+        let ref: ClassReference = ClassReference(NodeIdManager.nextId(), classDecl.identifier, true)
+        refToDecl.add(ref, classDecl)
+        if (classDecl.superTypes.isEmpty()) {
+            edges.add(ref, "Object")
         } else if (
-            classDeclWithRef.superTypes.size == 1 &&
-            let Some(superClass) <- classDeclWithRef.superTypes.get(0)
+            classDecl.superTypes.size == 1 &&
+            let Some(superClass) <- classDecl.superTypes.get(0)
         ) {
-            edges.add(classDeclWithRef.ref, superClass.typeName.value)
+            edges.add(ref, superClass.typeName.value)
         } else {
             throw Exception("Invalid number of superclasses, it can be max 1.")
         }
 
-        declTypes.add(classDeclWithRef.identifier.value, classDeclWithRef.ref)
+        if (let Some(_) <- declTypes.addIfAbsent(classDecl.identifier.value, ref)) {
+            throw Exception("Redefined type ${classDecl.identifier.value}")
+        }
     }
 
-    public override func visit(_: VarDeclWithRef): Unit{ }
+    public override func visit(_: VarDecl): Unit{ }
 
-    public override func visit(_: FuncDeclWithRef): Unit{ }
+    public override func visit(_: FuncDecl): Unit{ }
 
-    public override func visit(_: MainDeclWithRef): Unit{ }
+    public override func visit(_: MainDecl): Unit{ }
 }

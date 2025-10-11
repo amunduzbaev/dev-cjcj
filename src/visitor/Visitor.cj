@@ -350,7 +350,7 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
     }
 
     public override open func visit(refExpr: RefExprWithRef): R {
-        refExpr.ref.traverse(this)
+        refExpr.ref.getOrThrow().traverse(this)
     }
 
     public override open func visit(_: ThisSuperExpr): R {
