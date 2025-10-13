@@ -214,14 +214,14 @@ public class FuncParam <: Decl {
 }
 
 public open class FuncDecl <: Decl {
-    private var block_: Block
+    private var block_: ?Block
     private var params_: ArrayList<FuncParam>
 
     public init() {
         this(NodeId(), Token(), Token(), Block(), ArrayList(), None)
     }
 
-    public init(id: NodeId, keyword: Token, identifier: Token, block: Block,
+    public init(id: NodeId, keyword: Token, identifier: Token, block: ?Block,
                 params: ArrayList<FuncParam>, declType: ?TypeNode) {
         super(id, keyword, identifier, declType)
         this.block_ = block
@@ -229,7 +229,7 @@ public open class FuncDecl <: Decl {
         this.declType_ = declType
     }
 
-    public init(id: NodeId, keyword: Token, block: Block,
+    public init(id: NodeId, keyword: Token, block: ?Block,
                 params: ArrayList<FuncParam>) {
         this(id, keyword, Token(), block, params, None)
     }
@@ -254,10 +254,12 @@ public open class FuncDecl <: Decl {
             dtype.prettyPrint(printer)
         }
         printer.append(" ")
-        block_.prettyPrint(printer)
+        if (let Some(realBlock) <- block_){
+            realBlock.prettyPrint(printer)
+        }
     }
 
-    public mut prop block: Block {
+    public mut prop block: ?Block {
         get() { block_ }
         set(v) { block_ = v }
     }
@@ -305,5 +307,45 @@ public open class ClassDecl <: Decl {
 
     public prop superTypes: ArrayList<TypeNode> {
         get() { superTypes_ }
+    }
+}
+
+public open class InterfaceDecl <: Decl {
+    private let body_: Body
+    private let superTypes_: ArrayList<TypeNode>
+
+    public init(id: NodeId, keyword: Token, identifier: Token, body: Body, 
+            superTypes: ArrayList<TypeNode>){ 
+        super(id, keyword, identifier)
+        body_ = body
+        superTypes_ = superTypes
+    }
+
+    public override func prettyPrint(printer: PrettyPrinter) {
+        super.prettyPrint(printer)
+
+        if (!superTypes.isEmpty()) {
+            printer.append(" <: ") 
+            printer.append(superTypes[0].typeName.value)
+            for (i in 1..superTypes.size) {
+                printer.append(" & ")
+                superTypes[i].prettyPrint(printer)
+            }
+        }
+
+        printer.append(" ")
+        body.prettyPrint(printer)
+    }
+
+    public open override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public prop superTypes: ArrayList<TypeNode> {
+        get() { superTypes_ }
+    }
+
+    public prop body: Body {
+        get() { body_ }
     }
 }

@@ -51,6 +51,7 @@ public class Scanner {
         keywords["VArray"] = TokenKind.VARRAY
         keywords["This"] = TokenKind.THISTYPE
 
+        keywords["interface"] = TokenKind.INTERFACE
         keywords["class"] = TokenKind.CLASS
         keywords["func"] = TokenKind.FUNC
         keywords["let"] = TokenKind.LET

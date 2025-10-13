@@ -726,7 +726,8 @@ class TypeCheckTests {
                 return a
             }
             main(){
-            }"""
+            }
+            """
         TypeChecker(getAsg(testRight))
         let testWrong: String = """
             let a = f()
@@ -958,6 +959,25 @@ class TypeCheckTests {
         """
 
         TypeChecker(getAsg(testRight))
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+    }
+
+    @TestCase 
+    func interfaceClassMemberRedeclaration_test() {
+        var testWrong = """
+        open class S {
+            let a: Int64 = 1
+        }
+        interface I {
+            func a(): Unit {
+                1
+            }
+        }
+
+        class C <: S & I {
+        }
+        """
+
         @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
     }
 }
