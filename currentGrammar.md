@@ -21,7 +21,9 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
 
     topLevelObject
     : functionDefinition
+    | classDefintion
     | variableDeclaration
+    | interfaceDefinition
     ;
 
 --------------------------------------------------------------------------------
@@ -77,6 +79,24 @@ Look at [Symbols](https://docs.cangjie-lang.cn/en/docs/0.53.13/spec/source_en/Ch
 
     className
         : identifier
+        ;
+
+--------------------------------------------------------------------------------
+
+## INTERFACE DEFINITION
+
+    interfaceDefinition
+        : INTERFACE NL* identifier
+        (NL* UPPERBOUND NL* superInterfaces)?
+        (NL* interfaceBody)
+        ;
+
+    interfaceBody
+        : LCURL end* interfaceMemberDeclaration* end* RCURL
+        ;
+
+    interfaceMemberDeclaration
+        : (functionDefinition) end*
         ;
 
 --------------------------------------------------------------------------------

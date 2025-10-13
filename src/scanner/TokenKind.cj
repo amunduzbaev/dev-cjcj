@@ -141,6 +141,8 @@ public enum TokenKind <: ToString{
     | /*  "This"        */
         CLASS
     | /*  "class"       */
+        INTERFACE
+    | /* e.g. "interface" */
         FUNC
     | /*  "func"        */
         LET
@@ -307,6 +309,7 @@ public enum TokenKind <: ToString{
             case VARRAY => "VArray"
             case THISTYPE => "This"
             case CLASS => "class"
+            case INTERFACE => "interface"
             case FUNC => "func"
             case LET => "let"
             case VAR => "var"
@@ -515,6 +518,8 @@ public class TokenKindHelper {
         TokenKind.MAIN,
         TokenKind.FUNC,
         TokenKind.LET,
-        TokenKind.VAR
+        TokenKind.VAR, 
+        TokenKind.CLASS,
+        TokenKind.INTERFACE
     ]
 }

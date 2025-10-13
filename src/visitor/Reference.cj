@@ -99,11 +99,17 @@ public class FuncReference <: Reference & Equatable<FuncReference> {
 
 public open class ClassReference <: Reference{
     private var parent_: ?ClassReference = None
+    private let parentInterfaces_: ArrayList<InterfaceReference>
     private let isOpen_: Bool
 
     public init(id: NodeId, identifier: Token, isOpen: Bool) {
+        this(id, identifier, isOpen, ArrayList<InterfaceReference>())
+    }
+    public init(id: NodeId, identifier: Token, isOpen: Bool, 
+        parentInterfaces: ArrayList<InterfaceReference>){
         super(id, identifier, None)
         isOpen_ = isOpen
+        parentInterfaces_ = parentInterfaces
     }
 
     public open override func traverse<R>(v: Visitor<R>): R {
@@ -115,8 +121,34 @@ public open class ClassReference <: Reference{
         set(v) { parent_ = v }
     }
 
+    public prop parentInterfaces: ArrayList<InterfaceReference> {
+        get() { parentInterfaces_ }
+    }
+
     public prop isOpen: Bool {
         get() { isOpen_ }
+    }
+}
+
+public open class InterfaceReference <: Reference {
+    private let parents_: ArrayList<InterfaceReference>
+
+    public init(id: NodeId, identifier: Token, 
+            parents: ArrayList<InterfaceReference>) {
+        super(id, identifier, None)
+        parents_ = parents
+    }
+
+    public init(id: NodeId, identifier: Token) {
+        this(id, identifier, ArrayList<InterfaceReference>())
+    }
+
+    public open override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public prop parents: ArrayList<InterfaceReference> {
+        get() { parents_ }
     }
 }
 
@@ -199,13 +231,13 @@ public class VarDeclWithRef <: VarDecl {
 public class FuncDeclWithRef <: FuncDecl {
     private let funcRef_: FuncReference
 
-    public init(id: NodeId, keyword: Token, block: Block, params: ArrayList<FuncParam>,
+    public init(id: NodeId, keyword: Token, block: ?Block, params: ArrayList<FuncParam>,
         funcRef: FuncReference)
     {
         this(id, keyword, Token(), block, params, None, funcRef)
     }
 
-    public FuncDeclWithRef(id: NodeId, keyword: Token, identifier: Token, block: Block,
+    public FuncDeclWithRef(id: NodeId, keyword: Token, identifier: Token, block: ?Block,
                 params: ArrayList<FuncParam>, declType: ?TypeNode, funcRef: FuncReference) {
         super(id, keyword, identifier, block, params, declType)
         funcRef_ = funcRef
@@ -306,5 +338,23 @@ public class MemberAccessWithRef <: MemberAccess {
     public mut prop ref: ?ClassReference {
         get() { ref_ }
         set(v) { ref_ = v }
+    }
+}
+
+public class InterfaceDeclWithRef <: InterfaceDecl {
+    private var ref_: InterfaceReference
+
+    public init(id: NodeId, keyword: Token, identifier: Token, body: Body,
+            superTypes: ArrayList<TypeNode>, ref: InterfaceReference) {
+        super(id, keyword, identifier, body, superTypes)
+        ref_ = ref
+    }
+
+    public override func traverse<R>(v: Visitor<R>): R {
+        v.visit(this)
+    }
+
+    public prop ref: InterfaceReference {
+        get() { ref_ }
     }
 }
