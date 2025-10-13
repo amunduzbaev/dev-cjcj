@@ -5,9 +5,19 @@ import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import cjcj.scanner.TokenKindHelper
 
-public open class ConsumeError <: FinalError { }
+public open class FinalError <: Exception {
+    init(message: String){
+        super(message)
+    }
+    init() { }
+}
+public open class ConsumeError <: FinalError {
+    init(message: String){
+        super(message)
+    }
+    init() { }
+}
 public open class ParseError <: FinalError { }
-public open class FinalError <: Exception { }
 
 public abstract class NodeIdManager {
     // The ID 0 is a default invalid value.
@@ -52,6 +62,13 @@ class ParserHelper {
         previous()
     }
 
+    func retreat(): Token {
+        if(current_ > 0) {
+            current_--
+        }
+        next()
+    }
+
     func isAtEnd(): Bool {
         peek().kind == TokenKind.END
     }
@@ -79,6 +96,10 @@ class ParserHelper {
 
     func previous(): Token {
         tokens[current_ - 1]
+    }
+
+    func next(): Token {
+        tokens[current_ + 1]
     }
 
     func skipNL(): Unit {
@@ -190,8 +211,7 @@ class ParserHelper {
             throw error(peek(), "Newline or semi expected before top level declaration", index)
         } else {
             throw error(peek(), "Expected newline, found '${peek().value}'", index)
-    }
-        
+        }
     }
 
     func error(token: Token, message: String, index: Int64): ParseError {

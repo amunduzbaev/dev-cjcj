@@ -153,6 +153,18 @@ public abstract class Visitor<R> {
     protected open func visit(_: MemberAccessWithRef): R {
         throw Exception("Unimplemented method for Visitor : Member access with reference")
     }
+
+    protected open func visit(_: InterfaceDecl): R {
+        throw Exception("Unimplemented method for Visitor : Interface Declaration")
+    }
+
+    protected open func visit(_: InterfaceDeclWithRef): R {
+        throw Exception("Unimplemented method for Visitor : Interface Declaration with reference")
+    }
+
+    protected open func visit(_: InterfaceReference): R {
+        throw Exception("Unimplemented method for Visitor : Interface Reference")
+    }
 }
 
 
@@ -253,7 +265,10 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
             declType.traverse(this)
         }
 
-        funcDecl.block.traverse(this)
+        if (let Some(realBlock) <- funcDecl.block){
+            realBlock.traverse(this)
+        }
+        default
     }
 
     public override open func visit(mainDecl: MainDecl): R {
@@ -304,6 +319,9 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
         default
     }
 
+    public override open func visit(_: InterfaceReference): R {
+        default
+    }
 
     public override open func visit(varDecl: VarDeclWithRef): R {
         if (let Some(initzer) <- varDecl.initializer) {
@@ -321,7 +339,10 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
             declType.traverse(this)
         }
 
-        funcDecl.block.traverse(this)
+        if (let Some(realBlock) <- funcDecl.block){
+            realBlock.traverse(this)
+        }
+        default
     }
 
     public override open func visit(mainDecl: MainDeclWithRef): R {
@@ -367,5 +388,15 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
         })
 
         callExpr.callee.traverse(this)
+    }
+
+    public override open func visit(interfaceDecl: InterfaceDecl): R {
+        interfaceDecl.superTypes.iterator().forEach({ superType => superType.traverse(this) })
+        interfaceDecl.body.traverse(this)
+    }
+
+    public override open func visit(interfaceDecl: InterfaceDeclWithRef): R {
+        interfaceDecl.superTypes.iterator().forEach({ superType => superType.traverse(this) })
+        interfaceDecl.body.traverse(this)
     }
 }

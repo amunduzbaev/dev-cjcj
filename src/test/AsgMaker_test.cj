@@ -120,7 +120,7 @@ class AsgMakerTests {
         let m: MainDecl = getMain(test)
         @Assert(m.block.nodes.iterator().all({ n => n is FuncDeclWithRef }))
         let decl: FuncDeclWithRef = (m.block.nodes[0] as FuncDeclWithRef).getOrThrow()
-        @Assert(decl.block.nodes.size == 5)
+        @Assert(decl.block.getOrThrow().nodes.size == 5)
     }
 
     @TestCase
@@ -143,7 +143,7 @@ class AsgMakerTests {
         let decl: FuncDeclWithRef = (m.block.nodes[0] as FuncDeclWithRef).getOrThrow()
         @Assert(decl.declType.isSome())
         @Assert(decl.params.size == 3)
-        @Assert(decl.block.nodes.size == 3)
+        @Assert(decl.block.getOrThrow().nodes.size == 3)
     }
 
     @TestCase
@@ -726,6 +726,111 @@ class AsgMakerTests {
         }
         """
         @AssertThrows[Exception](getAsg(testWrong))
+    }
+
+    @TestCase
+    func declaratorFactory_test() {
+        var testWrong: String = """
+        func f() {
+        }
+
+        class f {
+        }
+
+        main(){
+        }
+        """
+
+        @AssertThrows[Exception](getAsg(testWrong))
+    }
+
+    @TestCase 
+    func interfaceDeclaration_test() {
+        var testRight: String = """
+        interface I {
+            func f(a: Int64): Unit
+            func sum(a: Int64, b: Int64): Int64 {
+                a + b
+            }
+        }
+
+        main() {
+        }
+        """
+
+        getAsg(testRight)
+
+        var testWrong: String = """
+        func g(a: Int64): Unit 
+        main() {
+        }
+        """
+
+        @AssertThrows[Exception](getAsg(testWrong))
+    }
+
+    @TestCase 
+    func interfaceDeclarationComplex_test() {
+        var testRight: String = """
+        let c: Int64 = 1
+        interface I {
+            func sum(a: Int64, b: Int64): Int64 {
+                a + b + c
+            }
+            func max_(a: Int64, b: Int64): Int64 {
+                if(a > b && a > c) {
+                    a
+                } else if(b > c) {
+                    b
+                } else {
+                    c
+                }
+            }
+        }
+        main() {
+        }
+        """
+
+        getAsg(testRight)
+
+        var testWrong: String = """
+        interface I {
+            func f() {
+                func g(b: Int64): Unit
+                1
+            }
+        }
+        main() {
+        }
+        """
+
+        @AssertThrows[Exception](getAsg(testWrong))
+    }
+
+    @TestCase 
+    func interfaceInstance_test() {
+        var testWrong: String = """
+        interface I {
+            func f() {
+                1
+            }
+        }
+        main() {
+            let a = I()
+        }
+        """
+
+        @AssertThrows[Exception](getAsg(testWrong))
+
+        var testRight: String = """
+        interface I { }
+        class C <: I { }
+        main() {
+            let c: I = C()
+        }
+        """
+
+        getAsg(testRight)
     }
 
     @TestCase

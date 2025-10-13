@@ -113,7 +113,7 @@ class ParserTests {
         let m: MainDecl = getMain(test)
         @Assert(m.block.nodes.iterator().all({ n => n is FuncDecl }))
         let decl: FuncDecl = (m.block.nodes[0] as FuncDecl).getOrThrow()
-        @Assert(decl.block.nodes.size == 5)
+        @Assert(decl.block.getOrThrow().nodes.size == 5)
     }
 
     @TestCase
@@ -136,7 +136,7 @@ class ParserTests {
         let decl: FuncDecl = (m.block.nodes[0] as FuncDecl).getOrThrow()
         @Assert(decl.declType.isSome())
         @Assert(decl.params.size == 3)
-        @Assert(decl.block.nodes.size == 3)
+        @Assert(decl.block.getOrThrow().nodes.size == 3)
     }
 
     @TestCase

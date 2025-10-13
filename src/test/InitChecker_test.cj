@@ -737,6 +737,104 @@ class InitCheckerTests {
         @AssertThrows[Exception](resolve(testWrongHard))
     }
 
+    @TestCase
+    func instanceMemberAccess_test(){
+        let testRight: String = """
+            class C{
+                var b: Int64 = 1
+            }
+            main(){
+                let a = C()
+
+                let b = a.b
+                a.b = 1
+            }
+        """
+        resolve(testRight)
+
+        let testWrong: String = """
+            class C{
+                var b: Int64 = 1
+            }
+            main(){
+                let a: C
+
+                let b = a.b
+            }
+        """
+        @AssertThrows[Exception](resolve(testWrong))
+
+        let testWrong2: String = """
+            class C{
+                var b: Int64 = 1
+            }
+            main(){
+                let a: C
+
+                a.b = 1
+            }
+        """
+        @AssertThrows[Exception](resolve(testWrong2))
+    }
+
+    @TestCase
+    func instanceThisDifferece_test(){
+        let testRight: String = """
+            class C{
+                var b: Int64
+
+                init() {
+                    b = 1
+                }
+
+                init(v: Int64) {
+                    let c = C().b
+                    b = 2
+                }
+            }
+            main() {
+            }
+        """
+        resolve(testRight)
+
+        let testRightFunctionCase: String = """
+            class C{
+                var b: Int64
+
+                init() {
+                    b = 1
+                }
+
+                init(v: Int64) {
+                    C().f()
+                    b = 2
+                }
+
+                func f() {
+                }
+            }
+            main() {
+            }
+        """
+        resolve(testRightFunctionCase)
+        
+        let testWrong: String = """
+            class C{
+                var b: Int64
+
+                init(v: Int64) {
+                    this.f()
+                    b = 2
+                }
+
+                func f() {
+                }
+            }
+            main() {
+            }
+        """
+
+        @AssertThrows[Exception](resolve(testWrong))
+    }
     
 }
-

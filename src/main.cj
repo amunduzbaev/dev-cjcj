@@ -1,7 +1,6 @@
 package cjcj
 
 import cjcj.asg.AsgMaker
-import cjcj.asg.typeChecker.TypeChecker
 import cjcj.visitor.Program
 import cjcj.parser.*
 import cjcj.scanner.*
@@ -32,15 +31,16 @@ public class Cj {
         let parser: Parser = Parser(tokens.toArray(), Reporter(getStdErr(), tokens.toArray()))
         let program: ?Program = parser.parse()
         let printer: PrettyPrinter = PrettyPrinter()
-        let asgMaker = AsgMaker()
         let asg: Program
         parser.logErrors()
 
         if (let Some(p) <- program) {
-            asg = asgMaker.resolve(p)
+            let boxProgram = Box(p)
+            let asgMaker = AsgMaker(boxProgram)
+            let asg = boxProgram.value
             asg.prettyPrint(printer)
 
-            let initChecker = InitChecker(TypeChecker(asg).classEnvironment)
+            let initChecker = InitChecker(asgMaker.totalClass)
             initChecker.resolve(asg)
 
             println(printer.toString())

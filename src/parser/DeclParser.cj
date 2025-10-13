@@ -29,6 +29,9 @@ internal open class DeclParser {
         if (let Some(classDecl) <- classDefinition()) {
             return classDecl
         }
+        if(let Some(interfaceDecl) <- interfaceDefinition()) {
+            return interfaceDecl
+        }
         None
     }
 
@@ -94,12 +97,27 @@ internal open class DeclParser {
         }
         helper.skipNL()
 
-        let block: Block = block()
-        if (let Some(dtype) <- declType && dtype.typeName.value == "Unit") {
-            block.nodes.add(ReturnExpr(NodeIdManager.nextId(), LitConstExpr(NodeIdManager.nextId(),
-                Token(TK.UNIT_LITERAL, "()", Position())), Token(TK.RETURN, "return", Position())))
+        // Sometimes functions might not have a block, e.g. in an interface, or an abstract class 
+        var block_: ?Block = None 
+        try {
+            block_ = block()
+        } catch(e: ConsumeError) {
+            if (e.message != "No Block") {
+                throw e
+            } else {
+                reporter.pop()
+                helper.retreat()
+            }
         }
-        FuncDecl(NodeIdManager.nextId(), keyword, name, block, parameters,
+
+        if (let Some(dtype) <- declType && dtype.typeName.value == "Unit" && 
+                let Some(realBlock) <- block_) {
+            realBlock.nodes.add(ReturnExpr(NodeIdManager.nextId(), 
+            LitConstExpr(NodeIdManager.nextId(), Token(TK.UNIT_LITERAL, "()", Position())), 
+            Token(TK.RETURN, "return", Position())))
+        }
+
+        FuncDecl(NodeIdManager.nextId(), keyword, name, block_, parameters,
             declType)
     }
 
@@ -228,6 +246,74 @@ internal open class DeclParser {
         superClassOrInterfaces
     }
 
+    private func interfaceName(): Token {
+        return helper.consume(TK.IDENTIFIER, "Expect interface name.", helper.current)
+    }
+
+    private func interfaceDefinition(): ?InterfaceDecl{
+         if (!helper.matches(TK.INTERFACE)) {
+            return None
+        }
+        let keyword: Token = helper.previous()
+        helper.skipNL()
+        let identifier: Token = interfaceName()
+        helper.skipNL()
+        let supertypes: ArrayList<TypeNode> = if (helper.matches(TK.UPPERBOUND)) {
+            helper.skipNL()
+            superClassOrInterfaces()
+        } else {
+            ArrayList()
+        }
+        helper.skipNL()
+
+        try {
+            let body: Body = interfaceBody()
+            return InterfaceDecl(NodeIdManager.nextId(), keyword, identifier, body, supertypes)
+        } catch (e: ConsumeError) {
+            helper.pop()
+            helper.error(helper.peek(), 
+            "body of interface '\u{001b}[31m${identifier}\u{001b}[0m' is missing", helper.current)
+            return None
+        }
+    }
+
+    private func interfaceBody(): Body {
+        let start: (Token,Int64) = (helper.peek(), helper.current)
+        helper.consume(TK.LCURL, "Expect '{' before body.", helper.current)
+        helper.endStar()
+        let decls: ArrayList<Decl> = ArrayList()
+        if (let Some(cmd) <- interfaceMemberDeclaration()) {
+            decls.add(cmd)
+                        
+            while (let Some(cmd) <- helper.tryParse({ =>
+                helper.endPlus("", helper.peek(), helper.current);
+                interfaceMemberDeclaration()})
+            ) {
+                decls.add(cmd)
+            }
+        }
+        helper.endStar()
+
+        try {
+            helper.consume(TK.RCURL, "Expect '}' after block.", helper.current)
+        } catch(e: ConsumeError) {
+            helper.synchronizeBlockRightCurl(start[0], start[1])
+            reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
+        }
+
+        println("Error is found in body : ${reporter.empty}")
+
+        Body(NodeIdManager.nextId(), decls)
+    }
+
+    private func interfaceMemberDeclaration(): ?Decl {
+        if (let Some(functionDefinition) <- functionDefinition()) {
+            functionDefinition
+        } else {
+            None
+        }
+    }
+
     private func superClass(): TypeNode {
         classType()
     }
@@ -305,8 +391,6 @@ internal open class DeclParser {
             "body of main function is missing", start[1])
             return MainDecl(NodeIdManager.nextId(), Block(), parameter, declType)
         }
-        
-
     }
 
     private func variableDeclaration(): ?VarDecl {
@@ -333,9 +417,14 @@ internal open class DeclParser {
     }
 
     private func block(): Block {
+        if (!helper.check(TK.LCURL)) {
+            helper.consumeError(helper.peek(), helper.current,  TK.LCURL, helper.peek().value)
+            throw ConsumeError("No Block")
+        }
+
         var nodes: ArrayList<Node> = ArrayList()
-        let start: (Token,Int64) = (helper.peek(), helper.current)
         helper.consume(TK.LCURL, "Expect '{' before block.", helper.current)
+        let start: (Token,Int64) = (helper.peek(), helper.current)
         try {
             nodes = expressionOrDeclarations()
             helper.endStar()
