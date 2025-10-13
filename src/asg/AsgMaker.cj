@@ -122,6 +122,8 @@ public class AsgMaker <: Visitor<Node> {
                     newD.value = (decl.traverse(this) as Decl).getOrThrow()
                 } handle(_: ClassAccessEffect) {
                     resume
+                } handle(noBlock: NoBlock) {
+                    throw Exception("Function ${noBlock.name} must have a block")
                 }
                 newDecls[declIndex[decl]] = newD.value
             }
@@ -143,6 +145,8 @@ public class AsgMaker <: Visitor<Node> {
                     newD.value = (decl.traverse(this) as Decl).getOrThrow()
                 } handle(_: ClassAccessEffect) {
                     resume
+                } handle(noBlock: NoBlock) {
+                    throw Exception("Function ${noBlock.name} must have a block")
                 }
                 (id, newD.value)
             })
@@ -353,7 +357,11 @@ public class AsgMaker <: Visitor<Node> {
         }
 
         let nodes: ArrayList<Node> = ArrayList()
-        block.nodes.iterator().forEach({ n => nodes.add(n.traverse(this)) })
+        try {
+            block.nodes.iterator().forEach({ n => nodes.add(n.traverse(this)) })
+        } handle(noBlock: NoBlock) {
+            throw Exception("Function ${noBlock.name.value} must does not have a block")
+        }
 
         endScope(precScopeType)
 
@@ -596,7 +604,13 @@ public class AsgMaker <: Visitor<Node> {
         }
 
         reference.paramRef.getOrThrow().iterator().forEach({ r => waitingDeclarations.add(r) })
-        let block: Block = (funcDecl.block.traverse(this) as Block).getOrThrow()
+
+        let block: ?Block = match (funcDecl.block) {
+            case Some(funcBlock) => (funcBlock.traverse(this) as Block).getOrThrow()
+            case _ => 
+                perform NoBlock(funcDecl.identifier)
+                None
+        }
 
         let funcDeclWithRef: FuncDeclWithRef = FuncDeclWithRef(NodeIdManager.nextId(),
             funcDecl.keyword, funcDecl.identifier, block, funcDecl.params, declType, reference)

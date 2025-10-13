@@ -328,7 +328,8 @@ public class TypeAssigner <: Visitor<Type> {
 
             // Inits cannot have return expressions.
             functionStackInfo.add(None)
-            funcDeclWithRef.block.traverse(this)
+            funcDeclWithRef.block.getOrThrow({=> Exception("Constructor function" + 
+                " ${funcDeclWithRef.identifier.value} must have a block")}).traverse(this)
         } else {
             let targetType: ?Type = if (let Some(declType) <- funcDeclWithRef.declType) {
                 declType.traverse(this)
@@ -339,7 +340,10 @@ public class TypeAssigner <: Visitor<Type> {
             functionStackInfo.add((targetType, allReturns))
 
             expectedReturnType = targetType
-            let blockType: Type = funcDeclWithRef.block.traverse(this)
+            let blockType: Type = match (funcDeclWithRef.block) {
+                case Some(funcBlock) => funcBlock.traverse(this)
+                case _ => targetType.getOrThrow()
+            }
 
             if (let Some(targetType) <- targetType) {
                 ref.effectiveType = targetType

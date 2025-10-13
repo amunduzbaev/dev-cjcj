@@ -982,17 +982,21 @@ class TypeCheckTests {
     @TestCase 
     func interfaceClassMemberRedeclaration_test() {
         var testWrong = """
-        open class S {
-            let a: Int64 = 1
-        }
-        interface I {
-            func a(): Unit {
-                1
+            class S {
+                let a: Int64 = 1
             }
-        }
+            interface I {
+                func a(): Unit {
+                    1
+                }
+            }
 
-        class C <: S & I {
-        }
+            class C <: S & I {
+            }
+
+            main() {
+                
+            }
         """
 
         @AssertThrows[Exception](getAsg(testWrong))

@@ -184,12 +184,17 @@ public open class InitChecker <: DefaultVisitor<Unit> {
 
         let paramRef = Utils.foldToStack(funcDecl.funcRef.paramRef.getOrDefault({ 
             => ArrayList<VariableReference>()}).iterator(), ArrayStack<VariableReference>())
-        try {
-            funcDecl.block.traverse(this)
-        } handle(_: ParameterDeclaration) {
-            resume with paramRef.remove()
-        } handle(_: InferBlockType) {
-            resume with ScopeType.FUNCBLOCK
+        
+        match (funcDecl.block) {
+            case Some(funcBlock) => 
+                try {
+                    funcBlock.traverse(this)
+                } handle(_: ParameterDeclaration) {
+                    resume with paramRef.remove()
+                } handle(_: InferBlockType) {
+                    resume with ScopeType.FUNCBLOCK
+                }
+            case _ => ()
         }
     }
 
@@ -565,7 +570,7 @@ private class ClassInitChecker <: InitChecker {
         let paramRef = Utils.foldToStack(initDecl.funcRef.paramRef.getOrDefault({ 
             => ArrayList<VariableReference>()}).iterator(), ArrayStack<VariableReference>())
         try {
-            visitConstructorBlock(initDecl.block)
+            visitConstructorBlock(initDecl.block.getOrThrow())
         } handle(_: ParameterDeclaration) {
             resume with paramRef.remove()
         } handle(_: InferBlockType) {
@@ -660,7 +665,10 @@ public class StaticGlobalVariableInitializationChecker <: DefaultVisitor<Unit> {
             declType.traverse(this)
         }
 
-        funcDecl.block.traverse(this)
+        match (funcDecl.block) {
+            case Some(funcBlock) => funcBlock.traverse(this)
+            case _ => ()
+        }
     }
 
     public override func visit(varDecl: VarDeclWithRef) {
