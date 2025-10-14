@@ -9,6 +9,7 @@ import std.ast.Position
 import std.collection.ArrayList
 import std.collection.ArrayStack
 import std.deriving.Derive
+import std.collection.HashMap
 
 /*
 * Needed to know if I can do some operations inside the current scope, for example a return
@@ -35,22 +36,12 @@ public enum GlobalType {
 * liks to the declarations based on the identifier.
 * Note: for function links we cannot know at this stage the exact function that is called, this will
 * require a future step, for now the link is a dummy link to a function with the same identifier.
+* 
+* TODO : use effect handlers to remove some parts and improve the code
 */
 public class AsgMaker <: Visitor<Node> {
-    private var classEnvironment: Environment<String, ClassReference> = Environment()
-    private var funcEnvironment: Environment<String, FuncReference> = Environment()
-    private var variableEnvironment: Environment<String, VariableReference> = Environment()
-
-    private var currentScopeType: ScopeType = ScopeType.NIL
-    private var currentGlobalType: GlobalType = GlobalType.NIL
-    private var refExists: ?Reference = None
-    
-    /*
-    * Contains the variable references with declaration type that are waiting for the next scope to
-    * begin before getting declared. An example is function parameters, they need to be declared
-    * inside the block and we need a way to tell him.
-    */
-    private let waitingDeclarations: ArrayStack<(VariableReference, TypeNode)> = ArrayStack()
+    private var environments = AsgEnvironments()
+    private var superClassEnvironments = HashMap<String, AsgEnvironments>()
 
     /*
     * Resolves all of the function and variable references and returns the new
@@ -59,34 +50,63 @@ public class AsgMaker <: Visitor<Node> {
     public func resolve(program: Program): Program {
         // TODO: We need to declare Any and in the future all the other builtin interfaces/structs
         // because they're not primitive types, so they are considered as RefType.
-        let builtinIdentifiers: Array<Token> = [
+        let builtinClasses: Array<Token> = [
             Token(TokenKind.IDENTIFIER, "Any", Position()),
             Token(TokenKind.IDENTIFIER, "String", Position())
         ]
+        let builtinInterfaces: Array<Token> = [
+            Token(TokenKind.IDENTIFIER, "Hashable", Position()),
+            Token(TokenKind.IDENTIFIER, "ToString", Position())
+        ]
 
-        builtinIdentifiers.iterator().forEach({ t => 
-            classEnvironment.declare(t.value, ClassReference(NodeIdManager.nextId(), t, true))
+        builtinClasses.iterator().forEach({ t => 
+            environments.classEnvironment.declare(t.value, 
+                ClassReference(NodeIdManager.nextId(), t, true))
         })
 
-        return (program.traverse(this) as Program).getOrThrow()
+        builtinInterfaces.iterator().forEach({ t => 
+            environments.interfaceEnvironment.declare(t.value, 
+                InterfaceReference(NodeIdManager.nextId(), t))
+        })
+
+        return try {
+            (program.traverse(this) as Program).getOrThrow()
+        } handle(noBlock: NoBlock) {
+            throw Exception("The function ${noBlock.name.value} must have a block")
+        }
     }
 
     public override func visit(program: Program): Node {
         let decls: ArrayList<Decl> = ArrayList()
         
-        let globalDeclarator: Declarator = DeclaratorFactory.globalAstDeclarator(
-            funcEnvironment, classEnvironment
+        let globalDeclarator: Declarator = DeclaratorFactory.globalAstDeclaratorWithInterfaces(
+            environments.funcEnvironment, 
+            environments.classEnvironment, 
+            environments.interfaceEnvironment
         )
 
-        let refDecls = ArrayList<(Decl, ?Reference)>()
+        let unorderedRefDecls = ArrayList<(Decl, ?Reference)>()
         program.decls.iterator().forEach({ d =>
-            refDecls.add((d, d.traverse(globalDeclarator)))
+            unorderedRefDecls.add((d, d.traverse(globalDeclarator)))
         })
+
+        let refDecls = DeclarationsTopSort().resolve(unorderedRefDecls)
+        let asgDeclNodes = HashMap<Int64, Decl>()
         
         refDecls.iterator().forEach({ entry =>
             let (d, ref) = entry
-            refExists = ref
-            decls.add((d.traverse(this) as Decl).getOrThrow())
+            let refBox = Box(ref)
+            try {
+                asgDeclNodes.add(d.id.id, (d.traverse(this) as Decl).getOrThrow())
+            } handle(_: ExistingReference) {
+                let ret = refBox.value
+                refBox.value = None
+                resume with ret
+            }
+        })
+
+        program.decls.iterator().forEach({ d => 
+            decls.add(asgDeclNodes.get(d.id.id).getOrThrow())
         })
         Program(NodeIdManager.nextId(), decls)
     }
@@ -124,19 +144,26 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(block: Block): Node {
-        let precScopeType = beginScope(ScopeType.BLOCK)
+        beginScope(ScopeType.BLOCK)
 
         let nodes: ArrayList<Node> = ArrayList()
-        while (let Some((last, declType)) <- waitingDeclarations.remove()) {
+        while (let Some((last, declType)) <- perform WaitingDeclaration()) {
             // nodes.add(VarDeclWithRef(NodeIdManager.nextId(), last.keyword, last.identifier, last,
             //     declType))
             declareVar(last.identifier, last)
         }
-        block.nodes.iterator().forEach({ n => nodes.add(n.traverse(this)) })
+
+        try {
+            block.nodes.iterator().forEach({ n => nodes.add(n.traverse(this)) })
+        } handle(noBlock: NoBlock) {
+            throw Exception("The function ${noBlock.name.value} must have a block")
+        } handle(_: ExistingReference) {
+            resume with None
+        }
 
         let asgBlock = Block(NodeIdManager.nextId(), nodes)
 
-        endScope(precScopeType)
+        endScope()
         asgBlock
     }
 
@@ -164,7 +191,7 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(returnExpr: ReturnExpr): Node {
-        if (currentScopeType == ScopeType.BLOCK) {
+        if (environments.currentScopeType == ScopeType.BLOCK) {
             return ReturnExpr(NodeIdManager.nextId(),
                 match(returnExpr.expr) {
                     case Some(expr) => expr.traverse(this) as Expr
@@ -176,7 +203,7 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(jumpExpr: JumpExpr): Node {
-        if (currentScopeType == ScopeType.BLOCK) {
+        if (environments.currentScopeType == ScopeType.BLOCK) {
             return JumpExpr(NodeIdManager.nextId(), jumpExpr.keyword)
         }
 
@@ -187,8 +214,7 @@ public class AsgMaker <: Visitor<Node> {
     public override func visit(varDecl: VarDecl): Node {
         // Call the initializer first because there could be reference to previous variables with
         // the same identifier.
-        let storedRef = refExists 
-        refExists = None
+        let storedRef = perform ExistingReference()
 
         var initializer: ?Expr = None
         if (let Some(initzer) <- varDecl.initializer) {
@@ -222,9 +248,9 @@ public class AsgMaker <: Visitor<Node> {
             Token(TokenKind.LET, "let", Position()))
     }
 
+    /* TODO : remove waiting Declarations using effect handlers for better code */
     public override func visit(funcDecl: FuncDecl): Node {
-        let storedRef = refExists
-        refExists = None
+        let storedRef = perform ExistingReference()
         
         var declType: ?TypeNode = None
         if (let Some(dt) <- funcDecl.declType) {
@@ -241,6 +267,7 @@ public class AsgMaker <: Visitor<Node> {
         }
 
         let paramRefs: ArrayList<VariableReference> = ArrayList()
+        let waitingDeclarations = ArrayStack<(VariableReference, TypeNode)>()
         funcDecl.params.iterator()
             .map({ p => ((p.traverse(this) as VariableReference).getOrThrow(), p.paramType)})
             .forEach({ p =>
@@ -248,26 +275,41 @@ public class AsgMaker <: Visitor<Node> {
                 waitingDeclarations.add((p))
             })
         reference.paramRef = paramRefs
-        let block: Block = (funcDecl.block.traverse(this) as Block).getOrThrow()
+        let block: ?Block = try {
+            if (let Some(realBlock) <- funcDecl.block) {
+                (realBlock.traverse(this) as Block).getOrThrow()
+            } else {
+                perform NoBlock(funcDecl.identifier)
+                None
+            }
+        } handle(_: WaitingDeclaration) {
+            resume with waitingDeclarations.remove()
+        } 
 
         FuncDeclWithRef(NodeIdManager.nextId(), funcDecl.keyword, funcDecl.identifier, block,
             funcDecl.params, declType, reference)
     }
 
     public override func visit(mainDecl: MainDecl): Node {
-        refExists = None 
+        perform ExistingReference()
 
         var declType: ?TypeNode = None
         if (let Some(dt) <- mainDecl.declType) {
             declType = dt.traverse(this) as TypeNode
         }
         let reference: MainReference = MainReference(NodeIdManager.nextId())
+        let waitingDeclarations = ArrayStack<(VariableReference, TypeNode)>()
         if (let Some(p) <- mainDecl.param) {
             let pref: VariableReference = (p.traverse(this) as VariableReference).getOrThrow()
             waitingDeclarations.add((pref, p.paramType))
             reference.paramRef = pref
         }
-        let block: Block = (mainDecl.block.traverse(this) as Block).getOrThrow()
+
+        let block: Block = try {
+            (mainDecl.block.traverse(this) as Block).getOrThrow()
+        } handle(_: WaitingDeclaration) {
+            resume with waitingDeclarations.remove()
+        }
         MainDeclWithRef(NodeIdManager.nextId(), block, mainDecl.param, declType, reference)
     }
 
@@ -295,23 +337,21 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(classDecl: ClassDecl): Node {
-        let storedRef = refExists
-        refExists = None
+        let storedRef: ?Reference = perform ExistingReference()
 
         if(!isGlobal()) {
             throw Exception("Classes can be declared at topLevel only")
         }
 
-        let classReference: ClassReference 
-        if (let Some(ref) <- storedRef) {
-            classReference = (ref as ClassReference).getOrThrow({ => 
-                Exception("Reference given to the class declaration is not ClassReference")})
-        } else {
-            throw Exception("Class ${classDecl.identifier.value} should've been declared " +
-                "with the global declarator")
+        let originalEnvironments = environments
+        environments = match (classDecl.superTypes.get(0)) {
+            case Some(parentType) => 
+                match (superClassEnvironments.get(parentType.typeName.value)) {
+                    case Some(superClassEnvironment) => superClassEnvironment
+                    case _ => environments
+                }
+            case _ => environments
         }
-
-        let body = (classDecl.body.traverse(this) as Body).getOrThrow()
 
         let superTypes = ArrayList<TypeNode>()
         classDecl.superTypes.iterator().forEach({ superType => 
@@ -319,16 +359,34 @@ public class AsgMaker <: Visitor<Node> {
             superTypes.add(visitedSuperType)
         })
 
+        let classReference: ClassReference = 
+        if (let Some(ref) <- storedRef) {
+            (ref as ClassReference).getOrThrow({ => 
+                Exception("Reference given to the class declaration is not ClassReference")})
+        } else {
+            throw Exception("Class ${classDecl.identifier.value} should've been declared " +
+                "with the global declarator")
+        }
+
+        let body = try {
+            (classDecl.body.traverse(this) as Body).getOrThrow()
+        } handle(classEnvironment: ClassEnvironment) {
+            superClassEnvironments.add(classDecl.identifier.value, classEnvironment.environments)
+            resume with ()
+        }
+
+        environments = originalEnvironments
+
         ClassDeclWithRef(NodeIdManager.nextId(), classDecl.keyword, classDecl.identifier, body,
             superTypes, classReference)
     }
 
     public override func visit(body: Body): Node {
-        let precGlobalType: GlobalType = beginGlobal(GlobalType.BODY)
+        beginGlobal(GlobalType.BODY)
 
         let decls: ArrayList<Decl> = ArrayList()
         let bodyDeclarator: Declarator = DeclaratorFactory.bodyAstDeclarator(
-            funcEnvironment, variableEnvironment
+            environments.funcEnvironment, environments.variableEnvironment
         )
         let refDecls = ArrayList<(Decl, ?Reference)>()
         body.decls.iterator().forEach({ d =>
@@ -337,11 +395,19 @@ public class AsgMaker <: Visitor<Node> {
         
         refDecls.iterator().forEach({ entry =>
             let (d, ref) = entry
-            refExists = ref
-            decls.add((d.traverse(this) as Decl).getOrThrow())
+            let refBox = Box(ref)
+            try {
+                decls.add((d.traverse(this) as Decl).getOrThrow())
+            } handle(_: ExistingReference) {
+                let ret = refBox.value
+                refBox.value = None
+                resume with ret
+            }
         })
 
-        endGlobal(precGlobalType)
+        perform ClassEnvironment(environments)
+
+        endGlobal()
         Body(NodeIdManager.nextId(), decls)
     }
 
@@ -351,89 +417,84 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(thisSuperExpr: ThisSuperExpr): Node {
-        if (currentGlobalType != GlobalType.BODY) {
+        if (environments.currentGlobalType != GlobalType.BODY) {
             throw Exception("Cannot invoke ${thisSuperExpr.keyword.value} outside of a class")
         }
         ThisSuperReference(NodeIdManager.nextId(), thisSuperExpr.keyword)
     }
 
-    private func beginGlobal(newGlobalType: GlobalType): GlobalType {
-        let precGlobalType: GlobalType = currentGlobalType
-        currentGlobalType = newGlobalType
-        beginScope(ScopeType.NIL)
-        precGlobalType
+    public override func visit(interfaceDecl: InterfaceDecl) {
+        let storedRef = perform ExistingReference()
+
+        if(!isGlobal()) {
+            throw Exception("Interfaces can be declared at topLevel only")
+        }
+
+        let interfaceReference: InterfaceReference 
+        if (let Some(ref) <- storedRef) {
+            interfaceReference = (ref as InterfaceReference).getOrThrow({ => 
+                Exception("Reference given to the interface declaration is not ClassReference")})
+        } else {
+            throw Exception("Interface ${interfaceDecl.identifier.value} should've been declared" +
+                " with the global declarator")
+        }
+
+
+        let body = try {
+            (interfaceDecl.body.traverse(this) as Body).getOrThrow()
+        } handle(_: NoBlock) {
+            resume with ()
+        } handle(_: ClassEnvironment) {
+            resume with ()
+        }
+
+        let superTypes = ArrayList<TypeNode>()
+        interfaceDecl.superTypes.iterator().forEach({ superType => 
+            let visitedSuperType = (superType.traverse(this) as TypeNode).getOrThrow()
+            superTypes.add(visitedSuperType)
+        })
+
+        InterfaceDeclWithRef(NodeIdManager.nextId(), interfaceDecl.keyword, interfaceDecl.identifier, 
+            body,superTypes, interfaceReference)
     }
 
-    private func endGlobal(precGlobalType: GlobalType): Unit {
-        currentGlobalType = precGlobalType
-        endScope(ScopeType.NIL)
+    private func beginGlobal(newGlobalType: GlobalType) {
+        environments = AsgEnvironments(environments, ScopeType.NIL, newGlobalType)
     }
 
-    private func beginScope(newScopeType: ScopeType): ScopeType{
-        let precScopeType: ScopeType = currentScopeType
-        currentScopeType = newScopeType
-        funcEnvironment = Environment(funcEnvironment)
-        variableEnvironment = Environment(variableEnvironment)
-        precScopeType
+    private func beginScope(newScopeType: ScopeType){
+        environments = AsgEnvironments(environments, newScopeType, 
+            environments.currentGlobalType)
     }
 
-    private func endScope(precScopeType: ScopeType): Unit {
-        currentScopeType = precScopeType
-        funcEnvironment = funcEnvironment.enclosing.getOrThrow({ =>
-            UnsupportedException("Trying to close the global scope") })
-        variableEnvironment = variableEnvironment.enclosing.getOrThrow({ =>
-            UnsupportedException("Trying to close the global scope") })
+    private func endGlobal() {
+        endScope()
+    }
+
+    private func endScope() {
+        environments = environments.enclosing.getOrThrow({ => 
+            Exception("Trying to close the global scope")})
     }
 
     private func declareVar(identifier: Token, value: VariableReference): Unit {
-        let name: String = identifier.value
-        if ((variableEnvironment.isGlobal && classEnvironment.getLocal(name).isSome()) ||
-            funcEnvironment.getLocal(name).isSome())
-        {
-            throw Exception("Redefinition of declaration ${name}")
-        }
-        variableEnvironment.declare(identifier.value, value)
+        environments.declareVar(identifier, value)
     }
 
     private func declareFunc(identifier: Token, value: FuncReference): Unit {
-        if (funcEnvironment.getLocal(identifier.value).isNone()) {
-            funcEnvironment.declare(identifier.value, value)
-        }
+        environments.declareFunc(identifier, value)
     }
 
     private func isTypeDeclared(typeName: Token): Bool {
-        classEnvironment.getGlobal(typeName.value).isSome()
+        environments.isTypeDeclared(typeName)
     }
 
+    // TODO : figure out what to do with the References of the function.
     private func get(key: String): Reference {
-        var tmpFuncEnv = funcEnvironment
-        var tmpVarEnv = variableEnvironment
-        while (!tmpFuncEnv.isGlobal && !tmpVarEnv.isGlobal) {
-            if (let Some(fun) <- tmpFuncEnv.getLocal(key)) {
-                // THIS IS NOT THE REAL REFERENCE, IT'S JUST A WAY TO SAY THAT IT EXISTS.
-                return fun
-            }
-            if (let Some(va) <- tmpVarEnv.getLocal(key)) {
-                return va
-            }
-            tmpFuncEnv = tmpFuncEnv.enclosing.getOrThrow()
-            tmpVarEnv = tmpVarEnv.enclosing.getOrThrow()
-        }
-        if (let Some(clas) <- classEnvironment.getLocal(key)) {
-            return clas
-        }
-        if (let Some(fun) <- tmpFuncEnv.getLocal(key)) {
-            // THIS IS NOT THE REAL REFERENCE, IT'S JUST A WAY TO SAY THAT IT EXISTS.
-            return fun
-        }
-        if (let Some(va) <- tmpVarEnv.getLocal(key)) {
-            return va
-        }
-        throw Exception("${key} is undefined.")
+        environments.get(key)
     }
 
     private func isGlobal(): Bool {
-        funcEnvironment.isGlobal && variableEnvironment.isGlobal
+        environments.isGlobal()
     }
 }
 

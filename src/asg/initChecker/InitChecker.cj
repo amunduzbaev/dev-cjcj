@@ -8,33 +8,19 @@ import cjcj.asg.typeChecker.ClassReferenceForTC
 import std.collection.HashSet
 import std.collection.ArrayList
 import std.collection.ArrayStack
-import std.collection.HashMap
 
 public open class InitChecker <: DefaultVisitor<Unit> {
-    protected var declareEnvironment = Environment<Reference, Int64>()
-    protected var initializeEnvironment = Environment<Reference, Int64>()
-    protected var currentScopeType: ScopeEnvironment = ScopeEnvironment()
+    protected var environments: InitCheckerEnvironments
     protected var lastKilledEnvironment = Environment<Reference, Int64>()
-    protected var classMembersContainer: Environment<String, ClassReferenceForTC>
 
-    public init(
-        declareEnvironment_: Environment<Reference, Int64>, 
-        initializeEnvironment_: Environment<Reference, Int64>,
-        lastKilledEnvironment_: Environment<Reference, Int64>, 
-        currentScopeType_: ScopeEnvironment,
-        classMembersContainer: Environment<String, ClassReferenceForTC>
-    ){
-            super(())
-            declareEnvironment = declareEnvironment_
-            initializeEnvironment = initializeEnvironment_
-            lastKilledEnvironment = lastKilledEnvironment_
-            currentScopeType = currentScopeType_
-            this.classMembersContainer = classMembersContainer
+    public init(environments_: InitCheckerEnvironments){
+        super(())
+        environments = environments_
     }
 
     public init(classMembersContainer: Environment<String, ClassReferenceForTC>) {
         super(())
-        this.classMembersContainer = classMembersContainer
+        environments = InitCheckerEnvironments(classMembersContainer)
     }
 
     public func resolve(program: Program) {
@@ -52,6 +38,7 @@ public open class InitChecker <: DefaultVisitor<Unit> {
         } handle(_: MemberVarReference) {
             resume with ()
         }
+
         StaticGlobalVariableInitializationChecker(program)
     }
 
@@ -67,7 +54,7 @@ public open class InitChecker <: DefaultVisitor<Unit> {
                 initialize(varReference)
             } else if (varReference.keyword.kind == TokenKind.LET) {
                 throw Exception("Mutation of immutable variable" + 
-                "${varReference.identifier.value}")
+                " ${varReference.identifier.value}")
             }
             resume with ()
         } handle(memberVarReference: MemberVarReference) {
@@ -75,7 +62,7 @@ public open class InitChecker <: DefaultVisitor<Unit> {
 
             if (varReference.keyword.kind == TokenKind.LET) {
                 throw Exception("Mutation of immutable member variable" + 
-                "${varReference.identifier.value}")
+                " ${varReference.identifier.value}")
             }
             resume with ()
         }
@@ -106,10 +93,10 @@ public open class InitChecker <: DefaultVisitor<Unit> {
 
         try {
             block.nodes.iterator().forEach({ node => 
-                    node.traverse(this)
+                node.traverse(this)
             })
         } handle(_: InferBlockType) {
-            resume with ScopeType.BLOCK
+            throw Exception("Block has no proper (ifElse, funcDecl, whileExpr) parent node")
         } handle(ifElseInit: IfElseInitialization<Reference, Int64>) {
             let initialized = ifElseInit.branchInitializations.elements.iterator().fold(
                 ArrayList<Reference>(), { acc, entry => 
@@ -136,20 +123,37 @@ public open class InitChecker <: DefaultVisitor<Unit> {
     }
 
     // lastKilledEnvironment contains the initializeEnvironment of elseBranch
-    // We need to merge the variables that are in both initializeEnvironments
+    // TODO : the new compiler changed the initialization rules in ifExpr, so the merge here 
+    // needs to be fixed
     public override func visit(ifExpr: IfExpr) {
         try{
             ifExpr.elseBranch.traverse(this)
         } handle(_: IfElseInitialization<Reference, Int64>) {
             resume with ()
+        } handle(_: InferBlockType) {
+            resume with ScopeType.IFBLOCK
         }
         let elseBranchInitializeEnvironment = lastKilledEnvironment
 
         ifExpr.condition.traverse(this)
-        ifExpr.ifBlock.traverse(this)
+        try {
+            ifExpr.ifBlock.traverse(this)
+        } handle(_: InferBlockType) {
+            resume with ScopeType.IFBLOCK
+        }
 
-        intersect(lastKilledEnvironment, elseBranchInitializeEnvironment)
+        merge(lastKilledEnvironment, elseBranchInitializeEnvironment)
         perform IfElseInitialization(lastKilledEnvironment)
+    }
+
+    public override func visit(whileExpr: WhileExpr) {
+        try {
+            whileExpr.block.traverse(this)
+        } handle(_: InferBlockType) {
+            resume with ScopeType.WHILEBLOCK
+        }
+
+        whileExpr.condition.traverse(this)
     }
 
     // TODO : Maybe we can use effect handlers for this, maybe NOT?
@@ -185,7 +189,9 @@ public open class InitChecker <: DefaultVisitor<Unit> {
         let paramRef = Utils.foldToStack(funcDecl.funcRef.paramRef.getOrDefault({ 
             => ArrayList<VariableReference>()}).iterator(), ArrayStack<VariableReference>())
         try {
-            funcDecl.block.traverse(this)
+            if (let Some(realBlock) <- funcDecl.block) {
+                realBlock.traverse(this)
+            }
         } handle(_: ParameterDeclaration) {
             resume with paramRef.remove()
         } handle(_: InferBlockType) {
@@ -214,8 +220,7 @@ public open class InitChecker <: DefaultVisitor<Unit> {
     }
 
     public override open func visit(classDecl: ClassDeclWithRef): Unit {
-        ClassInitChecker(declareEnvironment, initializeEnvironment, 
-            lastKilledEnvironment, currentScopeType, classDecl, classMembersContainer)
+        ClassInitChecker(environments, classDecl)
     }
 
     public override open func visit(memberAccess: MemberAccessWithRef): Unit {
@@ -232,8 +237,8 @@ public open class InitChecker <: DefaultVisitor<Unit> {
             resume with ()
         }
 
-        match (classMembersContainer.getGlobal(memberAccess.ref.getOrThrow().identifier.value)
-            .getOrThrow().getMembersReference(memberAccess.field.value)){
+        match (environments.classMembersContainer.getGlobal(memberAccess.ref.getOrThrow()
+            .identifier.value).getOrThrow().getMembersReference(memberAccess.field.value)){
             case Some(ref) => 
                 try {
                     ref.traverse(this)
@@ -245,104 +250,59 @@ public open class InitChecker <: DefaultVisitor<Unit> {
         }
     }
 
-    protected func beginScope(newScopeType: ScopeType) {
-        currentScopeType = ScopeEnvironment(newScopeType, currentScopeType)
-        declareEnvironment = Environment(declareEnvironment)
-        initializeEnvironment = Environment(initializeEnvironment)
+    protected open func beginScope(newScopeType: ScopeType) {
+        environments = InitCheckerEnvironments(environments, newScopeType)
     }
 
-    protected func endScope(): Unit {
-        currentScopeType = currentScopeType.enclosing.getOrThrow({ => 
-            Exception("Trying to close the global scope") })
-        lastKilledEnvironment = initializeEnvironment
-        declareEnvironment = declareEnvironment.enclosing.getOrThrow({ =>
-            Exception("Trying to close the global scope") })
-        initializeEnvironment = initializeEnvironment.enclosing.getOrThrow({ =>
-            Exception("Trying to close the global scope") })
+    protected open func endScope(): Unit {
+        lastKilledEnvironment = environments.initializeEnvironment
+        environments = environments.enclosing.getOrThrow({ => 
+            Exception("Trying to close the global scope")})
     }
 
     protected open func declare(reference: Reference) {
-        declareEnvironment.declare(reference, 0)
+        environments.declare(reference)
     }
 
     protected open func canCapture(reference: Reference) :Bool { 
-        var declEnvironment = declareEnvironment
-        var scopeType = currentScopeType
-
-        while (!declEnvironment.isGlobal && !scopeType.isGlobal) {
-            if (declEnvironment.getLocal(reference).isSome()) {
-                return true;
-            } else if (scopeType.currentScopeType == ScopeType.FUNCBLOCK) {
-                return false;
-            }
-            declEnvironment = declEnvironment.enclosing.getOrThrow()
-            scopeType = scopeType.enclosing.getOrThrow()
-        }
-
-        true
+        environments.canCapture(reference)
     }
 
     protected open func initialize(reference: Reference) {
-        if (!isInitialized(reference)) {
-            if (!canCapture(reference)) {
-                throw Exception("Cannot capture variable ${reference.identifier.value} before " + 
-                "initialization")
-            }
-            initializeEnvironment.declare(reference, 0)
-        }
+        environments.initialize(reference)
     }
 
     protected func initialize(references: ArrayList<Reference>) {
-        references.iterator().forEach({ reference => 
-            initialize(reference)
-        })
+        environments.initialize(references)
     }
 
     protected open func isInitialized(reference: Reference) {
-        initializeEnvironment.getGlobal(reference).isSome()
+        environments.isInitialized(reference)
     }
 
-    protected func intersect<K, V> (left: Environment<K, V>, right: Environment<K, V>) where K <: 
+    protected func merge<K, V> (left: Environment<K, V>, right: Environment<K, V>) where K <: 
             Hashable & Equatable<K> & ToString {
-        let leftElementsArr = left.elements.toArray()
-        leftElementsArr.iterator().forEach({ entry => 
-            let (key, _) = entry
-            if (!right.getLocal(key).isSome()) {
-                left.destroy(key)
-            }
-        })
+        environments.merge(left, right)
     }
 }
 
+
+
+
+
 /*
 Extension of the Checker above that checks initialization of a class 
-    TODO: Add "this" and fixed member access
-    TODD: check init() function calls form a cycle. 
+    TODO: Add "this" and fix the member access
 */
 private class ClassInitChecker <: InitChecker {
-    private var accessibleMembers: ClassReferenceForTC
-    private var initializedMemberVariables: Int64 = 0
-    private var totalMemberVariables: Int64 = 0
-    private var superIsInitialized: Bool = false
-    private var decls: HashSet<Reference> = HashSet<Reference>()
-    private let unvisitedConstructors = HashMap<Reference, FuncDeclWithRef>()
-    private let currentPathConstructors = HashSet<Reference>()
+    protected let classEnvironments: ClassInitCheckerEnvironments
 
     init (
-        declareEnvironment: Environment<Reference, Int64>, 
-        initializeEnvironment: Environment<Reference, Int64>,
-        lastKilledEnvironment: Environment<Reference, Int64>, 
-        currentScopeType: ScopeEnvironment, 
-        classDecl: ClassDeclWithRef, 
-        classMembersContainer: Environment<String, ClassReferenceForTC>
+        environments: InitCheckerEnvironments, 
+        classDecl: ClassDeclWithRef
     ){
-
-        super(declareEnvironment, initializeEnvironment, 
-            lastKilledEnvironment, currentScopeType, classMembersContainer)
-        accessibleMembers = classMembersContainer.getGlobal(classDecl.identifier.value).getOrThrow({
-            => Exception("Can not find the class ${classDecl.identifier.value} in class Member" + 
-            " Containers")
-        })
+        super(environments)
+        classEnvironments = ClassInitCheckerEnvironments(environments, classDecl)
 
         classDecl.traverse(this)
     }
@@ -355,50 +315,18 @@ private class ClassInitChecker <: InitChecker {
         classDecl.body.traverse(this)
     }
 
-    // TODO : fix the body visitor (remove as)
-    // I need to think if this can be improved without use of a new visitor
-    // Currently I believe that this is not possible, but maybe we can use effect handlers for this
     public override func visit(body: Body) {
         beginScope(ScopeType.BODY)
 
-        totalMemberVariables = 0
-        decls = HashSet<Reference>(body.decls.iterator().fold(ArrayList<Reference>(), { acc, decl =>
-            if (let Some(varDecl) <- (decl as VarDeclWithRef)) {
-                acc.add(varDecl.ref)
-            } else if (let Some(funcDecl) <- (decl as FuncDeclWithRef)) {
-                acc.add(funcDecl.funcRef)
-            }
-            acc
-        }))
-        let varDecls = body.decls.iterator().filter({decl => 
-            if (decl is VarDeclWithRef) {
-                totalMemberVariables++
-                return true;
-            }
-            false
-        })
-        let initDecls = body.decls.iterator().fold(ArrayList<FuncDeclWithRef>(), {acc, decl => 
-            if (let Some(funcDecl) <- (decl as FuncDeclWithRef) && 
-                funcDecl.keyword.value == "init") {
-                    acc.add(funcDecl)
-                }
-            acc
-        })
-        let funcDecls = body.decls.iterator().fold(ArrayList<FuncDeclWithRef>(), {acc, decl => 
-            if (let Some(funcDecl) <- (decl as FuncDeclWithRef) && 
-                funcDecl.keyword.value  != "init") {
-                    acc.add(funcDecl)
-                }
-            acc
-        })
-
-        initDecls.iterator().forEach({ initDecl => 
-            unvisitedConstructors.add(initDecl.funcRef, initDecl) })
+        let (varDecls, initDecls, funcDecls) = classEnvironments.bodyPreprocess(body)
 
         varDecls.forEach({ varDecl => varDecl.traverse(this) })
-        initDecls.iterator().forEach({ initDecl => tryVisitConstructor(initDecl.funcRef) })
-        initializedMemberVariables = totalMemberVariables
-        funcDecls.iterator().forEach({ funcDecl => funcDecl.traverse(this) })
+
+        classEnvironments.superIsInitialized = true
+        initDecls.forEach({ initDecl => tryVisitConstructor(initDecl.funcRef) })
+
+        classEnvironments.finishInitialization()
+        funcDecls.forEach({ funcDecl => funcDecl.traverse(this) })
 
         endScope()
     }
@@ -417,7 +345,7 @@ private class ClassInitChecker <: InitChecker {
             resume with ()
         } handle(exactFuncReference: ExactFuncReference) {
             let funcReference = exactFuncReference.funcReference
-            if (decls.contains(funcReference) && !allClassMembersInitialized) {
+            if (classEnvironments.isMember(funcReference) && !allClassMembersInitialized) {
                 throw Exception("Member function ${funcReference.identifier} is referenced before" +
                 " all member variables are initialized")
             }
@@ -439,8 +367,8 @@ private class ClassInitChecker <: InitChecker {
             resume with ()
         }
 
-        match (classMembersContainer.getGlobal(memberAccess.ref.getOrThrow().identifier.value)
-            .getOrThrow().getMembersReference(memberAccess.field.value)) {
+        match (environments.classMembersContainer.getGlobal(memberAccess.ref.getOrThrow().
+            identifier.value).getOrThrow().getMembersReference(memberAccess.field.value)) {
             case Some(ref) => 
                 try {
                     ref.traverse(this)
@@ -474,7 +402,8 @@ private class ClassInitChecker <: InitChecker {
                                 callExpr.ref.getOrThrow().traverse(this)
                             } handle(exactFuncReference: ExactFuncReference) {
                                 let funcReference = exactFuncReference.funcReference
-                                if (decls.contains(funcReference) && !allClassMembersInitialized) {
+                                if (classEnvironments.isMember(funcReference) && 
+                                    !allClassMembersInitialized) {
                                     throw Exception("Member function ${funcReference.identifier}" + 
                                     " is referenced before all member variables are initialized")
                                 }
@@ -499,7 +428,7 @@ private class ClassInitChecker <: InitChecker {
         // TODO : Can we remove use of "as" here and make the code better?
         // I believe it is possible to remove "as" here using effect handlers. Figure out the best
         // way to implement it
-        // TODO : Also need to check if super() is called explicitly, and it not, check if super 
+        // TODO : Also need to check if super() is not called explicitly, and it not, check if super
         // class contains default constructor
         match (block.nodes.get(0)) {
             case Some(node) => 
@@ -517,11 +446,10 @@ private class ClassInitChecker <: InitChecker {
         }
 
         beginScope(perform InferBlockType())
-        superIsInitialized = true
 
         while (let Some(paramReference) <- perform ParameterDeclaration()) {
-                declare(paramReference)
-                initialize(paramReference)
+            declare(paramReference)
+            initialize(paramReference)
         }
 
         try {
@@ -529,7 +457,7 @@ private class ClassInitChecker <: InitChecker {
                 node.traverse(this)
             })
         } handle(_: InferBlockType) {
-            resume with ScopeType.BLOCK
+            throw Exception("Block has no proper (ifElse, funcDecl, whileExpr) parent node")
         } handle(ifElseInit: IfElseInitialization<Reference, Int64>) {
             let initialized = ifElseInit.branchInitializations.elements.iterator().fold(
                 ArrayList<Reference>(), { acc, entry => 
@@ -552,12 +480,15 @@ private class ClassInitChecker <: InitChecker {
             resume with ()
         }
 
+        if (!allClassMembersInitialized) {
+            throw Exception("Constructor function does not" + 
+            " initialize all variables")
+        }
+
         endScope()
     }
 
     private func visitConstructor(initDecl: FuncDeclWithRef) {
-        let storedInitializedMemberVariables = initializedMemberVariables
-
         if (let Some(declType) <- initDecl.declType) {
             declType.traverse(this)
         }
@@ -565,62 +496,49 @@ private class ClassInitChecker <: InitChecker {
         let paramRef = Utils.foldToStack(initDecl.funcRef.paramRef.getOrDefault({ 
             => ArrayList<VariableReference>()}).iterator(), ArrayStack<VariableReference>())
         try {
-            visitConstructorBlock(initDecl.block)
+            visitConstructorBlock(initDecl.block.getOrThrow({ => 
+                Exception("Constructor function must have a block")}))
         } handle(_: ParameterDeclaration) {
             resume with paramRef.remove()
         } handle(_: InferBlockType) {
-            resume with ScopeType.BLOCK
+            resume with ScopeType.FUNCBLOCK
         }
-
-        if (!allClassMembersInitialized) {
-            throw Exception("Constructor function does not" + 
-            " initialize all variables")
-        }
-        initializedMemberVariables = storedInitializedMemberVariables
     }
 
-    protected func tryVisitConstructor(funcReference: Reference): Unit{ 
-        match (unvisitedConstructors.get(funcReference)) {
-            case Some(constructor) => 
-                unvisitedConstructors.remove(funcReference)
-                currentPathConstructors.add(funcReference)
-                visitConstructor(constructor)
-            case _ => 
-                if (currentPathConstructors.contains(funcReference)) {
-                    throw Exception("Constructor functions can not form a cycle")
-                }
+    protected func tryVisitConstructor(funcReference: Reference): Unit { 
+        if (let Some(constructor) <- classEnvironments.tryVisitConstructor(funcReference)) {
+            visitConstructor(constructor)
         }
+    }
+
+    protected override func beginScope(newScopeType: ScopeType) {
+        environments = InitCheckerEnvironments(environments, newScopeType)
+        classEnvironments.beginScope(environments)
+    }
+
+    protected override func endScope(): Unit {
+        lastKilledEnvironment = environments.initializeEnvironment
+        environments = environments.enclosing.getOrThrow({ => 
+            Exception("Trying to close the global scope") })
+        classEnvironments.endScope(environments)
     }
 
     protected override func initialize(reference: Reference) {
-        if (!isInitialized(reference)) {
-            if (decls.contains(reference)) {
-                initializedMemberVariables++
-            } else if (!canCapture(reference)) {
-                throw Exception("Cannot capture variable ${reference.identifier.value} before " + 
-                "initialization")
-            }
-            initializeEnvironment.declare(reference, 0)
-        }
+        classEnvironments.initialize(reference)
     }
 
     protected override func isInitialized(reference: Reference): Bool {
-        if (decls.contains(reference)) {
-            allClassMembersInitialized || initializeEnvironment.getGlobal(reference).isSome()
-        } else if (
-            let Some(ref) <- accessibleMembers.getMembersReference(reference.identifier.value) &&
-            ref == reference
-        ) {
-            superIsInitialized
-        } else {
-            initializeEnvironment.getGlobal(reference).isSome()
-        }
+        classEnvironments.isInitialized(reference)
     }
 
     private prop allClassMembersInitialized: Bool {
-        get() { totalMemberVariables == initializedMemberVariables }
+        get() { classEnvironments.allClassMembersInitialized }
     }
 }
+
+
+
+
 
 /*
 
@@ -660,7 +578,9 @@ public class StaticGlobalVariableInitializationChecker <: DefaultVisitor<Unit> {
             declType.traverse(this)
         }
 
-        funcDecl.block.traverse(this)
+        if (let Some(realBlock) <- funcDecl.block){
+            realBlock.traverse(this)
+        }
     }
 
     public override func visit(varDecl: VarDeclWithRef) {
@@ -682,7 +602,7 @@ public class StaticGlobalVariableInitializationChecker <: DefaultVisitor<Unit> {
     }
 
     public override func visit(refExpr: RefExprWithRef) {
-        try { 
+        try {
             refExpr.ref.traverse(this)
         } handle(exactVarReference: ExactVarReference) {
             let varReference = exactVarReference.varReference

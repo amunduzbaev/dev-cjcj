@@ -283,7 +283,11 @@ public class TypeChecker <: Visitor<Unit> {
         if (let Some(declType) <- funcDeclWithRef.declType) {
             declType.traverse(this)
         }
-        funcDeclWithRef.block.traverse(this)
+        match (funcDeclWithRef.block) {
+            case Some(funcBlock) => 
+                funcBlock.traverse(this)
+            case _ => ()
+        }
         
         nodePossibleTypes.add(funcDeclWithRef.id, HashSet([funcDeclWithRef.traverse(typeAssigner)]))
 

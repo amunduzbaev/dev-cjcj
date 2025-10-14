@@ -535,16 +535,6 @@ class AsgMakerTests {
 
     @TestCase 
     func unorderedDeclarations_test() {
-        let testWrong: String = """
-            func f(){
-                a
-            }
-            let a = 5
-            main(){
-            }
-        """
-        @AssertThrows[Exception](getAsg(testWrong))
-
         var testRight: String = """
             let a = f()
             func f(){
@@ -890,3 +880,45 @@ class AsgMakerTests {
         getAsg(test)
     }
 }
+
+
+// interface I {
+//     func f(): Int64
+// }
+
+// interface J {
+//     func f(): Int64
+// }
+
+// class C <: I & J {
+
+// }
+
+// let var2 = 1
+
+// interface I {
+//     func f() {
+//         1
+//     }
+// }
+
+// class C <: S & I {
+//     init() {
+//         // let var2 = 1
+//         let c = var2
+//         let d = f()
+//     }
+
+//     override public func f() {
+//         1
+//     }
+// }
+
+// open class S {
+//     let var2 = "test"
+// }
+
+// func f(a: Int64): Int64 { 1 }
+// func f(a: Hashable): Int64 { 1 }
+
+// let a = f

@@ -655,19 +655,19 @@ class InitCheckerTests {
     @TestCase
     func classInitMemberAccess_test() {
         let testRight: String = """
-            class CLASS {
-                let a: Int64
+        class CLASS {
+            let a: Int64
 
-                init() {
-                    if(true) {
-                        a = 2
-                    }
-
-                    a = 1
+            init() {
+                if(true) {
+                    a = 2
                 }
+
+                a = 1
             }
-            main(){
-            }
+        }
+        main(){
+        }
         """
         resolve(testRight)
 
@@ -845,4 +845,16 @@ class InitCheckerTests {
         @AssertThrows[Exception](resolve(testWrong))
     }
     
+    @TestCase
+    func unorderedDeclaration_test() {
+        let testWrong: String = """
+            func f(){
+                a
+            }
+            let a = 5
+            main(){
+            }
+        """
+        @AssertThrows[Exception](resolve(testWrong))
+    }
 }

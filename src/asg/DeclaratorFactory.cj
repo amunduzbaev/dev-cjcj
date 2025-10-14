@@ -39,6 +39,10 @@ private class ReferenceDeclarator <: Declarator {
 
 /*
 * Factory for declarators, can retrieve declarators with different behaviors.
+* !!! TODO : Global canDeclare function can not be used. This is because if we are declaring a function
+* no need to check if the function with the same name exists, since we can overload function. 
+* However, if we are declaring a class/interface, we need to check if a function with this name
+* exists or not
 */
 public abstract class DeclaratorFactory {
 
@@ -66,11 +70,38 @@ public abstract class DeclaratorFactory {
         classEnvironment: Environment<String, ClassReference>
     ): Declarator {
         let canDeclare: (String) -> Bool = canDeclare([
-            { k => classEnvironment.getLocal(k).isNone() }
+            { k =>  classEnvironment.getLocal(k).isNone() }
         ])
         Declarator(
             visitFunc: functionAstDeclaration(funcEnvironment, canDeclare),
-            visitClass: classAstDeclaration(classEnvironment, canDeclare)
+            visitClass: classAstDeclaration(classEnvironment, canDeclare),
+        )
+    }
+
+
+    /*
+    * Same as the globalAstDeclarator but contains interfaces
+    * TODO : to be fixed in the future
+    */
+    public static func globalAstDeclaratorWithInterfaces(
+        funcEnvironment: Environment<String, FuncReference>,
+        classEnvironment: Environment<String, ClassReference>, 
+        interfaceEnvironment: Environment<String, InterfaceReference>
+    ): Declarator {
+        let canDeclareFunction: (String) -> Bool = canDeclare([
+            { k =>  classEnvironment.getLocal(k).isNone() && 
+                    interfaceEnvironment.getLocal(k).isNone() }
+        ])
+
+        let canDeclare: (String) -> Bool = canDeclare([
+            { k =>  classEnvironment.getLocal(k).isNone() && 
+                    interfaceEnvironment.getLocal(k).isNone() && 
+                    funcEnvironment.getLocal(k).isNone() }
+        ])
+        Declarator(
+            visitFunc: functionAstDeclaration(funcEnvironment, canDeclareFunction),
+            visitClass: classAstDeclaration(classEnvironment, canDeclare),
+            visitInterface: interfaceAstDeclaration(interfaceEnvironment, canDeclare),
         )
     }
 
@@ -215,6 +246,21 @@ public abstract class DeclaratorFactory {
             let ref: ClassReference = classDecl.ref
             if (canDeclare(classDecl.identifier.value)) {
                 environment.declare(classDecl.identifier.value, ref)
+                return ref
+            }
+            throw declareError(ref.identifier.value)
+        }
+    }
+
+    private static func interfaceAstDeclaration(
+        environment: Environment<String, InterfaceReference>,
+        canDeclare: (String) -> Bool
+    ): (InterfaceDecl) -> ?Reference {
+        { interfaceDecl: InterfaceDecl =>
+            let ref: InterfaceReference = InterfaceReference(NodeIdManager.nextId(), 
+                interfaceDecl.identifier)
+            if (canDeclare(interfaceDecl.identifier.value)) {
+                environment.declare(interfaceDecl.identifier.value, ref)
                 return ref
             }
             throw declareError(ref.identifier.value)

@@ -11,7 +11,8 @@ public open class Declarator <: Visitor<?Reference> {
         private let visitVar!: (VarDecl) -> ?Reference = { _ => None },
         private let visitFunc!: (FuncDecl) -> ?Reference = { _ => None },
         private let visitClass!: (ClassDecl) -> ?Reference = { _ => None },
-        private let visitMain!: (MainDecl) -> ?Reference = { _ => None }
+        private let visitMain!: (MainDecl) -> ?Reference = { _ => None },
+        private let visitInterface!: (InterfaceDecl) -> ?Reference = { _ => None }
     ) {
     }
 
@@ -25,6 +26,10 @@ public open class Declarator <: Visitor<?Reference> {
 
     public override func visit(classDecl: ClassDecl): ?Reference {
         visitClass(classDecl)
+    }
+
+    public override func visit(interfaceDecl: InterfaceDecl): ?Reference {
+        visitInterface(interfaceDecl)
     }
 
     public override func visit(mainDecl: MainDecl): ?Reference {
