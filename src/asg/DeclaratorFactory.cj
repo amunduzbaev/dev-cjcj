@@ -53,12 +53,16 @@ public abstract class DeclaratorFactory {
         funcEnvironment: Environment<String, FuncReference>,
         variableEnvironment: Environment<String, VariableReference>
     ): Declarator {
-        let canDeclare: (String) -> Bool = canDeclare([
+        let canDeclareFunc: (String) -> Bool = canDeclare([
             { k => variableEnvironment.getLocal(k).isNone() }
         ])
+        let canDeclareVar: (String) -> Bool = canDeclare([
+            { k => variableEnvironment.getLocal(k).isNone() && 
+                    funcEnvironment.getLocal(k).isNone() }
+        ])
         Declarator(
-            visitFunc: functionAstDeclaration(funcEnvironment, canDeclare),
-            visitVar: variableAstDeclaration(variableEnvironment, canDeclare)
+            visitFunc: functionAstDeclaration(funcEnvironment, canDeclareFunc),
+            visitVar: variableAstDeclaration(variableEnvironment, canDeclareVar)
         )
     }
 
@@ -69,19 +73,23 @@ public abstract class DeclaratorFactory {
         funcEnvironment: Environment<String, FuncReference>,
         classEnvironment: Environment<String, ClassReference>
     ): Declarator {
-        let canDeclare: (String) -> Bool = canDeclare([
+        let canDeclareFunc: (String) -> Bool = canDeclare([
             { k =>  classEnvironment.getLocal(k).isNone() }
         ])
+        let canDeclareClass: (String) -> Bool = canDeclare([
+            { k =>  classEnvironment.getLocal(k).isNone() && 
+                    funcEnvironment.getLocal(k).isNone() }
+        ])
         Declarator(
-            visitFunc: functionAstDeclaration(funcEnvironment, canDeclare),
-            visitClass: classAstDeclaration(classEnvironment, canDeclare),
+            visitFunc: functionAstDeclaration(funcEnvironment, canDeclareFunc),
+            visitClass: classAstDeclaration(classEnvironment, canDeclareClass),
         )
     }
 
 
     /*
     * Same as the globalAstDeclarator but contains interfaces
-    * TODO : to be fixed in the future
+    * TODO : update all declarators by adding Interfaces
     */
     public static func globalAstDeclaratorWithInterfaces(
         funcEnvironment: Environment<String, FuncReference>,
@@ -116,12 +124,16 @@ public abstract class DeclaratorFactory {
         refToDecl: Map<Reference, Decl>,
         declToTypeManager: Map<Decl, TypeManager>
     ): Declarator {
-        let canDeclare: (String) -> Bool = canDeclare([
+        let canDeclareFunc: (String) -> Bool = canDeclare([
             { k => variableEnvironment.getLocal(k).isNone() }
         ])
+        let canDeclareVar: (String) -> Bool = canDeclare([
+            { k => variableEnvironment.getLocal(k).isNone() && 
+                    !typeManager.funcExists(k) }
+        ])
         ReferenceDeclarator(
-            visitFunc: functionAsgDeclaration(typeManager, canDeclare, refToDecl, declToTypeManager),
-            visitVar: variableAsgDeclaration(variableEnvironment, canDeclare, refToDecl)
+            visitFunc: functionAsgDeclaration(typeManager, canDeclareFunc, refToDecl, declToTypeManager),
+            visitVar: variableAsgDeclaration(variableEnvironment, canDeclareVar, refToDecl)
         )
     }
 
@@ -136,13 +148,17 @@ public abstract class DeclaratorFactory {
         refToDecl: Map<Reference, Decl>,
         declToTypeManager: Map<Decl, TypeManager>
     ): Declarator {
-        let canDeclare: (String) -> Bool = canDeclare([
+        let canDeclareFunc: (String) -> Bool = canDeclare([
             { k => classEnvironment.getLocal(k).isNone() }
         ])
+        let canDeclareVarClass: (String) -> Bool = canDeclare([
+            { k => classEnvironment.getLocal(k).isNone() && 
+                    !typeManager.funcExists(k) }
+        ])
         ReferenceDeclarator(
-            visitFunc: functionAsgDeclaration(typeManager, canDeclare, refToDecl, declToTypeManager),
-            visitClass: classAsgDeclaration(classEnvironment, canDeclare),
-            visitVar: variableAsgDeclaration(Environment(), canDeclare, refToDecl)
+            visitFunc: functionAsgDeclaration(typeManager, canDeclareFunc, refToDecl, declToTypeManager),
+            visitClass: classAsgDeclaration(classEnvironment, canDeclareVarClass),
+            visitVar: variableAsgDeclaration(Environment(), canDeclareVarClass, refToDecl)
         )
     }
 
@@ -223,12 +239,12 @@ public abstract class DeclaratorFactory {
         }
     }
 
+    // TODO: At the moment every class is considered open.
     private static func classAstDeclaration(
         environment: Environment<String, ClassReference>,
         canDeclare: (String) -> Bool
     ): (ClassDecl) -> ?Reference {
         { classDecl: ClassDecl =>
-            // TODO: At the moment every class is considered open.
             let ref: ClassReference = ClassReference(NodeIdManager.nextId(), classDecl.identifier, true)
             if (canDeclare(classDecl.identifier.value)) {
                 environment.declare(classDecl.identifier.value, ref)
@@ -266,6 +282,8 @@ public abstract class DeclaratorFactory {
             throw declareError(ref.identifier.value)
         }
     }
+
+    //TODO : make interfaceAsgDeclaration when adding Interfaces into Type Checking
 
     private static func canDeclare(predicates: Array<(String) -> Bool>): (String) -> Bool {
         { key => predicates.iterator().all({ p => p(key) }) }

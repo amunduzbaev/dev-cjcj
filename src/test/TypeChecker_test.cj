@@ -965,7 +965,7 @@ class TypeCheckTests {
     @TestCase 
     func interfaceClassMemberRedeclaration_test() {
         var testWrong = """
-        open class S {
+        class S {
             let a: Int64 = 1
         }
         interface I {
@@ -975,6 +975,9 @@ class TypeCheckTests {
         }
 
         class C <: S & I {
+        }
+
+        main() {
         }
         """
 
