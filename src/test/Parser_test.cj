@@ -502,6 +502,49 @@ class ParserTests {
             """
         @Assert(parse(test).isSome())
     }
+
+
+    @TestCase 
+    func interfaceDeclaration_test() {
+        var testRight: String = """
+        interface I {
+            func f(a: Int64): Unit
+            func sum(a: Int64, b: Int64): Int64 {
+                a + b
+            }
+        }
+
+        main() {
+        }
+        """
+
+        getMain(testRight)
+    }
+
+    @TestCase 
+    func interfaceDeclarationComplex_test() {
+        var testRight: String = """
+        let c: Int64 = 1
+        interface I {
+            func sum(a: Int64, b: Int64): Int64 {
+                a + b + c
+            }
+            func max_(a: Int64, b: Int64): Int64 {
+                if(a > b && a > c) {
+                    a
+                } else if(b > c) {
+                    b
+                } else {
+                    c
+                }
+            }
+        }
+        main() {
+        }
+        """
+
+        getMain(testRight)
+    }
 }
 
 

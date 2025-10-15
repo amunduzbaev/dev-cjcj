@@ -27,35 +27,40 @@ public class NoBlock <: Command<Unit> {
 public class ExistingReference <: Command<?Reference> {
 }
 
-public class WaitingDeclaration <: Command<?(VariableReference, TypeNode)> {}
+public class WaitingDeclaration <: Command<?VariableReference> {}
 
 public class IsVar <: Command<Unit> {
     IsVar(public let isVar: Bool) {}
 }
 
-class ClassEnvironment <: Command<Unit> {
-    ClassEnvironment(public let environments: AsgEnvironments) {
+class BodyEnvironment <: Command<Unit> {
+    BodyEnvironment(public let environments: AsgEnvironments) {
     }
 }
 
-class DeclarationsTopSort <: Visitor<Unit> {
+class TypeDeclaration<T> <: Visitor<Unit> {
     private let visited = HashSet<Int64>()
-    private let idToRef = HashMap<Int64, Reference>()
-    private let classDecls = HashMap<String, ClassDecl>()
-    private let order = ArrayList<(Decl, ?Reference)>()
+    private let idMap = HashMap<Int64, T>()
+    private let typeDecls = HashMap<String, Decl>()
+    private var order = ArrayList<(Decl, ?T)>()
 
-    public func resolve(decls: ArrayList<(Decl, ?Reference)>) {
+    public func resolve(decls: ArrayList<(Decl, ?T)>) {
         decls.iterator().forEach({d => 
             match (d[1]) {
                 case Some(ref) =>
-                    idToRef.add(d[0].id.id, ref)
-                    ()
+                    idMap.add(d[0].id.id, ref)
                 case _ => ()
             }
 
             match (d[0] as ClassDecl) {
                 case Some(classDecl) => 
-                    classDecls.add(classDecl.identifier.value, classDecl)
+                    typeDecls.add(classDecl.identifier.value, classDecl)
+                case _ => ()
+            }
+
+            match (d[0] as InterfaceDecl) {
+                case Some(interfaceDecl) => 
+                    typeDecls.add(interfaceDecl.identifier.value, interfaceDecl)
                 case _ => ()
             }
         })
@@ -81,17 +86,17 @@ class DeclarationsTopSort <: Visitor<Unit> {
 
     public override func visit(varDecl: VarDecl) {
         perform IsVar(true)
-        order.add((varDecl, idToRef.get(varDecl.id.id)))   
+        order.add((varDecl, idMap.get(varDecl.id.id)))   
     }
 
     public override func visit(funcDecl: FuncDecl) {
         perform IsVar(false)
-        order.add((funcDecl, idToRef.get(funcDecl.id.id)))
+        order.add((funcDecl, idMap.get(funcDecl.id.id)))
     }
 
     public override func visit(mainDecl: MainDecl) {
         perform IsVar(false)
-        order.add((mainDecl, idToRef.get(mainDecl.id.id)))
+        order.add((mainDecl, idMap.get(mainDecl.id.id)))
     }
 
     public override func visit(classDecl: ClassDecl) {
@@ -99,27 +104,53 @@ class DeclarationsTopSort <: Visitor<Unit> {
             return ()
         }
 
-        match (classDecl.superTypes.get(0)) {
-            case Some(parent) => 
-                tryVisitClass(parent.typeName.value)
-            case _ => ()
-        }
+        classDecl.superTypes.iterator().forEach({ superType => 
+            tryVisit(superType.typeName.value)
+        })
 
         perform IsVar(false)
-        order.add((classDecl, idToRef.get(classDecl.id.id)))
+        order.add((classDecl, idMap.get(classDecl.id.id)))
     }
 
     public override func visit(interfaceDecl: InterfaceDecl) {
+        if (visited.contains(interfaceDecl.id.id)) {
+            return ()
+        }
+
+        interfaceDecl.superTypes.iterator().forEach({ superType => 
+            tryVisit(superType.typeName.value)
+        })
+
         perform IsVar(false)
-        order.add((interfaceDecl, idToRef.get(interfaceDecl.id.id)))
+        order.add((interfaceDecl, idMap.get(interfaceDecl.id.id)))
     }
 
-    private func tryVisitClass(name: String) {
-        match (classDecls.get(name)) {
-            case Some(classDecl) => 
-                classDecl.traverse(this)
+    private func tryVisit(name: String) {
+        match (typeDecls.get(name)) {
+            case Some(decl) => 
+                try {
+                    decl.traverse(this)
+                } handle(_: IsVar) {
+                    resume with ()
+                }
             case _ => ()
         }
+    }
+
+    public func getSuperTypes(typeDecl: Decl): ArrayList<Decl> {
+        order = ArrayList<(Decl, ?T)>()
+        visited.clear()
+
+        try {
+            typeDecl.traverse(this)
+        } handle(_: IsVar) {
+            resume with ()
+        }
+
+        order.iterator().fold(ArrayList<Decl>(), { acc, decl => 
+            acc.add(decl[0])
+            acc
+        })
     }
 }
 
@@ -128,6 +159,7 @@ class AsgEnvironments {
     public let funcEnvironment: Environment<String, FuncReference> 
     public let variableEnvironment: Environment<String, VariableReference> 
     public let interfaceEnvironment: Environment<String, InterfaceReference> 
+    public let exactFunctions = HashSet<String>()
 
     public let currentScopeType: ScopeType
     public let currentGlobalType: GlobalType
@@ -173,6 +205,14 @@ class AsgEnvironments {
         }
     }
 
+    public func declareExactFunc(funcDecl: FuncDecl) {
+        exactFunctions.add(Utils.funcHashConcat(funcDecl))
+    }
+
+    public func checkExactFunc(funcHash: String) {
+        exactFunctions.contains(funcHash)
+    }
+
     public func isTypeDeclared(typeName: Token): Bool {
         classEnvironment.getGlobal(typeName.value).isSome() || 
         interfaceEnvironment.getGlobal(typeName.value).isSome()
@@ -204,12 +244,6 @@ class AsgEnvironments {
             return va
         }
 
-        // IF THE REFERENCE WITH THIS KEY DOES NOT EXISTS, THE TYPE CHECKER WILL OBSERVE THIS ERROR
-        // Current "temporary" solution is to have a default reference to a function in case no 
-        // reference can be found. This is done to include case when we access function from super
-        // type in a sub type (where we can have multiple super types which are interfaces)
-        // return FuncReference(NodeIdManager.nextId(), 
-        //     Token(TokenKind.IDENTIFIER, key, Position(0, 0, 0)))
         throw Exception("${key} is undefined.")
     }
 

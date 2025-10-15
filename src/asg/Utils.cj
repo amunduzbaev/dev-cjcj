@@ -7,6 +7,14 @@ import std.collection.List
 import std.collection.Stack
 
 public abstract class Utils {
+    // Returns the concatenation of the string representation of the hash of the funcName and of the
+    // name parameter types
+    // [Note] Does not include the declared return type even if exists. 
+    public static func funcHashConcat(funcDecl: FuncDecl): String {
+        funcDecl.identifier.value + funcDecl.params.iterator()
+            .map({ t => t.paramType.typeName.value })
+            .fold(StringBuilder(), { acc, v => acc.append(v); acc }).toString()
+    }
     /*
     * Assigns the effective types to the parameter references based on the func param declarations.
     * @param funcParams the list to take the types from

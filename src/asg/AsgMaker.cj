@@ -41,7 +41,8 @@ public enum GlobalType {
 */
 public class AsgMaker <: Visitor<Node> {
     private var environments = AsgEnvironments()
-    private var superClassEnvironments = HashMap<String, AsgEnvironments>()
+    private var superTypeEnvironments = HashMap<String, AsgEnvironments>()
+    private let typeDeclaration = TypeDeclaration<Reference>()
 
     /*
     * Resolves all of the function and variable references and returns the new
@@ -85,19 +86,19 @@ public class AsgMaker <: Visitor<Node> {
             environments.interfaceEnvironment
         )
 
-        let unorderedRefDecls = ArrayList<(Decl, ?Reference)>()
+        let unorderedReferenceDecls = ArrayList<(Decl, ?Reference)>()
         program.decls.iterator().forEach({ d =>
-            unorderedRefDecls.add((d, d.traverse(globalDeclarator)))
+            unorderedReferenceDecls.add((d, d.traverse(globalDeclarator)))
         })
 
-        let refDecls = DeclarationsTopSort().resolve(unorderedRefDecls)
-        let asgDeclNodes = HashMap<Int64, Decl>()
+        let referenceDecls = typeDeclaration.resolve(unorderedReferenceDecls)
+        let globalIdToDecls = HashMap<Int64, Decl>()
         
-        refDecls.iterator().forEach({ entry =>
+        referenceDecls.iterator().forEach({ entry =>
             let (d, ref) = entry
             let refBox = Box(ref)
             try {
-                asgDeclNodes.add(d.id.id, (d.traverse(this) as Decl).getOrThrow())
+                globalIdToDecls.add(d.id.id, (d.traverse(this) as Decl).getOrThrow())
             } handle(_: ExistingReference) {
                 let ret = refBox.value
                 refBox.value = None
@@ -106,7 +107,7 @@ public class AsgMaker <: Visitor<Node> {
         })
 
         program.decls.iterator().forEach({ d => 
-            decls.add(asgDeclNodes.get(d.id.id).getOrThrow())
+            decls.add(globalIdToDecls.get(d.id.id).getOrThrow())
         })
         Program(NodeIdManager.nextId(), decls)
     }
@@ -147,10 +148,8 @@ public class AsgMaker <: Visitor<Node> {
         beginScope(ScopeType.BLOCK)
 
         let nodes: ArrayList<Node> = ArrayList()
-        while (let Some((last, declType)) <- perform WaitingDeclaration()) {
-            // nodes.add(VarDeclWithRef(NodeIdManager.nextId(), last.keyword, last.identifier, last,
-            //     declType))
-            declareVar(last.identifier, last)
+        while (let Some(paramReference) <- perform WaitingDeclaration()) {
+            declareVar(paramReference.identifier, paramReference)
         }
 
         try {
@@ -214,7 +213,6 @@ public class AsgMaker <: Visitor<Node> {
     public override func visit(varDecl: VarDecl): Node {
         // Call the initializer first because there could be reference to previous variables with
         // the same identifier.
-        let storedRef = perform ExistingReference()
 
         var initializer: ?Expr = None
         if (let Some(initzer) <- varDecl.initializer) {
@@ -228,7 +226,7 @@ public class AsgMaker <: Visitor<Node> {
 
         let reference: VariableReference
 
-        if (let Some(ref) <- storedRef) {
+        if (let Some(ref) <- perform ExistingReference()) {
             reference = (ref as VariableReference).getOrThrow({ => 
                 Exception("Reference given to variable declaration is not VariableReference")})
         } else {
@@ -248,17 +246,16 @@ public class AsgMaker <: Visitor<Node> {
             Token(TokenKind.LET, "let", Position()))
     }
 
-    /* TODO : remove waiting Declarations using effect handlers for better code */
     public override func visit(funcDecl: FuncDecl): Node {
-        let storedRef = perform ExistingReference()
-        
         var declType: ?TypeNode = None
         if (let Some(dt) <- funcDecl.declType) {
             declType = dt.traverse(this) as TypeNode
         }
 
         let reference: FuncReference
-        if (let Some(ref) <- storedRef) {
+        if (let Some(ref) <- perform ExistingReference()) {
+            // GlobalScope/Body
+            declareExactFunc(funcDecl)
             reference = (ref as FuncReference).getOrThrow({ => 
                 Exception("Reference given to the function declaration is not FuncReference")})
         } else {
@@ -266,15 +263,16 @@ public class AsgMaker <: Visitor<Node> {
             declareFunc(funcDecl.identifier, reference)
         }
 
-        let paramRefs: ArrayList<VariableReference> = ArrayList()
-        let waitingDeclarations = ArrayStack<(VariableReference, TypeNode)>()
+        let waitingDeclarations = ArrayStack<VariableReference>()
+        let paramRefs = ArrayList<VariableReference>()
         funcDecl.params.iterator()
             .map({ p => ((p.traverse(this) as VariableReference).getOrThrow(), p.paramType)})
             .forEach({ p =>
                 paramRefs.add(p[0])
-                waitingDeclarations.add((p))
+                waitingDeclarations.add(p[0])
             })
         reference.paramRef = paramRefs
+
         let block: ?Block = try {
             if (let Some(realBlock) <- funcDecl.block) {
                 (realBlock.traverse(this) as Block).getOrThrow()
@@ -284,7 +282,7 @@ public class AsgMaker <: Visitor<Node> {
             }
         } handle(_: WaitingDeclaration) {
             resume with waitingDeclarations.remove()
-        } 
+        }
 
         FuncDeclWithRef(NodeIdManager.nextId(), funcDecl.keyword, funcDecl.identifier, block,
             funcDecl.params, declType, reference)
@@ -298,10 +296,10 @@ public class AsgMaker <: Visitor<Node> {
             declType = dt.traverse(this) as TypeNode
         }
         let reference: MainReference = MainReference(NodeIdManager.nextId())
-        let waitingDeclarations = ArrayStack<(VariableReference, TypeNode)>()
+        let waitingDeclarations = ArrayStack<VariableReference>()
         if (let Some(p) <- mainDecl.param) {
             let pref: VariableReference = (p.traverse(this) as VariableReference).getOrThrow()
-            waitingDeclarations.add((pref, p.paramType))
+            waitingDeclarations.add(pref)
             reference.paramRef = pref
         }
 
@@ -337,8 +335,6 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(classDecl: ClassDecl): Node {
-        let storedRef: ?Reference = perform ExistingReference()
-
         if(!isGlobal()) {
             throw Exception("Classes can be declared at topLevel only")
         }
@@ -346,8 +342,10 @@ public class AsgMaker <: Visitor<Node> {
         let originalEnvironments = environments
         environments = match (classDecl.superTypes.get(0)) {
             case Some(parentType) => 
-                match (superClassEnvironments.get(parentType.typeName.value)) {
-                    case Some(superClassEnvironment) => superClassEnvironment
+                match (environments.classEnvironment.getLocal(parentType.typeName.value)) {
+                    case Some(_) => 
+                        superTypeEnvironments.get(parentType.typeName.value).
+                        getOrThrow({ => Exception("Super type must be visited in topological order")})
                     case _ => environments
                 }
             case _ => environments
@@ -360,7 +358,7 @@ public class AsgMaker <: Visitor<Node> {
         })
 
         let classReference: ClassReference = 
-        if (let Some(ref) <- storedRef) {
+        if (let Some(ref) <- perform ExistingReference()) {
             (ref as ClassReference).getOrThrow({ => 
                 Exception("Reference given to the class declaration is not ClassReference")})
         } else {
@@ -370,8 +368,26 @@ public class AsgMaker <: Visitor<Node> {
 
         let body = try {
             (classDecl.body.traverse(this) as Body).getOrThrow()
-        } handle(classEnvironment: ClassEnvironment) {
-            superClassEnvironments.add(classDecl.identifier.value, classEnvironment.environments)
+        } handle(bodyEnvironment: BodyEnvironment) {
+            // Checking that every function from super interfaces are defined in the class body
+            let superTypes = typeDeclaration.getSuperTypes(classDecl)
+
+            superTypes.iterator().forEach({ decl => 
+                if (decl is InterfaceDecl) {
+                    let interfaceEnvironment = superTypeEnvironments.get(decl.identifier.value).
+                    getOrThrow({ => Exception("Super type must be visited in topological order")})
+
+                    interfaceEnvironment.exactFunctions.iterator().forEach({ funcHash => 
+                        if (!bodyEnvironment.environments.checkExactFunc(funcHash)) {
+                            throw Exception("Function corresponding to ${funcHash} from interface" +
+                            " ${decl.identifier.value} is not defined in the sub class" + 
+                            " ${classDecl.identifier.value}")
+                        }
+                    })
+                }
+            })
+
+            superTypeEnvironments.add(classDecl.identifier.value, bodyEnvironment.environments)
             resume with ()
         }
 
@@ -405,7 +421,7 @@ public class AsgMaker <: Visitor<Node> {
             }
         })
 
-        perform ClassEnvironment(environments)
+        perform BodyEnvironment(environments)
 
         endGlobal()
         Body(NodeIdManager.nextId(), decls)
@@ -424,28 +440,8 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(interfaceDecl: InterfaceDecl) {
-        let storedRef = perform ExistingReference()
-
         if(!isGlobal()) {
             throw Exception("Interfaces can be declared at topLevel only")
-        }
-
-        let interfaceReference: InterfaceReference 
-        if (let Some(ref) <- storedRef) {
-            interfaceReference = (ref as InterfaceReference).getOrThrow({ => 
-                Exception("Reference given to the interface declaration is not ClassReference")})
-        } else {
-            throw Exception("Interface ${interfaceDecl.identifier.value} should've been declared" +
-                " with the global declarator")
-        }
-
-
-        let body = try {
-            (interfaceDecl.body.traverse(this) as Body).getOrThrow()
-        } handle(_: NoBlock) {
-            resume with ()
-        } handle(_: ClassEnvironment) {
-            resume with ()
         }
 
         let superTypes = ArrayList<TypeNode>()
@@ -453,6 +449,24 @@ public class AsgMaker <: Visitor<Node> {
             let visitedSuperType = (superType.traverse(this) as TypeNode).getOrThrow()
             superTypes.add(visitedSuperType)
         })
+
+        let interfaceReference: InterfaceReference 
+        if (let Some(ref) <- perform ExistingReference()) {
+            interfaceReference = (ref as InterfaceReference).getOrThrow({ => 
+                Exception("Reference given to the interface declaration is not ClassReference")})
+        } else {
+            throw Exception("Interface ${interfaceDecl.identifier.value} should've been declared" +
+                " with the global declarator")
+        }
+
+        let body = try {
+            (interfaceDecl.body.traverse(this) as Body).getOrThrow()
+        } handle(_: NoBlock) {
+            resume with ()
+        } handle(bodyEnvironment: BodyEnvironment) {
+            superTypeEnvironments.add(interfaceDecl.identifier.value, bodyEnvironment.environments)
+            resume with ()
+        }
 
         InterfaceDeclWithRef(NodeIdManager.nextId(), interfaceDecl.keyword, interfaceDecl.identifier, 
             body,superTypes, interfaceReference)
@@ -474,6 +488,10 @@ public class AsgMaker <: Visitor<Node> {
     private func endScope() {
         environments = environments.enclosing.getOrThrow({ => 
             Exception("Trying to close the global scope")})
+    }
+
+    public func declareExactFunc(funcDecl: FuncDecl) {
+        environments.declareExactFunc(funcDecl)
     }
 
     private func declareVar(identifier: Token, value: VariableReference): Unit {
