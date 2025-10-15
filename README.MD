@@ -46,6 +46,13 @@ Verifies proper variable and class initialization:
 - **Sophisticated type inference**: Handles overloading, subtyping, and contextual type requirements
 - **Comprehensive initialization tracking**: Scope-aware analysis with special handling for classes and closures
 
+## Currently Being Developed
+
+- Grammar and compiler extension with adding Interfaces
+- Enforcing the typing/inheritance rules regarding Interfaces
+- Testing the Type Checking algorithm and rules with added Interfaces
+- Improving/Fixing the Type Checker in case if errors/bugs are found
+
 ## Next Steps
 
 - Code refactoring and cleanup
