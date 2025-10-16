@@ -42,9 +42,9 @@ class TypeDeclaration<T> <: Visitor<Unit> {
     private let visited = HashSet<Int64>()
     private let idMap = HashMap<Int64, T>()
     private let typeDecls = HashMap<String, Decl>()
-    private var order = ArrayList<(Decl, ?T)>()
+    private var order = ArrayList<Decl>()
 
-    public func resolve(decls: ArrayList<(Decl, ?T)>) {
+    public func resolve(decls: ArrayList<(Decl, ?T)>): ArrayList<(Decl, ?T)> {
         decls.iterator().forEach({d => 
             match (d[1]) {
                 case Some(ref) =>
@@ -65,6 +65,7 @@ class TypeDeclaration<T> <: Visitor<Unit> {
             }
         })
 
+        visited.clear()
         decls.iterator().forEach({ d => 
             try {
                 d[0].traverse(this)
@@ -81,48 +82,53 @@ class TypeDeclaration<T> <: Visitor<Unit> {
             }
         })
 
-        order
+        order.iterator().fold(ArrayList<(Decl, ?T)>(), {acc, decl => 
+            acc.add((decl, idMap.get(decl.id.id)))
+            acc
+        })
     }
 
     public override func visit(varDecl: VarDecl) {
         perform IsVar(true)
-        order.add((varDecl, idMap.get(varDecl.id.id)))   
+        order.add(varDecl)
     }
 
     public override func visit(funcDecl: FuncDecl) {
         perform IsVar(false)
-        order.add((funcDecl, idMap.get(funcDecl.id.id)))
+        order.add(funcDecl)
     }
 
     public override func visit(mainDecl: MainDecl) {
         perform IsVar(false)
-        order.add((mainDecl, idMap.get(mainDecl.id.id)))
+        order.add(mainDecl)
     }
 
     public override func visit(classDecl: ClassDecl) {
+        perform IsVar(false)
         if (visited.contains(classDecl.id.id)) {
             return ()
         }
+        visited.add(classDecl.id.id)
 
         classDecl.superTypes.iterator().forEach({ superType => 
             tryVisit(superType.typeName.value)
         })
 
-        perform IsVar(false)
-        order.add((classDecl, idMap.get(classDecl.id.id)))
+        order.add(classDecl)
     }
 
     public override func visit(interfaceDecl: InterfaceDecl) {
+        perform IsVar(false)
         if (visited.contains(interfaceDecl.id.id)) {
             return ()
         }
+        visited.add(interfaceDecl.id.id)
 
         interfaceDecl.superTypes.iterator().forEach({ superType => 
             tryVisit(superType.typeName.value)
         })
 
-        perform IsVar(false)
-        order.add((interfaceDecl, idMap.get(interfaceDecl.id.id)))
+        order.add(interfaceDecl)
     }
 
     private func tryVisit(name: String) {
@@ -138,7 +144,7 @@ class TypeDeclaration<T> <: Visitor<Unit> {
     }
 
     public func getSuperTypes(typeDecl: Decl): ArrayList<Decl> {
-        order = ArrayList<(Decl, ?T)>()
+        order = ArrayList<Decl>()
         visited.clear()
 
         try {
@@ -147,10 +153,7 @@ class TypeDeclaration<T> <: Visitor<Unit> {
             resume with ()
         }
 
-        order.iterator().fold(ArrayList<Decl>(), { acc, decl => 
-            acc.add(decl[0])
-            acc
-        })
+        order
     }
 }
 

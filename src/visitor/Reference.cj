@@ -44,7 +44,7 @@ public open class Reference <: Expr & Equatable<Reference> & ToString {
     }
 }
 
-public class VariableReference <: Reference {
+public class VariableReference <: Reference & Equatable<VariableReference> {
     private let keyword_: Token
 
     public init(id: NodeId, identifier: Token, keyword: Token) {
@@ -54,6 +54,10 @@ public class VariableReference <: Reference {
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
+    }
+
+    public override operator func ==(rhs: VariableReference) {
+        id.id == rhs.id.id
     }
 
     public prop keyword: Token {

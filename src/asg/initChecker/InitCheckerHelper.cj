@@ -1,13 +1,13 @@
 package cjcj.asg.initChecker
 
 import cjcj.visitor.*
-import std.deriving.Derive
-import stdx.effect.Command
-import cjcj.scanner.Token
+import cjcj.scanner.*
 import cjcj.asg.typeChecker.ClassReferenceForTC
 import std.collection.ArrayList
 import std.collection.HashSet
 import std.collection.HashMap
+import std.deriving.Derive
+import stdx.effect.Command
 
 /* Effects */
 public class ParameterDeclaration <: Command<Option<VariableReference>> {
@@ -16,19 +16,14 @@ public class ParameterDeclaration <: Command<Option<VariableReference>> {
 public class InferBlockType <: Command<ScopeType> {
 }
 
-public class IfElseInitialization<K, V> <: Command<Unit> 
-        where K <: Hashable & Equatable<K> & ToString {
-    private let branchInitializations_: Environment<K, V>
+public class IfElseInitialization <: Command<Unit> {
+    private let branchInitializations_: InitCheckerEnvironments
 
-    init(branchInitializations: Environment<K, V>) {
+    init(branchInitializations: InitCheckerEnvironments) {
         branchInitializations_ = branchInitializations
     }
 
-    init() {
-        this(Environment<K, V>())
-    }
-
-    public prop branchInitializations: Environment<K, V> {
+    public prop branchInitializations: InitCheckerEnvironments {
         get() { branchInitializations_ }
     }
 }
@@ -105,17 +100,18 @@ public class SingularEnvironment<T> {
 }
 
 open public class InitCheckerEnvironments{
-    protected var declareEnvironment = Environment<Reference, Int64>()
-    protected var initializeEnvironment = Environment<Reference, Int64>()
+    protected var declareEnvironment = Environment<VariableReference, Int64>()
+    protected var definiteInitializeEnvironment = Environment<VariableReference, Int64>()
+    protected var possibleInitializeEnvironment = Environment<VariableReference, Int64>()
     protected var currentScopeType: SingularEnvironment<ScopeType> = 
         SingularEnvironment<ScopeType>(ScopeType.NIL)
     protected var classMembersContainer: Environment<String, ClassReferenceForTC>
-
     protected var enclosing: ?InitCheckerEnvironments
 
     public init(environments: InitCheckerEnvironments) {
         declareEnvironment = environments.declareEnvironment
-        initializeEnvironment = environments.initializeEnvironment
+        definiteInitializeEnvironment = environments.definiteInitializeEnvironment
+        possibleInitializeEnvironment = environments.possibleInitializeEnvironment
         currentScopeType = environments.currentScopeType
         classMembersContainer = environments.classMembersContainer
         enclosing = None
@@ -124,7 +120,8 @@ open public class InitCheckerEnvironments{
     public init(environments: InitCheckerEnvironments, newScopeType: ScopeType) {
         this(
             environments.declareEnvironment, 
-            environments.initializeEnvironment, 
+            environments.definiteInitializeEnvironment, 
+            environments.possibleInitializeEnvironment, 
             environments.currentScopeType, newScopeType, 
             environments.classMembersContainer, 
             environments
@@ -132,14 +129,16 @@ open public class InitCheckerEnvironments{
     }
 
     public init(
-        declareEnvironment_: Environment<Reference, Int64>, 
-        initializeEnvironment_: Environment<Reference, Int64>,
+        declareEnvironment_: Environment<VariableReference, Int64>, 
+        definiteInitializeEnvironment_: Environment<VariableReference, Int64>,
+        possibleInitializeEnvironment_: Environment<VariableReference, Int64>,
         currentScopeType_: SingularEnvironment<ScopeType>, newScopeType: ScopeType,
         classMembersContainer_: Environment<String, ClassReferenceForTC>, 
         enclosing_: ?InitCheckerEnvironments
     ){
         declareEnvironment = Environment(declareEnvironment_) 
-        initializeEnvironment = Environment(initializeEnvironment_) 
+        definiteInitializeEnvironment = Environment(definiteInitializeEnvironment_) 
+        possibleInitializeEnvironment = Environment(possibleInitializeEnvironment_)
         currentScopeType = SingularEnvironment<ScopeType>(newScopeType, currentScopeType_) 
         classMembersContainer = classMembersContainer_
         enclosing = enclosing_
@@ -150,11 +149,11 @@ open public class InitCheckerEnvironments{
         enclosing = None
     }
 
-    protected open func declare(reference: Reference) {
+    protected open func declare(reference: VariableReference) {
         declareEnvironment.declare(reference, 0)
     }
 
-    protected open func canCapture(reference: Reference) :Bool { 
+    protected open func canCapture(reference: VariableReference) :Bool { 
         var declEnvironment = declareEnvironment
         var scopeType = currentScopeType
 
@@ -162,7 +161,8 @@ open public class InitCheckerEnvironments{
             if (declEnvironment.getLocal(reference).isSome()) {
                 return true;
             } else if (scopeType.current == ScopeType.FUNCBLOCK || 
-                        scopeType.current == ScopeType.WHILEBLOCK) {
+                        (scopeType.current == ScopeType.WHILEBLOCK && 
+                        reference.keyword.kind == TokenKind.LET)) {
                 return false;
             }
             declEnvironment = declEnvironment.enclosing.getOrThrow()
@@ -172,45 +172,54 @@ open public class InitCheckerEnvironments{
         true
     }
 
-    protected open func initialize(reference: Reference) {
+    protected open func initialize(reference: VariableReference) {
+        possibleInitialize(reference)
         if (!isInitialized(reference)) {
             if (!canCapture(reference)) {
                 throw Exception("Cannot capture variable ${reference.identifier.value} before " + 
                 "initialization")
             }
-            initializeEnvironment.declare(reference, 0)
+            definiteInitializeEnvironment.declare(reference, 0)
         }
     }
 
-    protected open func initialize(references: ArrayList<Reference>) {
-        references.iterator().forEach({ reference => 
-            initialize(reference)
-        })
+    protected open func isInitialized(reference: VariableReference) {
+        definiteInitializeEnvironment.getGlobal(reference).isSome()
     }
 
-    protected open func isInitialized(reference: Reference) {
-        initializeEnvironment.getGlobal(reference).isSome()
-    }
-
-    protected func intersect<K, V> (left: Environment<K, V>, right: Environment<K, V>) where K <: 
-            Hashable & Equatable<K> & ToString {
-        let leftElementsArr = left.elements.toArray()
-        leftElementsArr.iterator().forEach({ entry => 
-            let (key, _) = entry
-            if (right.getLocal(key).isNone()){
-                left.destroy(key)
+    protected open func possibleInitialize(reference: VariableReference) {
+        if (!maybeInitialized(reference)) {
+            if (!canCapture(reference)) {
+                throw Exception("Cannot capture variable ${reference.identifier.value} before " + 
+                "initialization")
             }
-        })
+            possibleInitializeEnvironment.declare(reference, 0)
+        }
     }
 
-    protected func merge<K, V> (left: Environment<K, V>, right: Environment<K, V>) where K <: 
-            Hashable & Equatable<K> & ToString {
-        let rightElementsArr = right.elements.toArray()
-        rightElementsArr.iterator().forEach({ entry => 
-            let (key, val) = entry
-            left.declare(key, val)
-        })
+    protected open func maybeInitialized(reference: VariableReference) {
+        possibleInitializeEnvironment.getGlobal(reference).isSome()
     }
+
+    // protected func intersect<K, V> (left: Environment<K, V>, right: Environment<K, V>) where K <: 
+    //         Hashable & Equatable<K> & ToString {
+    //     let leftElementsArr = left.elements.toArray()
+    //     leftElementsArr.iterator().forEach({ entry => 
+    //         let (key, _) = entry
+    //         if (right.getLocal(key).isNone()){
+    //             left.destroy(key)
+    //         }
+    //     })
+    // }
+
+    // protected func merge<K, V> (left: Environment<K, V>, right: Environment<K, V>) where K <: 
+    //         Hashable & Equatable<K> & ToString {
+    //     let rightElementsArr = right.elements.toArray()
+    //     rightElementsArr.iterator().forEach({ entry => 
+    //         let (key, val) = entry
+    //         left.declare(key, val)
+    //     })
+    // }
 }
 
 public class ClassInitCheckerEnvironments <: InitCheckerEnvironments {
@@ -304,7 +313,8 @@ public class ClassInitCheckerEnvironments <: InitCheckerEnvironments {
             Exception("Trying to close the global scope") })
     }
 
-    protected override func initialize(reference: Reference) {
+    protected override func initialize(reference: VariableReference) {
+        possibleInitialize(reference)
         if (!isInitialized(reference)) {
             if (decls.contains(reference)) {
                 initializedMemberVariables.current++
@@ -312,21 +322,46 @@ public class ClassInitCheckerEnvironments <: InitCheckerEnvironments {
                 throw Exception("Cannot capture variable ${reference.identifier.value} before " + 
                 "initialization")
             }
-            environments.initializeEnvironment.declare(reference, 0)
+            environments.definiteInitializeEnvironment.declare(reference, 0)
         }
     }
 
-    protected override func isInitialized(reference: Reference): Bool {
+    protected override func isInitialized(reference: VariableReference): Bool {
         if (decls.contains(reference)) {
             allClassMembersInitialized || 
-            environments.initializeEnvironment.getGlobal(reference).isSome()
+            environments.definiteInitializeEnvironment.getGlobal(reference).isSome()
         } else if (
             let Some(ref) <- accessibleMembers.getMembersReference(reference.identifier.value) &&
             ref == reference
         ) {
             superIsInitialized
         } else {
-            environments.initializeEnvironment.getGlobal(reference).isSome()
+            environments.definiteInitializeEnvironment.getGlobal(reference).isSome()
+        }
+    }
+
+    protected override func possibleInitialize(reference: VariableReference) {
+        if (!maybeInitialized(reference)) {
+            if (!decls.contains(reference) && !canCapture(reference)) {
+                throw Exception("Cannot capture variable ${reference.identifier.value} before " + 
+                "initialization")
+            }
+
+            environments.possibleInitializeEnvironment.declare(reference, 0)
+        }
+    }
+
+    protected override func maybeInitialized(reference: VariableReference): Bool {
+        if(decls.contains(reference)) {
+            allClassMembersInitialized || 
+            environments.possibleInitializeEnvironment.getGlobal(reference).isSome()
+        } else if (
+            let Some(ref) <- accessibleMembers.getMembersReference(reference.identifier.value) && 
+            ref == reference
+        ) {
+            superIsInitialized
+        } else {
+            environments.possibleInitializeEnvironment.getGlobal(reference).isSome()
         }
     }
 

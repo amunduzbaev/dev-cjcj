@@ -345,7 +345,7 @@ public class AsgMaker <: Visitor<Node> {
                 match (environments.classEnvironment.getLocal(parentType.typeName.value)) {
                     case Some(_) => 
                         superTypeEnvironments.get(parentType.typeName.value).
-                        getOrThrow({ => Exception("Super type must be visited in topological order")})
+                        getOrThrow({ => Exception("Detected cycle of inheritance in type declaration")})
                     case _ => environments
                 }
             case _ => environments
@@ -375,7 +375,7 @@ public class AsgMaker <: Visitor<Node> {
             superTypes.iterator().forEach({ decl => 
                 if (decl is InterfaceDecl) {
                     let interfaceEnvironment = superTypeEnvironments.get(decl.identifier.value).
-                    getOrThrow({ => Exception("Super type must be visited in topological order")})
+                    getOrThrow({ => Exception("Detected cycle of inheritance in type declaration")})
 
                     interfaceEnvironment.exactFunctions.iterator().forEach({ funcHash => 
                         if (!bodyEnvironment.environments.checkExactFunc(funcHash)) {

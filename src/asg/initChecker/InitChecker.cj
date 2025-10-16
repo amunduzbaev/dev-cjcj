@@ -11,16 +11,24 @@ import std.collection.ArrayStack
 
 public open class InitChecker <: DefaultVisitor<Unit> {
     protected var environments: InitCheckerEnvironments
-    protected var lastKilledEnvironment = Environment<Reference, Int64>()
+    protected var lastKilledEnvironment: InitCheckerEnvironments
 
     public init(environments_: InitCheckerEnvironments){
         super(())
         environments = environments_
+        lastKilledEnvironment = environments
     }
 
     public init(classMembersContainer: Environment<String, ClassReferenceForTC>) {
         super(())
         environments = InitCheckerEnvironments(classMembersContainer)
+        lastKilledEnvironment = environments
+    }
+
+    public init(initChecker: InitChecker) {
+        super(())
+        environments = initChecker.environments
+        lastKilledEnvironment = initChecker.lastKilledEnvironment
     }
 
     public func resolve(program: Program) {
@@ -50,7 +58,7 @@ public open class InitChecker <: DefaultVisitor<Unit> {
         } handle(exactVarReference: ExactVarReference) {
             let varReference = exactVarReference.varReference
 
-            if (!isInitialized(varReference)) {
+            if (!maybeInitialized(varReference)) {
                 initialize(varReference)
             } else if (varReference.keyword.kind == TokenKind.LET) {
                 throw Exception("Mutation of immutable variable" + 
@@ -97,14 +105,18 @@ public open class InitChecker <: DefaultVisitor<Unit> {
             })
         } handle(_: InferBlockType) {
             throw Exception("Block has no proper (ifElse, funcDecl, whileExpr) parent node")
-        } handle(ifElseInit: IfElseInitialization<Reference, Int64>) {
-            let initialized = ifElseInit.branchInitializations.elements.iterator().fold(
-                ArrayList<Reference>(), { acc, entry => 
-                    acc.add(entry[0])
-                    acc
-                })
+        } handle(ifElseInit: IfElseInitialization) {
+            ifElseInit.branchInitializations.definiteInitializeEnvironment.elements.iterator().
+            forEach({ entry => 
+                let (ref, _) = entry
+                initialize(ref)
+            })
 
-            initialize(initialized)
+            ifElseInit.branchInitializations.possibleInitializeEnvironment.elements.iterator().
+            forEach({entry => 
+                let (ref, _) = entry
+                possibleInitialize(ref)
+            })
             resume with ()
         } handle(exactVarReference: ExactVarReference) {
             if (!isInitialized(exactVarReference.varReference)) {
@@ -122,17 +134,26 @@ public open class InitChecker <: DefaultVisitor<Unit> {
         endScope()
     }
 
-    // lastKilledEnvironment contains the initializeEnvironment of elseBranch
-    // TODO : the new compiler changed the initialization rules in ifExpr, so the merge here 
-    // needs to be fixed
+    // after traversal of else branch, lastKilledEnvironment contains the initializeEnvironment 
+    // of elseBranch
+    // 
+    // TODO : the merge strategy is completely wrong, in case of ifExpr there are two cases
+    // 1. In case of a variable mutation, we want to check is it possible to have a case when the 
+    // variable is assigned multiple times. Therefore at least one initialization in IfExpr can 
+    // affect the mutation check. 
+    // 2. In case of a initialization check upon reference, we want ot check is it possible to have
+    // a case when the variable is not assigned. Therefore, in each branch of IfExpr the 
+    // initialization of the variable must be done. Hence, we need to take the intersection of the
+    // initialization variables, instead of merge
     public override func visit(ifExpr: IfExpr) {
         try{
             ifExpr.elseBranch.traverse(this)
-        } handle(_: IfElseInitialization<Reference, Int64>) {
+        } handle(_: IfElseInitialization) {
             resume with ()
         } handle(_: InferBlockType) {
             resume with ScopeType.IFBLOCK
         }
+        
         let elseBranchInitializeEnvironment = lastKilledEnvironment
 
         ifExpr.condition.traverse(this)
@@ -220,7 +241,7 @@ public open class InitChecker <: DefaultVisitor<Unit> {
     }
 
     public override open func visit(classDecl: ClassDeclWithRef): Unit {
-        ClassInitChecker(environments, classDecl)
+        ClassInitChecker(this, classDecl)
     }
 
     public override open func visit(memberAccess: MemberAccessWithRef): Unit {
@@ -255,34 +276,53 @@ public open class InitChecker <: DefaultVisitor<Unit> {
     }
 
     protected open func endScope(): Unit {
-        lastKilledEnvironment = environments.initializeEnvironment
+        lastKilledEnvironment = environments 
         environments = environments.enclosing.getOrThrow({ => 
             Exception("Trying to close the global scope")})
     }
 
-    protected open func declare(reference: Reference) {
+    protected open func declare(reference: VariableReference) {
         environments.declare(reference)
     }
 
-    protected open func canCapture(reference: Reference) :Bool { 
+    protected open func canCapture(reference: VariableReference) :Bool { 
         environments.canCapture(reference)
     }
 
-    protected open func initialize(reference: Reference) {
+    protected open func initialize(reference: VariableReference) {
         environments.initialize(reference)
     }
 
-    protected func initialize(references: ArrayList<Reference>) {
-        environments.initialize(references)
-    }
-
-    protected open func isInitialized(reference: Reference) {
+    protected open func isInitialized(reference: VariableReference) {
         environments.isInitialized(reference)
     }
 
-    protected func merge<K, V> (left: Environment<K, V>, right: Environment<K, V>) where K <: 
-            Hashable & Equatable<K> & ToString {
-        environments.merge(left, right)
+    protected open func possibleInitialize(reference: VariableReference) {
+        environments.possibleInitialize(reference)
+    }
+
+    protected open func maybeInitialized(reference: VariableReference) {
+        environments.maybeInitialized(reference)
+    }
+
+    protected func merge(left: InitCheckerEnvironments, right: InitCheckerEnvironments) {
+        let definiteInits = left.definiteInitializeEnvironment.elements.toArray()
+        
+        definiteInits.iterator().forEach({ entry => 
+            let (ref, _) = entry
+
+            if (!right.isInitialized(ref)) {
+                left.definiteInitializeEnvironment.destroy(ref)
+            }
+        })
+
+        right.possibleInitializeEnvironment.elements.iterator().forEach({ entry => 
+            let (ref, _) = entry
+
+            if (!left.maybeInitialized(ref)) {
+                left.possibleInitialize(ref)
+            }
+        })
     }
 }
 
@@ -298,10 +338,10 @@ private class ClassInitChecker <: InitChecker {
     protected let classEnvironments: ClassInitCheckerEnvironments
 
     init (
-        environments: InitCheckerEnvironments, 
+        initChecker: InitChecker, 
         classDecl: ClassDeclWithRef
     ){
-        super(environments)
+        super(initChecker)
         classEnvironments = ClassInitCheckerEnvironments(environments, classDecl)
 
         classDecl.traverse(this)
@@ -458,14 +498,18 @@ private class ClassInitChecker <: InitChecker {
             })
         } handle(_: InferBlockType) {
             throw Exception("Block has no proper (ifElse, funcDecl, whileExpr) parent node")
-        } handle(ifElseInit: IfElseInitialization<Reference, Int64>) {
-            let initialized = ifElseInit.branchInitializations.elements.iterator().fold(
-                ArrayList<Reference>(), { acc, entry => 
-                    acc.add(entry[0])
-                    acc
-                })
+        } handle(ifElseInit: IfElseInitialization) {
+            ifElseInit.branchInitializations.definiteInitializeEnvironment.elements.iterator().
+            forEach({ entry => 
+                let (ref, _) = entry
+                initialize(ref)
+            })
 
-            initialize(initialized)
+            ifElseInit.branchInitializations.possibleInitializeEnvironment.elements.iterator().
+            forEach({entry => 
+                let (ref, _) = entry
+                possibleInitialize(ref)
+            })
             resume with ()
         } handle(exactVarReference: ExactVarReference) {
             if (!isInitialized(exactVarReference.varReference)) {
@@ -517,18 +561,26 @@ private class ClassInitChecker <: InitChecker {
     }
 
     protected override func endScope(): Unit {
-        lastKilledEnvironment = environments.initializeEnvironment
+        lastKilledEnvironment = environments
         environments = environments.enclosing.getOrThrow({ => 
             Exception("Trying to close the global scope") })
         classEnvironments.endScope(environments)
     }
 
-    protected override func initialize(reference: Reference) {
+    protected override func initialize(reference: VariableReference) {
         classEnvironments.initialize(reference)
     }
 
-    protected override func isInitialized(reference: Reference): Bool {
+    protected override func isInitialized(reference: VariableReference): Bool {
         classEnvironments.isInitialized(reference)
+    }
+
+    protected override func possibleInitialize(reference: VariableReference) {
+        classEnvironments.possibleInitialize(reference)
+    }
+
+    protected override func maybeInitialized(reference: VariableReference): Bool {
+        classEnvironments.maybeInitialized(reference)
     }
 
     private prop allClassMembersInitialized: Bool {

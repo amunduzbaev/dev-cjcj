@@ -146,7 +146,7 @@ class InitCheckerTests {
 
     @TestCase
     func ifelseInitializationComplex2_test() {
-        let testWrong: String = """
+        var testWrong: String = """
             main () {
                 let A: Int32
 
@@ -165,14 +165,13 @@ class InitCheckerTests {
                 }
 
                 let B = A
-                A = 1
             }
 
             """
 
         @AssertThrows[Exception](resolve(testWrong))
 
-        let testRight: String = """
+        testWrong = """
             main () {
                 let A: Int64
 
@@ -189,17 +188,15 @@ class InitCheckerTests {
                 } else {
                     A = 4
                 }
-
-                A = 1
             }
             """
 
-        resolve(testRight)
+        @AssertThrows[Exception](resolve(testWrong))
     }
 
     @TestCase 
     func blockInitialization_test() {
-        let testWrong: String = """
+        var testWrong: String = """
             main() {
                 let a: Int64
                 while(true){
@@ -213,7 +210,7 @@ class InitCheckerTests {
 
         let testRight: String = """
             main() {
-                let a: Int64
+                var a: Int64
                 while(true){
                     a = 1
                 }
@@ -224,6 +221,20 @@ class InitCheckerTests {
         """
 
        resolve(testRight)
+
+       testWrong = """
+            main() {
+                var a: Int64
+
+                while(true){
+                    a = 1
+                }
+
+                let b = a
+            }
+        """
+
+        @AssertThrows[Exception](resolve(testWrong))
     }
 
     @TestCase 
@@ -654,7 +665,7 @@ class InitCheckerTests {
 
     @TestCase
     func classInitMemberAccess_test() {
-        let testRight: String = """
+        var testWrong: String = """
         class CLASS {
             let a: Int64
 
@@ -669,9 +680,9 @@ class InitCheckerTests {
         main(){
         }
         """
-        resolve(testRight)
+        @AssertThrows[Exception](resolve(testWrong))
 
-        let testWrong: String = """
+        testWrong = """
             class CLASS {
                 let a: Int64
 
