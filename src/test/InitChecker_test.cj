@@ -62,6 +62,52 @@ class InitCheckerTests {
        resolve(testRight)
     }
 
+    @TestCase
+    func variableCapturing_test() {
+       var testRight = """
+            main() {
+                var a: Int64
+                while (true) {
+                    a = 1
+                }
+            }
+        """
+        resolve(testRight)
+
+        var testWrong = """
+            main() {
+                let a: Int64
+                while (true) {
+                    a = 1
+                }
+            }
+        """
+
+        @AssertThrows[Exception](resolve(testWrong))
+
+        testWrong = """
+            main() {
+                let a: Int64
+                func f(){
+                    a = 1
+                }
+            }
+        """
+
+        @AssertThrows[Exception](resolve(testWrong))
+
+        testWrong = """
+            main() {
+                var a: Int64
+                func f(){
+                    a = 1
+                }
+            }
+        """
+
+        @AssertThrows[Exception](resolve(testWrong))
+    }
+
     @TestCase 
     func ifelseInitialization_test() {
         let testWrong: String = """
@@ -125,7 +171,7 @@ class InitCheckerTests {
         """
        @AssertThrows[Exception](resolve(testWrong))
 
-        let testRight: String = """
+        var testRight: String = """
             main() {
                 let a: Int64
                 if (true) {
@@ -441,6 +487,53 @@ class InitCheckerTests {
         """
 
        resolve(testRight)
+    }
+
+    @TestCase 
+    func classInitMultVarComplex_test() {
+        let testWrong: String = """
+        class C {
+            let a: Int64
+
+            init() {
+                if (true) {
+                    a = 1
+                } else {
+
+                    if(false){
+                    } else {
+                        a = 3
+                    }
+                }
+            }
+        }
+
+        main() {
+        }        
+        """
+        @AssertThrows[Exception](resolve(testWrong))
+
+        let testRight: String = """
+        class C {
+            let a: Int64
+
+            init() {
+                if (true) {
+                    a = 1
+                } else {
+                    if(false){
+                        a = 1
+                    } else {
+                        a = 3
+                    }
+                }
+            }
+        }
+
+        main() {
+        }        
+        """
+        resolve(testRight)
     }
 
     @TestCase

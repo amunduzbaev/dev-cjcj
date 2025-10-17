@@ -12,7 +12,7 @@ public abstract class Utils {
     // [Note] Does not include the declared return type even if exists. 
     public static func funcHashConcat(funcDecl: FuncDecl): String {
         funcDecl.identifier.value + funcDecl.params.iterator()
-            .map({ t => t.paramType.typeName.value })
+            .map({ t => t.paramType.typeName.value + "|" })
             .fold(StringBuilder(), { acc, v => acc.append(v); acc }).toString()
     }
     /*
