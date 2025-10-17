@@ -211,9 +211,6 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(varDecl: VarDecl): Node {
-        // Call the initializer first because there could be reference to previous variables with
-        // the same identifier.
-
         var initializer: ?Expr = None
         if (let Some(initzer) <- varDecl.initializer) {
             initializer = initzer.traverse(this) as Expr

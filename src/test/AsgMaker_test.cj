@@ -163,9 +163,9 @@ class AsgMakerTests {
             }
             class b {
             }
-            class c {
+            interface c {
             }
-            class d {
+            interface d {
             }
             main(){
             }"""

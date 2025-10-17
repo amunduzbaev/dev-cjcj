@@ -8,6 +8,7 @@ import std.collection.HashSet
 import std.collection.ArrayList
 import std.collection.HashMap
 import stdx.effect.Command
+import std.deriving.Derive
 
 // import cjcj.parser.NodeIdManager
 // import std.ast.Position
@@ -19,6 +20,10 @@ public open class ReturnExprError <: ASGError { }
 public open class CallExprError <: ASGError { }
 public open class ASGError <: Exception { }
 
+@Derive[Equatable]
+public enum DeclType {
+    VAR | FUNC | CLASS | INTERFACE
+}
 
 public class NoBlock <: Command<Unit> {
     NoBlock(public let name: Token) { }
@@ -29,8 +34,8 @@ public class ExistingReference <: Command<?Reference> {
 
 public class WaitingDeclaration <: Command<?VariableReference> {}
 
-public class IsVar <: Command<Unit> {
-    IsVar(public let isVar: Bool) {}
+public class DeclNode <: Command<Unit> {
+    DeclNode(public let declType: DeclType, public let name: String) {}
 }
 
 class BodyEnvironment <: Command<Unit> {
@@ -44,41 +49,41 @@ class TypeDeclaration<T> <: Visitor<Unit> {
     private let typeDecls = HashMap<String, Decl>()
     private var order = ArrayList<Decl>()
 
+    /* for a list of declarations, returns the declarations with the following reordering
+    * 1) Variable declarations are in front
+    * 2) The order of type declarations (class/interface) are in topological order in terms of 
+    * inheritance
+    * 3) typeDecls maps the names of types to the declaration node of that type
+    */
+
     public func resolve(decls: ArrayList<(Decl, ?T)>): ArrayList<(Decl, ?T)> {
         decls.iterator().forEach({d => 
-            match (d[1]) {
-                case Some(ref) =>
-                    idMap.add(d[0].id.id, ref)
-                case _ => ()
+            if (let Some(ref) <- d[1]) {
+                idMap.add(d[0].id.id, ref)
             }
 
-            match (d[0] as ClassDecl) {
-                case Some(classDecl) => 
-                    typeDecls.add(classDecl.identifier.value, classDecl)
-                case _ => ()
-            }
-
-            match (d[0] as InterfaceDecl) {
-                case Some(interfaceDecl) => 
-                    typeDecls.add(interfaceDecl.identifier.value, interfaceDecl)
-                case _ => ()
-            }
-        })
-
-        visited.clear()
-        decls.iterator().forEach({ d => 
             try {
                 d[0].traverse(this)
-            } handle(isVar: IsVar) {
-                if (isVar.isVar) { resume with () }
+            } handle(declNode: DeclNode) {
+                if (declNode.declType == DeclType.CLASS || declNode.declType == DeclType.INTERFACE){
+                    typeDecls.add(declNode.name, d[0])
+                }
             }
         })
 
         decls.iterator().forEach({d => 
             try { 
                 d[0].traverse(this)
-            } handle(isVar: IsVar) {
-                if (!isVar.isVar) { resume with () }
+            } handle(declNode: DeclNode) {
+                if (declNode.declType == DeclType.VAR) { resume with () }
+            }
+        })
+
+        decls.iterator().forEach({d => 
+            try { 
+                d[0].traverse(this)
+            } handle(declNode: DeclNode) {
+                if (!(declNode.declType == DeclType.VAR)) { resume with () }
             }
         })
 
@@ -89,44 +94,78 @@ class TypeDeclaration<T> <: Visitor<Unit> {
     }
 
     public override func visit(varDecl: VarDecl) {
-        perform IsVar(true)
+        perform DeclNode(DeclType.VAR, varDecl.identifier.value)
         order.add(varDecl)
     }
 
     public override func visit(funcDecl: FuncDecl) {
-        perform IsVar(false)
+        perform DeclNode(DeclType.FUNC, funcDecl.identifier.value)
         order.add(funcDecl)
     }
 
     public override func visit(mainDecl: MainDecl) {
-        perform IsVar(false)
+        perform DeclNode(DeclType.FUNC, "main")
         order.add(mainDecl)
     }
 
     public override func visit(classDecl: ClassDecl) {
-        perform IsVar(false)
+        perform DeclNode(DeclType.CLASS, classDecl.identifier.value)
         if (visited.contains(classDecl.id.id)) {
             return ()
         }
         visited.add(classDecl.id.id)
 
-        classDecl.superTypes.iterator().forEach({ superType => 
-            tryVisit(superType.typeName.value)
-        })
+        let parentClassName = match (classDecl.superTypes.get(0)) {
+            case Some(typeDecl) => 
+                let parent = Box("")
+                try {
+                    tryVisit(typeDecl.typeName.value)
+                } handle(declNode: DeclNode) {
+                    if (declNode.declType == DeclType.CLASS) {
+                        parent.value = typeDecl.typeName.value
+                    }
+                    resume with ()
+                }
+
+                parent.value
+            case _ => ""
+        }
+
+        try {
+            classDecl.superTypes.iterator().forEach({ superType => 
+                if (superType.typeName.value != parentClassName) {
+                    tryVisit(superType.typeName.value)
+                }
+            })
+        } handle(declNode: DeclNode) {
+            if (declNode.declType == DeclType.CLASS) {
+                throw Exception("class ${classDecl.identifier.value} can inherit at most one super"+ 
+                " class")
+            }
+            resume with ()
+        }
 
         order.add(classDecl)
     }
 
     public override func visit(interfaceDecl: InterfaceDecl) {
-        perform IsVar(false)
+        perform DeclNode(DeclType.INTERFACE, interfaceDecl.identifier.value)
         if (visited.contains(interfaceDecl.id.id)) {
             return ()
         }
         visited.add(interfaceDecl.id.id)
 
-        interfaceDecl.superTypes.iterator().forEach({ superType => 
-            tryVisit(superType.typeName.value)
-        })
+        try {
+            interfaceDecl.superTypes.iterator().forEach({ superType => 
+                tryVisit(superType.typeName.value)
+            })
+        } handle(declNode: DeclNode) {
+            if (declNode.declType == DeclType.CLASS) {
+                throw Exception("Interface ${interfaceDecl.identifier.value} can not inherit a " + 
+                    "class")
+            }
+            resume with ()
+        }
 
         order.add(interfaceDecl)
     }
@@ -134,11 +173,7 @@ class TypeDeclaration<T> <: Visitor<Unit> {
     private func tryVisit(name: String) {
         match (typeDecls.get(name)) {
             case Some(decl) => 
-                try {
-                    decl.traverse(this)
-                } handle(_: IsVar) {
-                    resume with ()
-                }
+                decl.traverse(this)
             case _ => ()
         }
     }
@@ -149,7 +184,7 @@ class TypeDeclaration<T> <: Visitor<Unit> {
 
         try {
             typeDecl.traverse(this)
-        } handle(_: IsVar) {
+        } handle(_: DeclNode) {
             resume with ()
         }
 
