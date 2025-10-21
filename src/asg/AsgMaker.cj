@@ -38,6 +38,13 @@ public enum GlobalType {
 * require a future step, for now the link is a dummy link to a function with the same identifier.
 * 
 * TODO : use effect handlers to remove some parts and improve the code
+* 
+*    TODO : member shadowing check should be done in AsgMaker. 
+*    In case of variables, for each declared variable member of a class, its super class can not
+*    contain a member with the same identifier
+*    In case of a function, super class can not contain a variable with the same name or 
+*    a function with exactly the same parameter types (except for overloads in the future)
+*
 */
 public class AsgMaker <: Visitor<Node> {
     private var environments = AsgEnvironments()

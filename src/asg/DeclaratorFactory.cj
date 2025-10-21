@@ -15,7 +15,8 @@ private class ReferenceDeclarator <: Declarator {
         private let visitVar!: (VarDeclWithRef) -> ?Reference = { _ => None },
         private let visitFunc!: (FuncDeclWithRef) -> ?Reference = { _ => None },
         private let visitClass!: (ClassDeclWithRef) -> ?Reference = { _ => None },
-        private let visitMain!: (MainDeclWithRef) -> ?Reference = { _ => None }
+        private let visitMain!: (MainDeclWithRef) -> ?Reference = { _ => None },
+        public let visitInterface!: (InterfaceDeclWithRef) -> ?Reference = { _ => None }
     ) {
         super()
     }
@@ -34,6 +35,10 @@ private class ReferenceDeclarator <: Declarator {
 
     public override func visit(mainDeclWithRef: MainDeclWithRef): ?Reference {
         visitMain(mainDeclWithRef)
+    }
+
+    public override func visit(interfaceDecl: InterfaceDeclWithRef): ?Reference {
+        visitInterface(interfaceDecl)
     }
 }
 
@@ -131,9 +136,14 @@ public abstract class DeclaratorFactory {
             { k => variableEnvironment.getLocal(k).isNone() && 
                     !typeManager.funcExists(k) }
         ])
-        ReferenceDeclarator(
+        let bodyDeclarator = ReferenceDeclarator(
             visitFunc: functionAsgDeclaration(typeManager, canDeclareFunc, refToDecl, declToTypeManager),
             visitVar: variableAsgDeclaration(variableEnvironment, canDeclareVar, refToDecl)
+        )
+
+        ReferenceDeclarator(
+            visitClass: classBodyDeclaration(typeManager, bodyDeclarator),
+            visitInterface: interfaceBodyDeclaration(typeManager, bodyDeclarator),
         )
     }
 
@@ -161,6 +171,35 @@ public abstract class DeclaratorFactory {
             visitVar: variableAsgDeclaration(Environment(), canDeclareVarClass, refToDecl)
         )
     }
+
+    /*
+    * Same as the globalAsgDeclarator but contains interfaces
+    * TODO : update all declarators by adding Interfaces
+    */
+    public static func globalAsgDeclaratorWithInterfaces(
+        classEnvironment: Environment<String, ClassReference>,
+        interfaceEnvironment: Environment<String, InterfaceReference>,
+        typeManager: TypeManager,
+        refToDecl: Map<Reference, Decl>,
+        declToTypeManager: Map<Decl, TypeManager>
+    ): Declarator {
+        let canDeclareFunc: (String) -> Bool = canDeclare([
+            { k => classEnvironment.getLocal(k).isNone() && 
+                    interfaceEnvironment.getLocal(k).isNone() }
+        ])
+        let canDeclareVarClassInterface: (String) -> Bool = canDeclare([
+            { k => classEnvironment.getLocal(k).isNone() && 
+                    interfaceEnvironment.getLocal(k).isNone() && 
+                    !typeManager.funcExists(k) }
+        ])
+        ReferenceDeclarator(
+            visitFunc: functionAsgDeclaration(typeManager, canDeclareFunc, refToDecl, declToTypeManager),
+            visitClass: classAsgDeclaration(classEnvironment, canDeclareVarClassInterface),
+            visitVar: variableAsgDeclaration(Environment(), canDeclareVarClassInterface, refToDecl),
+            visitInterface: interfaceAsgDeclaration(interfaceEnvironment, canDeclareVarClassInterface)
+        )
+    }
+
 
     private static func variableAstDeclaration(
         environment: Environment<String, VariableReference>,
@@ -268,6 +307,17 @@ public abstract class DeclaratorFactory {
         }
     }
 
+    private static func classBodyDeclaration(
+        typeManager: TypeManager, 
+        declarator: ReferenceDeclarator
+    ): (ClassDeclWithRef) -> ?Reference {
+        { classDecl: ClassDeclWithRef => 
+            classDecl.ref.effectiveType = typeManager.getType(classDecl.identifier.value)
+            classDecl.body.decls.iterator().forEach({ decl => decl.traverse(declarator) })
+            None
+        }
+    }
+
     private static func interfaceAstDeclaration(
         environment: Environment<String, InterfaceReference>,
         canDeclare: (String) -> Bool
@@ -280,6 +330,31 @@ public abstract class DeclaratorFactory {
                 return ref
             }
             throw declareError(ref.identifier.value)
+        }
+    }
+
+    private static func interfaceAsgDeclaration(
+        environment: Environment<String, InterfaceReference>,
+        canDeclare: (String) -> Bool
+    ): (InterfaceDeclWithRef) -> ?Reference {
+        { interfaceDecl: InterfaceDeclWithRef =>
+            let ref: InterfaceReference = interfaceDecl.ref
+            if (canDeclare(interfaceDecl.identifier.value)) {
+                environment.declare(interfaceDecl.identifier.value, ref)
+                return ref
+            }
+            throw declareError(ref.identifier.value)
+        }
+    }
+
+    private static func interfaceBodyDeclaration(
+        typeManager: TypeManager,
+        declarator: ReferenceDeclarator
+    ): (InterfaceDeclWithRef) -> ?Reference {
+        { interfaceDecl: InterfaceDeclWithRef => 
+            interfaceDecl.ref.effectiveType = typeManager.getType(interfaceDecl.identifier.value)
+            interfaceDecl.body.decls.iterator().forEach({ decl => decl.traverse(declarator) })
+            None
         }
     }
 

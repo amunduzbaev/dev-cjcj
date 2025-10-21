@@ -329,7 +329,7 @@ public class CallExprWithRef <: CallExpr {
 }
 
 public class MemberAccessWithRef <: MemberAccess {
-    private var ref_: ?ClassReference = None
+    private var ref_: ?Reference = None
 
     public init(id: NodeId, baseExpr: Node, field: Token) {
         super(id, baseExpr, field)
@@ -339,7 +339,7 @@ public class MemberAccessWithRef <: MemberAccess {
         v.visit(this)
     }
 
-    public mut prop ref: ?ClassReference {
+    public mut prop ref: ?Reference {
         get() { ref_ }
         set(v) { ref_ = v }
     }
