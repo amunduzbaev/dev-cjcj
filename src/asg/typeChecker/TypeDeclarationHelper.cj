@@ -1,16 +1,22 @@
 package cjcj.asg.typeChecker
 import std.collection.ArrayList
-
+import std.collection.HashMap
+import std.collection.Map
 
 // TODO: Fix this, for exampe Int64 is <: ToString & Hashable and others probably. For now I
 // assume that it's just <: Any
-public let BUILTIN_TYPES: Array<(String, Array<String>)> = [
-    ("Int64", ["Any"]), ("Int32", ["Any"]), ("Int16", ["Any"]), ("Int8", ["Any"]),
+public let BUILTIN_TYPES: Map<String, Array<String>> = HashMap([
+    ("Int16", ["Any"]), ("Int8", ["Any"]),
     ("IntNative", ["Any"]),  ("UInt64", ["Any"]), ("UInt32", ["Any"]), ("UInt16", ["Any"]),
     ("UInt8", ["Any"]), ("UIntNative", ["Any"]), ("Float64", ["Any"]), ("Float32", ["Any"]),
     ("Float16", ["Any"]), ("Rune", ["Any"]), ("Unit", ["Any"]), ("Bool", ["Any"]),
-    ("Nothing", ["Any"]), ("String", ["Any"]), ("Object", ["Any"]), ("Any", [])
-]
+    ("Nothing", []), ("Object", ["Any"]), ("Any", []), 
+
+    // Temporary for testing, TODO: add proper interfaces for everyone in the future
+    ("ToString", ["Any"]), ("Hashable", ["Any"]), 
+    ("Int64", ["Any", "Hashable", "ToString"]), ("Int32", ["Any", "Hashable", "ToString"]), 
+    ("String", ["Any", "Hashable", "ToString"])
+])
 
 public let BUILTIN_FUNCTIONS: 
     ArrayList<(String, ArrayList<(ArrayList<String>, String)>)> = ArrayList([
@@ -135,6 +141,7 @@ public let BUILTIN_FUNCTIONS:
             (ArrayList(["Int8", "Int8"]), "Int8"),
             (ArrayList(["IntNative"]), "IntNative"),
             (ArrayList(["IntNative", "IntNative"]), "IntNative"),
+            // TODO: Negation of UInt should not return UInt (in cjc it does, that's weird)
             (ArrayList(["UInt16"]), "UInt16"),
             (ArrayList(["UInt16", "UInt16"]), "UInt16"),
             (ArrayList(["UInt32"]), "UInt32"),

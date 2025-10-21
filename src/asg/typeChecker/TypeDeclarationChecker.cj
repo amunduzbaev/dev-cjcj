@@ -25,34 +25,56 @@ public enum Status {
 * and that there are not cyclic inheritance.
 * After that we will create the DAG of the types to make the future checks easier.
 */
+
 public class TypeDeclarationChecker <: Visitor<Unit> {
-    private let declTypes: Map<String, ClassReference> = HashMap()
-    private let edges: Map<Reference, String> = HashMap()
+    private let declTypes: Map<String, Reference> = HashMap()
+    private let edges: Map<Reference, ArrayList<String>> = HashMap()
 
     /*
     * Creates and returns:
     *   - the typeManager filled with all the type declarations.
     *   - the list of class references of the program in topological order of inheritance.
     */
-    public func resolve(program: Program): (TypeManager, Array<ClassReference>) {
+    public func resolve(program: Program): (TypeManager, Array<Reference>) {
         let typeManager: TypeManager = TypeManager()
         declareBuiltinTypes()
         program.traverse(this)
-        let toposort: Array<ClassReference> = toposort(declTypes)
-        toposort.iterator().forEach({ t => typeManager.addType(t.identifier.value, match(t.parent) {
-            case Some(p) => ArrayList([p.identifier.value])
-            case _ => ArrayList()
-        }, isOpen: t.isOpen) })
+        let toposort: Array<Reference> = toposort(declTypes)
+
+        toposort.iterator().forEach({ t => 
+            let isOpen = match (t as ClassReference) {
+                case Some(classRef) => classRef.isOpen
+                case _ => true
+            }
+            let parents = match (t as ClassReference) {
+                case Some(classRef) => 
+                    let arr = match (classRef.parent) {
+                        case Some(p) => ArrayList([p.identifier.value])
+                        case _ => ArrayList<String>()
+                    }
+                    Utils.fold((classRef.parentInterfaces.iterator().map({i => i.identifier.value})),
+                        arr)
+                case _ => 
+                match (t as InterfaceReference) {
+                    case Some(interfaceRef) => 
+                        Utils.fold(interfaceRef.parents.iterator().map({i => i.identifier.value}), 
+                            ArrayList<String>())
+                    case _ => ArrayList<String>()
+                }
+            }
+            typeManager.addType(t.identifier.value, parents, isOpen: isOpen)
+        })
         // After I have added all types I can add the builtin functions.
         defineBuiltinFunctions(typeManager)
         (typeManager, toposort)
     }
 
+    // TODO : Fix Declaration of Builtin Types. Not all are classes, some are interfaces
     private func declareBuiltinTypes() {
         BUILTIN_TYPES.iterator().map<(String, ClassReference)>({ v: (String, Array<String>) =>
             let ref = ClassReference(
                 NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, v[0], Position()), true)
-            v[1].iterator().forEach({ p => edges.add(ref, p) })
+            v[1].iterator().forEach({ p => addEdge(ref, p) })
             (v[0], ref)
         }).forEach({ v: (String, ClassReference) => declTypes.add(v[0], v[1]) })
     }
@@ -84,8 +106,8 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
         })
     }
 
-    private func toposort(graph: Map<String, ClassReference>): Array<ClassReference> {
-        let sort: ArrayList<ClassReference> = ArrayList()
+    private func toposort(graph: Map<String, Reference>): Array<Reference> {
+        let sort: ArrayList<Reference> = ArrayList()
         let status: Map<Reference, Status> = HashMap()
         for ((name, classReference) in graph) {
             if (!status.contains(classReference)) {
@@ -95,9 +117,22 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
         sort.toArray()
     }
 
-    private func dfs(current: ClassReference, graph: Map<String, ClassReference>,
-        status: Map<Reference, Status>, sort: ArrayList<ClassReference>): Unit
+    // Fix DFS
+    private func dfs(current: Reference, graph: Map<String, Reference>,
+        status: Map<Reference, Status>, sort: ArrayList<Reference>): Unit
     {
+        match (current as ClassReference) {
+            case Some(current) => 
+                if (let Some(parents) <- edges.get(current) && let Some(parent) <- parents.get(0)) {
+                    let parentRef = graph.get(parent).getOrThrow()
+                    match (parentRef as ClassReference) {
+                        case Some(parent) => current.parent = parent
+                        case _ => ()
+                    }
+                }
+            case _ => ()
+        }
+
         if (let Some(status) <- status.get(current)) {
             match(status) {
                 case Status.IN => throw Exception("Cyclic type inheritance")
@@ -105,19 +140,26 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
             }
         }
         status.add(current, Status.IN)
-        if (let Some(parent) <- edges.get(current)) {
-            current.parent = graph.get(parent).getOrThrow()
-        }
-        if (let Some(parent) <- current.parent) {
-            dfs(
-                graph.get(parent.identifier.value).getOrThrow({ =>
-                    Exception("Type ${parent} doesn't exist")
-                }),
-                graph, status, sort
-            )
+        if (let Some(parents) <- edges.get(current)) {
+            parents.iterator().forEach({ parent => 
+                dfs(
+                    graph.get(parent).getOrThrow({ =>
+                        Exception("Type ${parent} doesn't exist")
+                    }),
+                    graph, status, sort
+                )
+            })
         }
         status.add(current, Status.VIS)
         sort.add(current)
+    }
+
+    private func addEdge(subTypeRef: Reference, superTypeName: String) {
+        let singleSuperType = Utils.fold([superTypeName].iterator(), ArrayList<String>())
+        if (let Some(superTypes) <- edges.addIfAbsent(subTypeRef, singleSuperType)) {
+            superTypes.add(superTypeName)
+            edges.add(subTypeRef, superTypes)
+        }
     }
 
     public override func visit(program: Program): Unit  {
@@ -125,19 +167,41 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
     }
 
     // I only want to visit declarations of new types, I can skip everything else.
+    // UPD : upon the addition of interfaces, classes can have multiple super types. 
+    // TODO : The enforcement of the rule that classes can have at most superclass and interfaces 
+    // can not have super classes must be done
     public override func visit(classDeclWithRef: ClassDeclWithRef): Unit {
         if (classDeclWithRef.superTypes.isEmpty()) {
-            edges.add(classDeclWithRef.ref, "Object")
-        } else if (
-            classDeclWithRef.superTypes.size == 1 &&
-            let Some(superClass) <- classDeclWithRef.superTypes.get(0)
-        ) {
-            edges.add(classDeclWithRef.ref, superClass.typeName.value)
+            addEdge(classDeclWithRef.ref, "Object")
         } else {
-            throw Exception("Invalid number of superclasses, it can be max 1.")
-        }
+            let addedSuperTypes = HashSet<String>()
+            classDeclWithRef.superTypes.iterator().forEach{ superType => 
+                addEdge(classDeclWithRef.ref, superType.typeName.value)
+                if (addedSuperTypes.contains(superType.typeName.value)) {
+                    throw Exception("class ${classDeclWithRef.identifier.value} implements " + 
+                        "multiple super types ${superType.typeName.value}")
+                }
+            }
+        } 
 
         declTypes.add(classDeclWithRef.identifier.value, classDeclWithRef.ref)
+    }
+
+    public override func visit(interfaceDeclWithRef: InterfaceDeclWithRef): Unit {
+        if (interfaceDeclWithRef.superTypes.isEmpty()) {
+            addEdge(interfaceDeclWithRef.ref, "Any")
+        } else {
+            let addedSuperTypes = HashSet<String>()
+            interfaceDeclWithRef.superTypes.iterator().forEach{ superType => 
+                addEdge(interfaceDeclWithRef.ref, superType.typeName.value)
+                if (addedSuperTypes.contains(superType.typeName.value)) {
+                    throw Exception("class ${interfaceDeclWithRef.identifier.value} implements " + 
+                        "multiple super types ${superType.typeName.value}")
+                }
+            }
+        }
+
+        declTypes.add(interfaceDeclWithRef.identifier.value, interfaceDeclWithRef.ref)
     }
 
     public override func visit(_: VarDeclWithRef): Unit{ }
@@ -146,3 +210,4 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
 
     public override func visit(_: MainDeclWithRef): Unit{ }
 }
+

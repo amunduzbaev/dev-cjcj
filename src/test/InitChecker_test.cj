@@ -38,7 +38,7 @@ class InitCheckerTests {
     private func resolve(test: String) {
         let asg = AsgMaker().resolve(getAst(test))
 
-        InitChecker(TypeChecker(asg).classEnvironment).resolve(asg)
+        InitChecker(TypeChecker(asg).typeEnvironment).resolve(asg)
     }
 
     @TestCase 

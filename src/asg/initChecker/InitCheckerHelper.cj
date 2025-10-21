@@ -2,7 +2,7 @@ package cjcj.asg.initChecker
 
 import cjcj.visitor.*
 import cjcj.scanner.*
-import cjcj.asg.typeChecker.ClassReferenceForTC
+import cjcj.asg.typeChecker.MembersContainer
 import std.collection.ArrayList
 import std.collection.HashSet
 import std.collection.HashMap
@@ -105,7 +105,7 @@ open public class InitCheckerEnvironments{
     protected var possibleInitializeEnvironment = Environment<VariableReference, Int64>()
     protected var currentScopeType: SingularEnvironment<ScopeType> = 
         SingularEnvironment<ScopeType>(ScopeType.NIL)
-    protected var classMembersContainer: Environment<String, ClassReferenceForTC>
+    protected var classMembersContainer: Environment<String, MembersContainer>
     protected var enclosing: ?InitCheckerEnvironments
 
     public init(environments: InitCheckerEnvironments) {
@@ -133,7 +133,7 @@ open public class InitCheckerEnvironments{
         definiteInitializeEnvironment_: Environment<VariableReference, Int64>,
         possibleInitializeEnvironment_: Environment<VariableReference, Int64>,
         currentScopeType_: SingularEnvironment<ScopeType>, newScopeType: ScopeType,
-        classMembersContainer_: Environment<String, ClassReferenceForTC>, 
+        classMembersContainer_: Environment<String, MembersContainer>, 
         enclosing_: ?InitCheckerEnvironments
     ){
         declareEnvironment = Environment(declareEnvironment_) 
@@ -144,7 +144,7 @@ open public class InitCheckerEnvironments{
         enclosing = enclosing_
     }
     
-    public init(classMembersContainer_: Environment<String, ClassReferenceForTC>) {
+    public init(classMembersContainer_: Environment<String, MembersContainer>) {
         classMembersContainer = classMembersContainer_
         enclosing = None
     }
@@ -229,7 +229,7 @@ public class ClassInitCheckerEnvironments <: InitCheckerEnvironments {
 
     /* Global objects, which are used do not change throughtout the processing of class */
     protected var totalMemberVariables: Int64 = 0
-    protected var accessibleMembers: ClassReferenceForTC
+    protected var accessibleMembers: MembersContainer
     protected var decls: HashSet<Reference> = HashSet<Reference>()
 
     protected let unvisitedConstructors = HashMap<Reference, FuncDeclWithRef>()

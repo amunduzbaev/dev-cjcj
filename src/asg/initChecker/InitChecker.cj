@@ -3,7 +3,7 @@ package cjcj.asg.initChecker
 import cjcj.asg.Utils
 import cjcj.visitor.*
 import cjcj.scanner.TokenKind
-import cjcj.asg.typeChecker.ClassReferenceForTC
+import cjcj.asg.typeChecker.MembersContainer
 
 import std.collection.HashSet
 import std.collection.ArrayList
@@ -19,7 +19,7 @@ public open class InitChecker <: DefaultVisitor<Unit> {
         lastKilledEnvironment = environments
     }
 
-    public init(classMembersContainer: Environment<String, ClassReferenceForTC>) {
+    public init(classMembersContainer: Environment<String, MembersContainer>) {
         super(())
         environments = InitCheckerEnvironments(classMembersContainer)
         lastKilledEnvironment = environments
