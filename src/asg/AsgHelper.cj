@@ -115,35 +115,9 @@ class TypeDeclaration<T> <: Visitor<Unit> {
         }
         visited.add(classDecl.id.id)
 
-        let parentClassName = match (classDecl.superTypes.get(0)) {
-            case Some(typeDecl) => 
-                let parent = Box("")
-                try {
-                    tryVisit(typeDecl.typeName.value)
-                } handle(declNode: DeclNode) {
-                    if (declNode.declType == DeclType.CLASS) {
-                        parent.value = typeDecl.typeName.value
-                    }
-                    resume with ()
-                }
-
-                parent.value
-            case _ => ""
-        }
-
-        try {
-            classDecl.superTypes.iterator().forEach({ superType => 
-                if (superType.typeName.value != parentClassName) {
-                    tryVisit(superType.typeName.value)
-                }
-            })
-        } handle(declNode: DeclNode) {
-            if (declNode.declType == DeclType.CLASS) {
-                throw Exception("class ${classDecl.identifier.value} can inherit at most one super"+ 
-                " class")
-            }
-            resume with ()
-        }
+        classDecl.superTypes.iterator().forEach({ superType => 
+            tryVisit(superType.typeName.value)
+        })
 
         order.add(classDecl)
     }
@@ -155,17 +129,9 @@ class TypeDeclaration<T> <: Visitor<Unit> {
         }
         visited.add(interfaceDecl.id.id)
 
-        try {
-            interfaceDecl.superTypes.iterator().forEach({ superType => 
-                tryVisit(superType.typeName.value)
-            })
-        } handle(declNode: DeclNode) {
-            if (declNode.declType == DeclType.CLASS) {
-                throw Exception("Interface ${interfaceDecl.identifier.value} can not inherit a " + 
-                    "class")
-            }
-            resume with ()
-        }
+        interfaceDecl.superTypes.iterator().forEach({ superType => 
+            tryVisit(superType.typeName.value)
+        })
 
         order.add(interfaceDecl)
     }
@@ -283,6 +249,10 @@ class AsgEnvironments {
         }
 
         throw Exception("${key} is undefined.")
+    }
+
+    public func getInterface(key: String): InterfaceReference {
+        interfaceEnvironment.getLocal(key).getOrThrow({ => Exception("Interface ${key} does not exist")})
     }
 
     public func isGlobal(): Bool {

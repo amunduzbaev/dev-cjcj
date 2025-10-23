@@ -1,22 +1,67 @@
-package cjcj.asg.typeChecker
+package cjcj.asg
+
+import cjcj.visitor.InterfaceReference
+import cjcj.visitor.ClassReference
+import cjcj.parser.NodeIdManager
+import cjcj.scanner.*
+
 import std.collection.ArrayList
 import std.collection.HashMap
 import std.collection.Map
+import std.ast.Position
 
 // TODO: Fix this, for exampe Int64 is <: ToString & Hashable and others probably. For now I
 // assume that it's just <: Any
-public let BUILTIN_TYPES: Map<String, Array<String>> = HashMap([
-    ("Int16", ["Any"]), ("Int8", ["Any"]),
-    ("IntNative", ["Any"]),  ("UInt64", ["Any"]), ("UInt32", ["Any"]), ("UInt16", ["Any"]),
-    ("UInt8", ["Any"]), ("UIntNative", ["Any"]), ("Float64", ["Any"]), ("Float32", ["Any"]),
-    ("Float16", ["Any"]), ("Rune", ["Any"]), ("Unit", ["Any"]), ("Bool", ["Any"]),
-    ("Nothing", []), ("Object", ["Any"]), ("Any", []), 
+public let BUILTIN_CLASSES: Array<(ClassReference, ?String, Array<String>)> = [
+    (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Int16", Position()), true), 
+        None, ["Any", "Object"]),
+    (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Int8", Position()), true), 
+        None, ["Any", "Object"]),
+    (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "IntNative", Position()), true), 
+        None, ["Any", "Object"]),
+    (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "UInt64", Position()), true), 
+        None, ["Any", "Object"]),
+    (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "UInt32", Position()), true), 
+        None, ["Any", "Object"]),
+    (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "UInt16", Position()), true), 
+        None, ["Any", "Object"]),
+    (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "UInt8", Position()), true), 
+        None, ["Any", "Object"]),
+    (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "UIntNative", Position()), true), 
+        None, ["Any", "Object"]),
+    (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Float64", Position()), true), 
+        None, ["Any", "Object"]),
+    (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Float32", Position()), true), 
+        None, ["Any", "Object"]),
+    (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Float16", Position()), true), 
+        None, ["Any", "Object"]),
+    (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Rune", Position()), true), 
+        None, ["Any", "Object"]),
+    (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Unit", Position()), true), 
+        None, ["Any", "Object"]),
+    (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Bool", Position()), true), 
+        None, ["Any", "Object"]),
+    // Testing phase
+    (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Int64", Position()), true), 
+        None, ["Any", "Object", "Hashable", "ToString"]),
+    (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Int32", Position()), true), 
+        None, ["Any", "Object", "Hashable", "ToString"]),
+    (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "String", Position()), true), 
+        None, ["Any", "Object", "Hashable", "ToString"]),
+    (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Nothing", Position()), true), 
+        None, [])
+]
 
-    // Temporary for testing, TODO: add proper interfaces for everyone in the future
-    ("ToString", ["Any"]), ("Hashable", ["Any"]), 
-    ("Int64", ["Any", "Hashable", "ToString"]), ("Int32", ["Any", "Hashable", "ToString"]), 
-    ("String", ["Any", "Hashable", "ToString"])
-])
+public let BUILTIN_INTERFACES: Array<(InterfaceReference, Array<String>)> = [
+    (InterfaceReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Any", Position())), 
+        []), 
+    (InterfaceReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Object", Position())), 
+        ["Any"]), 
+    (InterfaceReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "ToString", Position())), 
+        ["Any"]), 
+    (InterfaceReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Hashable", Position())), 
+        ["Any"])
+]
 
 public let BUILTIN_FUNCTIONS: 
     ArrayList<(String, ArrayList<(ArrayList<String>, String)>)> = ArrayList([

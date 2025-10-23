@@ -2,19 +2,22 @@ package cjcj.asg.typeChecker
 
 import cjcj.visitor.*
 import cjcj.parser.NodeIdManager
-import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
-import cjcj.asg.TypeManager
-import cjcj.asg.Utils
+import cjcj.scanner.Token
+import cjcj.asg.*
 
-import std.ast.Position
 import std.collection.*
 import std.deriving.Derive
+import stdx.effect.Command
+import std.ast.Position
 
-// TODO: Maybe create a generic Graph class that contains all the graph functions.
 @Derive[Equatable]
 public enum Status {
     IN | VIS
+}
+
+public class TypeInfoBus <: Command<Bool> {
+    TypeInfoBus(public let name: String, public let ref: Reference) {}
 }
 
 /*
@@ -28,7 +31,8 @@ public enum Status {
 
 public class TypeDeclarationChecker <: Visitor<Unit> {
     private let declTypes: Map<String, Reference> = HashMap()
-    private let edges: Map<Reference, ArrayList<String>> = HashMap()
+    private let topOrder = ArrayList<Reference>()
+    private let status: Map<Reference, Status> = HashMap()
 
     /*
     * Creates and returns:
@@ -37,11 +41,32 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
     */
     public func resolve(program: Program): (TypeManager, Array<Reference>) {
         let typeManager: TypeManager = TypeManager()
-        declareBuiltinTypes()
-        program.traverse(this)
-        let toposort: Array<Reference> = toposort(declTypes)
+        BUILTIN_INTERFACES.iterator().forEach({ entry => 
+            let ref = entry[0]
+            topOrder.add(ref)
+            status.add(ref, Status.VIS)
+            declTypes.add(ref.identifier.value, ref)
+        })
+        BUILTIN_CLASSES.iterator().forEach({ entry => 
+            let ref = entry[0]
+            topOrder.add(ref)
+            status.add(ref, Status.VIS)
+            declTypes.add(ref.identifier.value, ref)
+        })
+        try {
+            program.traverse(this)
+        } handle(typeInfo: TypeInfoBus) {
+            declTypes.add(typeInfo.name, typeInfo.ref)
+            resume with false
+        }
 
-        toposort.iterator().forEach({ t => 
+        try {
+            program.traverse(this)
+        } handle(_: TypeInfoBus) {
+            resume with true
+        }
+
+        topOrder.iterator().forEach({ t => 
             let isOpen = match (t as ClassReference) {
                 case Some(classRef) => classRef.isOpen
                 case _ => true
@@ -66,17 +91,7 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
         })
         // After I have added all types I can add the builtin functions.
         defineBuiltinFunctions(typeManager)
-        (typeManager, toposort)
-    }
-
-    // TODO : Fix Declaration of Builtin Types. Not all are classes, some are interfaces
-    private func declareBuiltinTypes() {
-        BUILTIN_TYPES.iterator().map<(String, ClassReference)>({ v: (String, Array<String>) =>
-            let ref = ClassReference(
-                NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, v[0], Position()), true)
-            v[1].iterator().forEach({ p => addEdge(ref, p) })
-            (v[0], ref)
-        }).forEach({ v: (String, ClassReference) => declTypes.add(v[0], v[1]) })
+        (typeManager, topOrder.toArray())
     }
 
     private func defineBuiltinFunctions(typeManager: TypeManager) {
@@ -106,102 +121,61 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
         })
     }
 
-    private func toposort(graph: Map<String, Reference>): Array<Reference> {
-        let sort: ArrayList<Reference> = ArrayList()
-        let status: Map<Reference, Status> = HashMap()
-        for ((name, classReference) in graph) {
-            if (!status.contains(classReference)) {
-                dfs(classReference, graph, status, sort)
-            }
-        }
-        sort.toArray()
+    public override func visit(program: Program): Unit {
+        program.decls.iterator().forEach({ d => d.traverse(this) })
     }
 
-    // Fix DFS
-    private func dfs(current: Reference, graph: Map<String, Reference>,
-        status: Map<Reference, Status>, sort: ArrayList<Reference>): Unit
-    {
-        match (current as ClassReference) {
-            case Some(current) => 
-                if (let Some(parents) <- edges.get(current) && let Some(parent) <- parents.get(0)) {
-                    let parentRef = graph.get(parent).getOrThrow()
-                    match (parentRef as ClassReference) {
-                        case Some(parent) => current.parent = parent
-                        case _ => ()
-                    }
-                }
-            case _ => ()
-        }
-
-        if (let Some(status) <- status.get(current)) {
+    public override func visit(classRef: ClassReference): Unit {
+        if (let Some(status) <- status.get(classRef)) {
             match(status) {
                 case Status.IN => throw Exception("Cyclic type inheritance")
                 case _ => return
             }
         }
-        status.add(current, Status.IN)
-        if (let Some(parents) <- edges.get(current)) {
-            parents.iterator().forEach({ parent => 
-                dfs(
-                    graph.get(parent).getOrThrow({ =>
-                        Exception("Type ${parent} doesn't exist")
-                    }),
-                    graph, status, sort
-                )
-            })
+
+        if (let Some(parent) <- classRef.parent) {
+            declTypes.get(parent.identifier.value).getOrThrow({ => 
+                Exception("Undeclared type ${parent.identifier.value}")}).traverse(this)
         }
-        status.add(current, Status.VIS)
-        sort.add(current)
+
+        classRef.parentInterfaces.iterator().forEach({ interfaceRef => 
+            declTypes.get(interfaceRef.identifier.value).getOrThrow({ => 
+                Exception("Undeclared type ${interfaceRef.identifier.value}")
+            }).traverse(this)
+        })
+
+        status.add(classRef, Status.VIS)
+        topOrder.add(classRef)
     }
 
-    private func addEdge(subTypeRef: Reference, superTypeName: String) {
-        let singleSuperType = Utils.fold([superTypeName].iterator(), ArrayList<String>())
-        if (let Some(superTypes) <- edges.addIfAbsent(subTypeRef, singleSuperType)) {
-            superTypes.add(superTypeName)
-            edges.add(subTypeRef, superTypes)
-        }
-    }
-
-    public override func visit(program: Program): Unit  {
-        program.decls.iterator().forEach({ d => d.traverse(this) })
-    }
-
-    // I only want to visit declarations of new types, I can skip everything else.
-    // UPD : upon the addition of interfaces, classes can have multiple super types. 
-    // TODO : The enforcement of the rule that classes can have at most superclass and interfaces 
-    // can not have super classes must be done
-    public override func visit(classDeclWithRef: ClassDeclWithRef): Unit {
-        if (classDeclWithRef.superTypes.isEmpty()) {
-            addEdge(classDeclWithRef.ref, "Object")
-        } else {
-            let addedSuperTypes = HashSet<String>()
-            classDeclWithRef.superTypes.iterator().forEach{ superType => 
-                addEdge(classDeclWithRef.ref, superType.typeName.value)
-                if (addedSuperTypes.contains(superType.typeName.value)) {
-                    throw Exception("class ${classDeclWithRef.identifier.value} implements " + 
-                        "multiple super types ${superType.typeName.value}")
-                }
-            }
-        } 
-
-        declTypes.add(classDeclWithRef.identifier.value, classDeclWithRef.ref)
-    }
-
-    public override func visit(interfaceDeclWithRef: InterfaceDeclWithRef): Unit {
-        if (interfaceDeclWithRef.superTypes.isEmpty()) {
-            addEdge(interfaceDeclWithRef.ref, "Any")
-        } else {
-            let addedSuperTypes = HashSet<String>()
-            interfaceDeclWithRef.superTypes.iterator().forEach{ superType => 
-                addEdge(interfaceDeclWithRef.ref, superType.typeName.value)
-                if (addedSuperTypes.contains(superType.typeName.value)) {
-                    throw Exception("class ${interfaceDeclWithRef.identifier.value} implements " + 
-                        "multiple super types ${superType.typeName.value}")
-                }
+    public override func visit(interfaceRef: InterfaceReference): Unit {
+        if (let Some(status) <- status.get(interfaceRef)) {
+            match(status) {
+                case Status.IN => throw Exception("Cyclic type inheritance")
+                case _ => return
             }
         }
 
-        declTypes.add(interfaceDeclWithRef.identifier.value, interfaceDeclWithRef.ref)
+        interfaceRef.parents.iterator().forEach({ interfaceRef => 
+            declTypes.get(interfaceRef.identifier.value).getOrThrow({ => 
+                Exception("Undeclared type ${interfaceRef.identifier.value}")
+            }).traverse(this)
+        })
+
+        status.add(interfaceRef, Status.VIS)
+        topOrder.add(interfaceRef)
+    }
+
+    public override func visit(classDecl: ClassDeclWithRef) {
+        if (perform TypeInfoBus(classDecl.identifier.value, classDecl.ref)) {
+            classDecl.ref.traverse(this)
+        }
+    }
+
+    public override func visit(interfaceDecl: InterfaceDeclWithRef) {
+        if (perform TypeInfoBus(interfaceDecl.identifier.value, interfaceDecl.ref)) {
+            interfaceDecl.ref.traverse(this)
+        }
     }
 
     public override func visit(_: VarDeclWithRef): Unit{ }

@@ -55,33 +55,36 @@ public class AsgMaker <: Visitor<Node> {
     * Resolves all of the function and variable references and returns the new
     * Program node that is the ASG root.
     */
+    
     public func resolve(program: Program): Program {
-        // TODO: We need to declare Any and in the future all the other builtin interfaces/structs
-        // because they're not primitive types, so they are considered as RefType.
-        let builtinClasses: Array<Token> = [
-            Token(TokenKind.IDENTIFIER, "Any", Position()),
-            Token(TokenKind.IDENTIFIER, "String", Position())
-        ]
-        let builtinInterfaces: Array<Token> = [
-            Token(TokenKind.IDENTIFIER, "Hashable", Position()),
-            Token(TokenKind.IDENTIFIER, "ToString", Position())
-        ]
-
-        builtinClasses.iterator().forEach({ t => 
-            environments.classEnvironment.declare(t.value, 
-                ClassReference(NodeIdManager.nextId(), t, true))
-        })
-
-        builtinInterfaces.iterator().forEach({ t => 
-            environments.interfaceEnvironment.declare(t.value, 
-                InterfaceReference(NodeIdManager.nextId(), t))
-        })
+        declareBuiltinTypes()
 
         return try {
             (program.traverse(this) as Program).getOrThrow()
         } handle(noBlock: NoBlock) {
             throw Exception("The function ${noBlock.name.value} must have a block")
         }
+    }
+
+    private func declareBuiltinTypes() {
+        BUILTIN_INTERFACES.iterator().forEach({ entry => 
+            let (ref, superInterfaces) = entry
+            
+            superInterfaces.iterator().forEach({ parent => ref.parents.add(getInterface(parent))})
+            environments.interfaceEnvironment.declare(ref.identifier.value, ref)
+        })
+
+        BUILTIN_CLASSES.iterator().forEach({ entry => 
+            let (ref, superClass, superInterfaces) = entry
+            
+            if (let Some(superClass) <- superClass) {
+                ref.parent = (get(superClass) as ClassReference)
+            } 
+            superInterfaces.iterator().forEach({ 
+                parent => ref.parentInterfaces.add(getInterface(parent))
+            })
+            environments.classEnvironment.declare(ref.identifier.value, ref)
+        })
     }
 
     public override func visit(program: Program): Node {
@@ -355,42 +358,40 @@ public class AsgMaker <: Visitor<Node> {
             case _ => environments
         }
 
-        let superTypes = ArrayList<TypeNode>()
-        classDecl.superTypes.iterator().forEach({ superType => 
-            let visitedSuperType = (superType.traverse(this) as TypeNode).getOrThrow()
-            superTypes.add(visitedSuperType)
+        let classReference: ClassReference = ((perform ExistingReference())
+        .getOrThrow({ => 
+            Exception("Class ${classDecl.identifier.value} should've been declared " +
+                "with the global declarator")
+        }) as ClassReference)
+        .getOrThrow({ => 
+            Exception("Reference given to the class declaration is not ClassReference")
         })
 
-        let classReference: ClassReference = 
-        if (let Some(ref) <- perform ExistingReference()) {
-            (ref as ClassReference).getOrThrow({ => 
-                Exception("Reference given to the class declaration is not ClassReference")})
-        } else {
-            throw Exception("Class ${classDecl.identifier.value} should've been declared " +
-                "with the global declarator")
+        classReference.parent = match (classDecl.superTypes.get(0)) {
+            case Some(superType) => 
+                try {
+                    get(superType.typeName.value) as ClassReference
+                } catch(_: Exception) {
+                    None
+                }
+            case _ => None
         }
+        let superTypes = ArrayList<TypeNode>()
+
+        classDecl.superTypes.iterator().enumerate().forEach({ entry => 
+            let (id, superType) = entry
+            let visitedSuperType = (superType.traverse(this) as TypeNode).getOrThrow()
+            superTypes.add(visitedSuperType)
+            if (classReference.parent.isNone() || id > 0) {
+                classReference.parentInterfaces.add(getInterface(superType.typeName.value))
+            }
+        })
 
         let body = try {
             (classDecl.body.traverse(this) as Body).getOrThrow()
         } handle(bodyEnvironment: BodyEnvironment) {
             // Checking that every function from super interfaces are defined in the class body
-            let superTypes = typeDeclaration.getSuperTypes(classDecl)
-
-            superTypes.iterator().forEach({ decl => 
-                if (decl is InterfaceDecl) {
-                    let interfaceEnvironment = superTypeEnvironments.get(decl.identifier.value).
-                    getOrThrow({ => Exception("Detected cycle of inheritance in type declaration")})
-
-                    interfaceEnvironment.exactFunctions.iterator().forEach({ funcHash => 
-                        if (!bodyEnvironment.environments.checkExactFunc(funcHash)) {
-                            throw Exception("Function corresponding to ${funcHash} from interface" +
-                            " ${decl.identifier.value} is not defined in the sub class" + 
-                            " ${classDecl.identifier.value}")
-                        }
-                    })
-                }
-            })
-
+            inheritanceRules(bodyEnvironment, classDecl)
             superTypeEnvironments.add(classDecl.identifier.value, bodyEnvironment.environments)
             resume with ()
         }
@@ -448,20 +449,22 @@ public class AsgMaker <: Visitor<Node> {
             throw Exception("Interfaces can be declared at topLevel only")
         }
 
+        let interfaceReference: InterfaceReference = ((perform ExistingReference())
+        .getOrThrow({ => 
+            Exception("Interface ${interfaceDecl.identifier.value} should've been declared" +
+                " with the global declarator")
+        }) as InterfaceReference)
+        .getOrThrow({ => 
+            Exception("Reference given to the interface declaration is not InterfaceReference")
+        })
+
         let superTypes = ArrayList<TypeNode>()
         interfaceDecl.superTypes.iterator().forEach({ superType => 
             let visitedSuperType = (superType.traverse(this) as TypeNode).getOrThrow()
             superTypes.add(visitedSuperType)
-        })
 
-        let interfaceReference: InterfaceReference 
-        if (let Some(ref) <- perform ExistingReference()) {
-            interfaceReference = (ref as InterfaceReference).getOrThrow({ => 
-                Exception("Reference given to the interface declaration is not ClassReference")})
-        } else {
-            throw Exception("Interface ${interfaceDecl.identifier.value} should've been declared" +
-                " with the global declarator")
-        }
+            interfaceReference.parents.add(getInterface(superType.typeName.value))
+        })
 
         let body = try {
             (interfaceDecl.body.traverse(this) as Body).getOrThrow()
@@ -513,6 +516,29 @@ public class AsgMaker <: Visitor<Node> {
     // TODO : figure out what to do with the References of the function.
     private func get(key: String): Reference {
         environments.get(key)
+    }
+    
+    private func getInterface(key: String): InterfaceReference {
+        environments.getInterface(key)
+    }
+
+    private func inheritanceRules(bodyEnvironment: BodyEnvironment, classDecl: ClassDecl) {
+        let superTypes = typeDeclaration.getSuperTypes(classDecl)
+
+        superTypes.iterator().forEach({ decl => 
+            if (decl is InterfaceDecl) {
+                let interfaceEnvironment = superTypeEnvironments.get(decl.identifier.value).
+                getOrThrow({ => Exception("Detected cycle of inheritance in type declaration")})
+
+                interfaceEnvironment.exactFunctions.iterator().forEach({ funcHash => 
+                    if (!bodyEnvironment.environments.checkExactFunc(funcHash)) {
+                        throw Exception("Function corresponding to ${funcHash} from interface" +
+                        " ${decl.identifier.value} is not defined in the sub class" + 
+                        " ${classDecl.identifier.value}")
+                    }
+                })
+            }
+        })
     }
 
     private func isGlobal(): Bool {
