@@ -11,10 +11,17 @@ public abstract class Utils {
     // name parameter types
     // [Note] Does not include the declared return type even if exists. 
     public static func funcHashConcat(funcDecl: FuncDecl): String {
-        funcDecl.identifier.value + funcDecl.params.iterator()
+        funcDecl.identifier.value + "|" + funcDecl.params.iterator()
             .map({ t => t.paramType.typeName.value + "|" })
             .fold(StringBuilder(), { acc, v => acc.append(v); acc }).toString()
     }
+
+    public static func funcHashConcat(funcRef: FuncReference): String {
+        funcRef.identifier.value + "|" + Utils.refToType(funcRef.paramRef.getOrThrow()).iterator()
+            .map({ t => t.name + "|" })
+            .fold(StringBuilder(), { acc, v => acc.append(v); acc }).toString()
+    }
+
     /*
     * Assigns the effective types to the parameter references based on the func param declarations.
     * @param funcParams the list to take the types from

@@ -66,8 +66,6 @@ public class TypeAssigner <: Visitor<Type> {
         let exp: ?Type = expectedReturnType
         functionTypeGrouping[unaryExpr.id] = matchReturnType(functionTypeGrouping[unaryExpr.id])
 
-        functionTypeGrouping[unaryExpr.id].iterator().forEach({ v => println(v[0].name)})
-
         var bestFunc: ?FuncReference = None
         if (let Some(expected) <- exp) {
             if (let Some(fun) <- functionTypeGrouping[unaryExpr.id].get(expected)) {
@@ -307,11 +305,9 @@ public class TypeAssigner <: Visitor<Type> {
 
             // Inits cannot have return expressions.
             functionStackInfo.add(None)
-            match (funcDeclWithRef.block) {
-                case Some(funcBlock) => 
-                    funcBlock.traverse(this)
-                case _ => ()
-            } 
+            if (let Some(funcBlock) <- funcDeclWithRef.block) {
+                funcBlock.traverse(this)
+            }
         } else {
             let targetType: ?Type = if (let Some(declType) <- funcDeclWithRef.declType) {
                 declType.traverse(this)

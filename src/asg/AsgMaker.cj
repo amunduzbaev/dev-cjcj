@@ -66,27 +66,6 @@ public class AsgMaker <: Visitor<Node> {
         }
     }
 
-    private func declareBuiltinTypes() {
-        BUILTIN_INTERFACES.iterator().forEach({ entry => 
-            let (ref, superInterfaces) = entry
-            
-            superInterfaces.iterator().forEach({ parent => ref.parents.add(getInterface(parent))})
-            environments.interfaceEnvironment.declare(ref.identifier.value, ref)
-        })
-
-        BUILTIN_CLASSES.iterator().forEach({ entry => 
-            let (ref, superClass, superInterfaces) = entry
-            
-            if (let Some(superClass) <- superClass) {
-                ref.parent = (get(superClass) as ClassReference)
-            } 
-            superInterfaces.iterator().forEach({ 
-                parent => ref.parentInterfaces.add(getInterface(parent))
-            })
-            environments.classEnvironment.declare(ref.identifier.value, ref)
-        })
-    }
-
     public override func visit(program: Program): Node {
         let decls: ArrayList<Decl> = ArrayList()
         
@@ -341,6 +320,48 @@ public class AsgMaker <: Visitor<Node> {
         RefType(NodeIdManager.nextId(), refType.typeParameterName, refType.typeName)
     }
 
+    public override func visit(memberAccess: MemberAccess): Node {
+        let baseExpr = memberAccess.baseExpr.traverse(this)
+        MemberAccessWithRef(NodeIdManager.nextId(), baseExpr, memberAccess.field)
+    }
+
+    public override func visit(thisSuperExpr: ThisSuperExpr): Node {
+        if (environments.currentGlobalType != GlobalType.BODY) {
+            throw Exception("Cannot invoke ${thisSuperExpr.keyword.value} outside of a class")
+        }
+        ThisSuperReference(NodeIdManager.nextId(), thisSuperExpr.keyword)
+    }
+
+    public override func visit(body: Body): Node {
+        beginGlobal(GlobalType.BODY)
+
+        let decls: ArrayList<Decl> = ArrayList()
+        let bodyDeclarator: Declarator = DeclaratorFactory.bodyAstDeclarator(
+            environments.funcEnvironment, environments.variableEnvironment
+        )
+        let refDecls = ArrayList<(Decl, ?Reference)>()
+        body.decls.iterator().forEach({ d =>
+            refDecls.add((d, d.traverse(bodyDeclarator)))
+        })
+        
+        refDecls.iterator().forEach({ entry =>
+            let (d, ref) = entry
+            let refBox = Box(ref)
+            try {
+                decls.add((d.traverse(this) as Decl).getOrThrow())
+            } handle(_: ExistingReference) {
+                let ret = refBox.value
+                refBox.value = None
+                resume with ret
+            }
+        })
+
+        perform BodyEnvironment(environments)
+
+        endGlobal()
+        Body(NodeIdManager.nextId(), decls)
+    }
+
     public override func visit(classDecl: ClassDecl): Node {
         if(!isGlobal()) {
             throw Exception("Classes can be declared at topLevel only")
@@ -376,8 +397,9 @@ public class AsgMaker <: Visitor<Node> {
                 }
             case _ => None
         }
-        let superTypes = ArrayList<TypeNode>()
 
+        classReference.parentInterfaces.add(getInterface("Object"))
+        let superTypes = ArrayList<TypeNode>()
         classDecl.superTypes.iterator().enumerate().forEach({ entry => 
             let (id, superType) = entry
             let visitedSuperType = (superType.traverse(this) as TypeNode).getOrThrow()
@@ -402,48 +424,6 @@ public class AsgMaker <: Visitor<Node> {
             superTypes, classReference)
     }
 
-    public override func visit(body: Body): Node {
-        beginGlobal(GlobalType.BODY)
-
-        let decls: ArrayList<Decl> = ArrayList()
-        let bodyDeclarator: Declarator = DeclaratorFactory.bodyAstDeclarator(
-            environments.funcEnvironment, environments.variableEnvironment
-        )
-        let refDecls = ArrayList<(Decl, ?Reference)>()
-        body.decls.iterator().forEach({ d =>
-            refDecls.add((d, d.traverse(bodyDeclarator)))
-        })
-        
-        refDecls.iterator().forEach({ entry =>
-            let (d, ref) = entry
-            let refBox = Box(ref)
-            try {
-                decls.add((d.traverse(this) as Decl).getOrThrow())
-            } handle(_: ExistingReference) {
-                let ret = refBox.value
-                refBox.value = None
-                resume with ret
-            }
-        })
-
-        perform BodyEnvironment(environments)
-
-        endGlobal()
-        Body(NodeIdManager.nextId(), decls)
-    }
-
-    public override func visit(memberAccess: MemberAccess): Node {
-        let baseExpr = memberAccess.baseExpr.traverse(this)
-        MemberAccessWithRef(NodeIdManager.nextId(), baseExpr, memberAccess.field)
-    }
-
-    public override func visit(thisSuperExpr: ThisSuperExpr): Node {
-        if (environments.currentGlobalType != GlobalType.BODY) {
-            throw Exception("Cannot invoke ${thisSuperExpr.keyword.value} outside of a class")
-        }
-        ThisSuperReference(NodeIdManager.nextId(), thisSuperExpr.keyword)
-    }
-
     public override func visit(interfaceDecl: InterfaceDecl) {
         if(!isGlobal()) {
             throw Exception("Interfaces can be declared at topLevel only")
@@ -458,6 +438,7 @@ public class AsgMaker <: Visitor<Node> {
             Exception("Reference given to the interface declaration is not InterfaceReference")
         })
 
+        interfaceReference.parents.add(getInterface("Any"))
         let superTypes = ArrayList<TypeNode>()
         interfaceDecl.superTypes.iterator().forEach({ superType => 
             let visitedSuperType = (superType.traverse(this) as TypeNode).getOrThrow()
@@ -517,7 +498,7 @@ public class AsgMaker <: Visitor<Node> {
     private func get(key: String): Reference {
         environments.get(key)
     }
-    
+
     private func getInterface(key: String): InterfaceReference {
         environments.getInterface(key)
     }
@@ -538,6 +519,27 @@ public class AsgMaker <: Visitor<Node> {
                     }
                 })
             }
+        })
+    }
+
+    private func declareBuiltinTypes() {
+        BUILTIN_INTERFACES.iterator().forEach({ entry => 
+            let (ref, superInterfaces) = entry
+            
+            superInterfaces.iterator().forEach({ parent => ref.parents.add(getInterface(parent))})
+            environments.interfaceEnvironment.declare(ref.identifier.value, ref)
+        })
+
+        BUILTIN_CLASSES.iterator().forEach({ entry => 
+            let (ref, superClass, superInterfaces) = entry
+            
+            if (let Some(superClass) <- superClass) {
+                ref.parent = (get(superClass) as ClassReference)
+            } 
+            superInterfaces.iterator().forEach({ 
+                parent => ref.parentInterfaces.add(getInterface(parent))
+            })
+            environments.classEnvironment.declare(ref.identifier.value, ref)
         })
     }
 

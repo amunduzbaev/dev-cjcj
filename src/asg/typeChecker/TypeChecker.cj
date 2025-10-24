@@ -25,6 +25,7 @@ import std.collection.*
 public class TypeChecker <: Visitor<Unit> {
     // Used to know if there are cycles.
     private let referenceStatus: Map<Reference, Status> = HashMap()
+
     // Maps the reference to the declaration.
     private let refToDecl: Map<Reference, Decl> = HashMap()
     private let declToTypeManager: Map<Decl, TypeManager> = HashMap()
@@ -34,11 +35,10 @@ public class TypeChecker <: Visitor<Unit> {
     // For member access and operations inside the class
     // public let classEnvironment: Environment<String, ClassReferenceForTC> = Environment()
     private var currentMembersContainer: ?MembersContainer = None
-
     public let typeEnvironment: Environment<String, MembersContainer> = Environment()
 
     // Contains the name of the last callable field if there is some.
-    private var callableField: ?String = None
+    // private var callableField: ?String = None
 
     // TODO: Maybe make a map of Nodes directly.
     private let nodePossibleTypes: Map<NodeId, Set<Type>> = HashMap()
@@ -94,13 +94,9 @@ public class TypeChecker <: Visitor<Unit> {
                 let bodyOwnerDeclarator: Declarator = DeclaratorFactory.bodyAsgDeclarator(
                         variableEnvironment, bodyTypeManager, refToDecl, declToTypeManager)
                 d.traverse(bodyOwnerDeclarator)
-
-                bodyTypeManager.deleteHistory()
             })
 
         // Add empty init to all the classes that don't have one.
-        // TODO: This will change with interfaces, they cannot be instanciated, for now we assume
-        // everything is a class.
         typeEnvironment.elements.values().iterator()
             .filter({ tp => tp.typeReference is ClassReference})
             .map<(String, TypeManager)>({ c => 
@@ -193,7 +189,11 @@ public class TypeChecker <: Visitor<Unit> {
 
         // TODO: We don't actually need to do this here, remove it to optimize.
         let lastId = block.nodes.last.getOrDefault({ => Expr() }).id
-        block.nodes.iterator().forEach({ n => n.traverse(this) })
+        try {
+            block.nodes.iterator().forEach({ n => n.traverse(this) })
+        } handle(_: CallableFieldBus) {
+            resume with ()
+        }
 
         endScope()
         nodePossibleTypes.add(block.id, nodePossibleTypes.get(lastId)
@@ -307,8 +307,8 @@ public class TypeChecker <: Visitor<Unit> {
         if (let Some(declType) <- funcDeclWithRef.declType) {
             declType.traverse(this)
         }
-        if (let Some(realBlock) <- funcDeclWithRef.block) {
-            realBlock.traverse(this)
+        if (let Some(funcBlock) <- funcDeclWithRef.block) {
+            funcBlock.traverse(this)
         }
         nodePossibleTypes.add(funcDeclWithRef.id, HashSet([funcDeclWithRef.traverse(typeAssigner)]))
 
@@ -345,12 +345,10 @@ public class TypeChecker <: Visitor<Unit> {
             return
         }
 
-        // TODO : same situation as jumping in funcReferences
         decl.traverse(this)
     }
 
     public override func visit(classReference: ClassReference): Unit {
-        callableField = ""
         if (let Some(effective) <- classReference.effectiveType) {
             nodePossibleTypes.add(classReference.id, HashSet([effective]))
         } else {
@@ -358,6 +356,7 @@ public class TypeChecker <: Visitor<Unit> {
             classReference.effectiveType = tp
             nodePossibleTypes.add(classReference.id, HashSet([tp]))
         }
+        perform CallableFieldBus("", classReference.identifier.value)
     }
 
     /* 
@@ -380,7 +379,7 @@ public class TypeChecker <: Visitor<Unit> {
                 nodePossibleTypes.add(funcReference.id, HashSet([funcReference.effectiveType.getOrThrow()]))
             }
         }
-        callableField = funcReference.identifier.value
+        perform CallableFieldBus(funcReference.identifier.value, None)
     }
 
     public override func visit(refExprWithRef: RefExprWithRef): Unit {
@@ -389,15 +388,17 @@ public class TypeChecker <: Visitor<Unit> {
     }
 
     public override func visit(callExprWithRef: CallExprWithRef): Unit {
-        callExprWithRef.callee.traverse(this)
-        let identifier: String = callableField.getOrThrow({ =>
-            Exception("Left of call expression not callable") })
-
-        let typeManager: TypeManager = if (let Some(currentMembersContainer) <- currentMembersContainer) {
-            currentMembersContainer.typeManager.getOrThrow()
-        } else {
-            typeManager
+        let callableField: Box<?CallableFieldBus> = Box(None)
+        try {
+            callExprWithRef.callee.traverse(this)
+        } handle(callableFieldBus: CallableFieldBus) {
+            callableField.value = callableFieldBus
+            resume with ()
         }
+
+        let identifier = callableField.value.getOrThrow({ => 
+            Exception("Left of call expression not callable")}).field
+        let baseType = callableField.value.getOrThrow().baseType
 
         callExprWithRef.arguments.iterator().forEach({ v => v.traverse(this) })
         let args: Array<Set<Type>> = Utils.fold(callExprWithRef.arguments.iterator()
@@ -406,43 +407,68 @@ public class TypeChecker <: Visitor<Unit> {
         // Check first for a function call.
         let funcGrouping: Map<Type, ?FuncReference> = HashMap()
 
+        let inheritedTypeName: ?Type = match (baseType) {
+            case Some(baseTypeName) => typeManager.getType(baseTypeName)
+            case None => 
+                match (currentMembersContainer) { 
+                    case Some(membersCont) => 
+                        typeManager.getType(membersCont.typeReference.identifier.value)
+                    case None => None
+                }
+        }
+
+        let collectSuperScopes :() -> Map<Type, ?FuncReference> = { =>
+            let map: Map<Type, ?FuncReference> = HashMap()
+            let signs = HashSet<String>()
+            
+            if (let Some(type_) <- inheritedTypeName) {
+                let ancestors = type_.ancestors
+
+                ancestors.iterator().forEach({superType => 
+                    if (identifier == "" && superType != type_) {
+                        // If we are calling a constructor function, we can not call a constructor 
+                        // of our superType
+                        return
+                    }
+
+                    if (let Some(members) <- typeEnvironment.getLocal(superType.name)) {
+                        let newSigns = ArrayList<String>()
+                        members.typeManager.getOrThrow()
+                        .findClosestSuperType(identifier, args, None).iterator().forEach({ entry => 
+                            // We want to keep only the first type and unique signatures.
+                            if (let Some(funcRef) <- entry[1]) {
+                                let funcHash = Utils.funcHashConcat(funcRef)
+                                if (!signs.contains(funcHash)) {
+                                    newSigns.add(funcHash)
+                                    map.addIfAbsent(entry[0], entry[1])
+                                }
+                                return
+                            }
+                            map.addIfAbsent(entry[0], entry[1])
+                        })
+                        signs.add(all: newSigns)
+                    }
+                })
+            }
+            
+            map
+        }
+
         try {
-            try {
-                funcGrouping.add(all: typeManager.allFunctionsGlobal(identifier, args))
-                if (funcGrouping.isEmpty()) {
-                    throw Exception("Impossible to find a function to call")
-                }
-                // Everything is possible at first.
-                // possFunc.iterator().forEach({ f =>
-                //     f.traverse(this)
-                //     funcGrouping.add(all: Utils.fold(f.effectiveType.getOrThrow().ancestorSet.iterator()
-                //         .map({ t => (t, Option.Some(f)) }), ArrayList()))
-                // }) 
-            } catch (e: NoneValueException) {
-                throw e
-            } catch(e: Exception) {
-                let calleeTypes: Set<Type> = nodePossibleTypes[callExprWithRef.callee.id]
-                if (calleeTypes.size != 1) {
-                    throw Exception("The callExpr is calling a classReference, it cannot have more " +
-                        "than one type")
-                }
-                let tp: Type = calleeTypes.iterator().first().getOrThrow()
-                if (let Some(membersContainer) <- typeEnvironment.getGlobal(tp.name)) {
-                    funcGrouping.add(all: membersContainer.typeManager.getOrThrow()
-                        .applyFunction(identifier, args, None))
-                } else {
-                    throw e
-                }
-                // TODO: Maybe functions that are not visited do not have a ref.effectiveType set.
-                // possFunc.iterator().forEach({ref => ref.traverse(this) })
+            match (baseType) {
+                case Some(baseTypeName) => 
+                    funcGrouping.add(all: collectSuperScopes())
+                case None => 
+                    funcGrouping.add(all: typeManager.allFunctionsGlobal(identifier, args, 
+                        collectSuperScopes))
             }
         } handle(_: VisitorEffect<Unit>) {
             resume with this
+        } handle(_: CallableFieldBus) {
+            resume with ()
         }
-        callableField = None
 
         functionTypeGrouping.add(callExprWithRef.id, funcGrouping)
-
         nodePossibleTypes.add(callExprWithRef.id, HashSet(funcGrouping.keys()))
     }
 
@@ -458,32 +484,37 @@ public class TypeChecker <: Visitor<Unit> {
         typeAssigner.currentMembersContainer = currentMembersContainer
     }
 
-    // TODO : consider using effect handlers instead of currentMembersContainer here
     public override func visit(body: Body): Unit {
-        beginScope()
+        let globalScope = typeManager
+        typeManager = currentMembersContainer.getOrThrow().typeManager.getOrThrow()
+        
         body.decls.iterator().forEach({ decl => decl.traverse(this) })
-        endScope()
+
+        typeManager = globalScope
     }
 
     public override func visit(memberAccessWithRef: MemberAccessWithRef): Unit {
-        // TODO: Remember to change this when we add other class-like structures.
-
-        // The baseExpr of a member access needs to be solved before calling the field, the class
-        // found does not depend on the field.
-        memberAccessWithRef.baseExpr.traverse(this)
-        let classType: Type = memberAccessWithRef.baseExpr.traverse(typeAssigner)
-
-        var baseClass: MembersContainer = typeEnvironment.getGlobal(classType.name)
-                .getOrThrow({ => Exception("Base of member access is not a class!") })
-
-        let field: String = memberAccessWithRef.field.value
-        let (tp, isCallable) = getMemberType(baseClass, field)
-        if (isCallable) {
-            callableField = field
+        try {
+            memberAccessWithRef.baseExpr.traverse(this)
+        } handle(_: CallableFieldBus) {
+            resume with ()
         }
 
-        memberAccessWithRef.ref = baseClass.typeReference
-        nodePossibleTypes.add(memberAccessWithRef.id, HashSet([tp]))
+        let baseType: Type = memberAccessWithRef.baseExpr.traverse(typeAssigner)
+
+        var baseMembers: MembersContainer = typeEnvironment.getGlobal(baseType.name)
+                .getOrThrow({ => Exception("Base of member access is not found!") })
+
+        let field: String = memberAccessWithRef.field.value
+        let (tp, isCallable) = getMemberType(baseMembers, field)
+
+        memberAccessWithRef.ref = baseMembers.typeReference
+
+        if (isCallable) {
+            perform CallableFieldBus(field, baseType.name)
+        } else {
+            nodePossibleTypes.add(memberAccessWithRef.id, HashSet([tp]))
+        }
     }
 
     public override func visit(thisSuperReference: ThisSuperReference): Unit {
@@ -493,20 +524,29 @@ public class TypeChecker <: Visitor<Unit> {
             Exception("Cannot have ${thisSuperReference.keyword.value} outside of a class")})
 
         thisSuperReference.classReference = classReference
-        callableField = ""
+
         if (thisSuperReference.keyword.kind == TokenKind.THIS) {
             nodePossibleTypes.add(thisSuperReference.id,
                 HashSet([classReference.effectiveType.getOrThrow()]))
-            return
+            perform CallableFieldBus("", classReference.identifier.value)
+        } else {
+            nodePossibleTypes.add(thisSuperReference.id, HashSet([classReference.parent.getOrThrow({ =>
+                Exception("Cannot invoke super without super type")}).effectiveType.getOrThrow()]))
+            perform CallableFieldBus("", classReference.parent.getOrThrow().identifier.value)
         }
 
-        nodePossibleTypes.add(thisSuperReference.id, HashSet([classReference.parent.getOrThrow({ =>
-            Exception("Cannot invoke super without super type")}).effectiveType.getOrThrow()]))
     }
 
     public override func visit(interfaceDecl: InterfaceDeclWithRef) {
+        currentMembersContainer = typeEnvironment.getGlobal(interfaceDecl.ref.identifier.value)
+            .getOrThrow({ => Exception("Unexpected, class should've been declared")})
+        typeAssigner.currentMembersContainer = currentMembersContainer
+
         interfaceDecl.ref.effectiveType = typeManager.getType(interfaceDecl.identifier.value)
         interfaceDecl.body.traverse(this)
+
+        currentMembersContainer = None
+        typeAssigner.currentMembersContainer = currentMembersContainer
     }
 
     /*

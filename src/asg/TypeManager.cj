@@ -15,8 +15,8 @@ public class TypeManager {
     // Returns the concatenation of the string representation of the hash of the funcName and of the
     // name of the types.
     public static func funcHashConcat(funcName: String, params: Array<Type>): String {
-        funcName + params.iterator()
-            .map({ t => t.name.hashCode().toString() })
+        funcName + "|" + params.iterator()
+            .map({ t => t.name.hashCode().toString() + "|" })
             .fold(StringBuilder(), { acc, v => acc.append(v); acc }).toString()
     }
 
@@ -83,14 +83,7 @@ public class TypeManager {
     }
 
     public func funcExists(funcName: String): Bool {
-        var tmpTypeManager = this
-        while (let Some(enclosing) <- tmpTypeManager.enclosing) {
-            if (tmpTypeManager.totalFuncDef.get(funcName).isSome()) {
-                return true
-            }
-            tmpTypeManager = enclosing
-        }
-        tmpTypeManager.totalFuncDef.get(funcName).isSome()
+        return (totalFuncDef.get(funcName).isSome())
     }
 
     /*
@@ -101,7 +94,7 @@ public class TypeManager {
     * In other words, find the functions where each parameter type is the subtype of the types of
     * the parameters at the same index in other functions and return its reference.
     */
-    private func findClosestSuperType(
+    public func findClosestSuperType(
         funcName: String, args: Array<Set<Type>>, expectedReturnType: ?Type
     ): Map<Type, ?FuncReference> {
         let candidates: ArrayStack<FuncReference> =
@@ -179,36 +172,43 @@ public class TypeManager {
     * argument types and expected return type.
     * If there are multiple functions with the exact same parameters the closest one will be chosen.
     */
-    public func allFunctionsGlobal(funcName: String, args: Array<Set<Type>>): Map<Type, ?FuncReference> {
+    public func allFunctionsGlobal(
+        funcName: String, args: Array<Set<Type>>, 
+        collectSuperScopes: ?(() -> Map<Type, ?FuncReference>)
+    ): Map<Type, ?FuncReference> {
         let map: Map<Type, ?FuncReference> = HashMap()
 
         let signs: Set<String> = HashSet()
         var tmpTypeManager = this
-        while (let Some(enclosing) <- tmpTypeManager.enclosing) {
-            tmpTypeManager.findClosestSuperType(funcName, args, None)
-                .iterator().forEach({ entry =>
-                    // We want to keep only the first type and unique signatures.
-                    if (let Some(f) <- entry[1]) {
-                        if (signs.add(funcHashConcat(funcName, Utils.refToType(f.paramRef.getOrThrow())))) {
-                            map.addIfAbsent(entry[0], entry[1])
-                        }
-                        return
-                    }
-                    map.addIfAbsent(entry[0], entry[1])
-                })
-            tmpTypeManager = enclosing
-        }
-        tmpTypeManager.findClosestSuperType(funcName, args, None)
-            .iterator().forEach({ entry =>
+
+        let collect: (Map<Type, ?FuncReference>) -> Unit = { scopeMap =>
+            let newSigns = ArrayList<String>()
+            scopeMap.iterator().forEach({ entry => 
                 // We want to keep only the first type and unique signatures.
-                if (let Some(f) <- entry[1]) {
-                    if (signs.add(funcHashConcat(funcName, Utils.refToType(f.paramRef.getOrThrow())))) {
-                        map.addIfAbsent(entry[0], entry[1])
+                let (tp, funcRef) = entry
+                if (let Some(f) <- funcRef) {
+                    let funcHash = funcHashConcat(funcName, Utils.refToType(f.paramRef.getOrThrow()))
+                    if (!signs.contains(funcHash)) {
+                        newSigns.add(funcHash)
+                        map.addIfAbsent(tp, funcRef)
                     }
                     return
                 }
-                map.addIfAbsent(entry[0], entry[1])
+                map.addIfAbsent(tp, funcRef)
             })
+
+            signs.add(all: newSigns)
+        }
+
+        while (let Some(enclosing) <- tmpTypeManager.enclosing) {
+            collect(tmpTypeManager.findClosestSuperType(funcName, args, None))
+            
+            tmpTypeManager = enclosing
+        }
+        if (let Some(collectSuperScopes) <- collectSuperScopes) {
+            collect(collectSuperScopes())
+        }
+        collect(tmpTypeManager.findClosestSuperType(funcName, args, None))
         map
     }
 

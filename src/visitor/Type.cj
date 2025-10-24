@@ -73,8 +73,7 @@ public class Type <: Equatable<Type> & Hashable {
     }
 
     public prop ancestors: Array<Type> {
-        get() { ancestorsUntil(ANY).getOrThrow({ => Exception("Impossible, couldn't find ANY in " +
-            "the ancestors of ${this.name}")}) }
+        get() { ancestorsSearch() }
     }
 
     public prop ancestorSet: HashSet<Type> {
@@ -89,7 +88,8 @@ public class Type <: Equatable<Type> & Hashable {
         if (other == NOTHING) {
             return true
         }
-        other.ancestorsUntil(this).isSome()
+
+        other.searchUntil(this)
     }
 
     /*
@@ -98,25 +98,35 @@ public class Type <: Equatable<Type> & Hashable {
     * Returns the list of ancestors including "this" type up to a given target type. If the target
     * is not found returns None. The list is ordered by distance (in number of edges) from "this".
     */
-    private func ancestorsUntil(target: Type): ?Array<Type> {
+    private func ancestorsSearch(): Array<Type> {
         let q: Queue<Type> = ArrayQueue()
-        let visited: Set<Type> = HashSet()
         let res: ArrayList<Type> = ArrayList()
+        let visited: Set<Type> = HashSet()
         visited.add(this)
         res.add(this)
         q.add(this)
         while (let Some(front) <- q.remove()) {
-            if (front == target) {
-                return res.toArray()
-            }
-            if (front.rootDist < target.rootDist) {
-                return None
-            }
             front.parents.iterator()
-                .filter({ p => !visited.contains(p) && p.rootDist >= target.rootDist })
+                .filter({ p => !visited.contains(p) })
                 .forEach({ p => visited.add(p); res.add(p); q.add(p) })
         }
-        None
+        res.toArray()
+    }
+
+    private func searchUntil(target: Type): Bool {
+        let q: Queue<Type> = ArrayQueue()
+        let visited: Set<Type> = HashSet()
+        visited.add(this)
+        q.add(this)
+        while (let Some(front) <- q.remove()) {
+            if (front == target) {
+                return true
+            }
+            front.parents.iterator()
+                .filter({ p => !visited.contains(p) })
+                .forEach({ p => visited.add(p); q.add(p) })
+        }
+        false
     }
 
     public override func hashCode(): Int64 {

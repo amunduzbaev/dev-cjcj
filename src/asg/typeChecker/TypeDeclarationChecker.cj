@@ -80,13 +80,14 @@ public class TypeDeclarationChecker <: Visitor<Unit> {
                     Utils.fold((classRef.parentInterfaces.iterator().map({i => i.identifier.value})),
                         arr)
                 case _ => 
-                match (t as InterfaceReference) {
-                    case Some(interfaceRef) => 
-                        Utils.fold(interfaceRef.parents.iterator().map({i => i.identifier.value}), 
-                            ArrayList<String>())
-                    case _ => ArrayList<String>()
-                }
+                    match (t as InterfaceReference) {
+                        case Some(interfaceRef) => 
+                            Utils.fold(interfaceRef.parents.iterator().map({i => i.identifier.value}), 
+                                ArrayList<String>())
+                        case _ => ArrayList<String>()
+                    }
             }
+
             typeManager.addType(t.identifier.value, parents, isOpen: isOpen)
         })
         // After I have added all types I can add the builtin functions.
