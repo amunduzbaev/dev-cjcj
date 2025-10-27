@@ -11,7 +11,6 @@ import cjcj.asg.initChecker.InitChecker
 import std.env.*
 import std.fs.File 
 
-
 public class Cj {
     static var hadError: Bool = false
 
@@ -37,10 +36,15 @@ public class Cj {
         parser.logErrors()
 
         if (let Some(p) <- program) {
+            // Building Asg
             asg = asgMaker.resolve(p)
             asg.prettyPrint(printer)
 
-            let initChecker = InitChecker(TypeChecker(asg).classEnvironment)
+            // TypeChecking
+            let typeChecker = TypeChecker(asg)
+
+            // Initialization Check
+            let initChecker = InitChecker(typeChecker.typeEnvironment)
             initChecker.resolve(asg)
 
             println(printer.toString())
@@ -58,7 +62,6 @@ main (args: Array<String>) {
     } else {
         // This is for debug
         Cj.runFile("testcode.txt")
-        // Cj.runFile("testcode2.txt")
     }
 }
 

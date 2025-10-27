@@ -73,6 +73,10 @@ public class FuncReference <: Reference & Equatable<FuncReference> {
     {
         super(id, identifier, None)
     }
+    public init(id: NodeId, identifier: Token, paramRef: ArrayList<VariableReference>) {
+        super(id, identifier, None)
+        paramRef_ = paramRef
+    }
 
     public override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)

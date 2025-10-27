@@ -4,5 +4,3 @@ target
 *.cjo
 *.a
 *.macrocall
-testcode*.txt
-*.toml

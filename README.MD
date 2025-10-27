@@ -46,15 +46,25 @@ Verifies proper variable and class initialization:
 - **Sophisticated type inference**: Handles overloading, subtyping, and contextual type requirements
 - **Comprehensive initialization tracking**: Scope-aware analysis with special handling for classes and closures
 
-## Currently Being Developed
+## Last Updates
 
 - Grammar and compiler extension with adding Interfaces
 - Enforcing the typing/inheritance rules regarding Interfaces
 - Testing the Type Checking algorithm and rules with added Interfaces
-- Improving/Fixing the Type Checker in case if errors/bugs are found
+- Improving/Fixing the Type Checker for minor bugs
 
 ## Next Steps
 
 - Code refactoring and cleanup
 - Grammar extension to cover more language features
 - Enhanced error handling across all compilation stages
+
+## Run
+
+- Short guide on how to run the program
+- First clone this repo and make sure that Cangjie 1.0.0 and stdx library is installed
+- Make sure to put the right target in cjpm.toml, see the cjpm.toml for more details
+- Run the following command where TEST_FILE_NAME is the file containing input code
+
+cjpm run --run-args="TEST_FILE_NAME"
+

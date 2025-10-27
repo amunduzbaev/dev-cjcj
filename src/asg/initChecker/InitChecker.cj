@@ -2,12 +2,14 @@ package cjcj.asg.initChecker
 
 import cjcj.asg.Utils
 import cjcj.visitor.*
-import cjcj.scanner.TokenKind
+import cjcj.scanner.*
 import cjcj.asg.typeChecker.MembersContainer
+import cjcj.parser.NodeIdManager
 
 import std.collection.HashSet
 import std.collection.ArrayList
 import std.collection.ArrayStack
+import std.ast.Position
 
 public open class InitChecker <: DefaultVisitor<Unit> {
     protected var environments: InitCheckerEnvironments
@@ -134,17 +136,6 @@ public open class InitChecker <: DefaultVisitor<Unit> {
         endScope()
     }
 
-    // after traversal of else branch, lastKilledEnvironment contains the initializeEnvironment 
-    // of elseBranch
-    // 
-    // TODO : the merge strategy is completely wrong, in case of ifExpr there are two cases
-    // 1. In case of a variable mutation, we want to check is it possible to have a case when the 
-    // variable is assigned multiple times. Therefore at least one initialization in IfExpr can 
-    // affect the mutation check. 
-    // 2. In case of a initialization check upon reference, we want ot check is it possible to have
-    // a case when the variable is not assigned. Therefore, in each branch of IfExpr the 
-    // initialization of the variable must be done. Hence, we need to take the intersection of the
-    // initialization variables, instead of merge
     public override func visit(ifExpr: IfExpr) {
         try{
             ifExpr.elseBranch.traverse(this)
@@ -177,7 +168,6 @@ public open class InitChecker <: DefaultVisitor<Unit> {
         whileExpr.condition.traverse(this)
     }
 
-    // TODO : Maybe we can use effect handlers for this, maybe NOT?
     public override open func visit(callExpr: CallExprWithRef) {
         callExpr.arguments.iterator().forEach({ arg => 
             arg.traverse(this)
@@ -259,7 +249,7 @@ public open class InitChecker <: DefaultVisitor<Unit> {
         }
 
         match (environments.classMembersContainer.getGlobal(memberAccess.ref.getOrThrow()
-            .identifier.value).getOrThrow().getMembersReference(memberAccess.field.value)){
+            .identifier.value).getOrThrow().getVariableMembersReference(memberAccess.field.value)){
             case Some(ref) => 
                 try {
                     ref.traverse(this)
@@ -269,6 +259,20 @@ public open class InitChecker <: DefaultVisitor<Unit> {
                 }
             case _ => ()
         }
+    }
+
+    public override open func visit(interfaceDecl: InterfaceDeclWithRef): Unit {
+        interfaceDecl.superTypes.iterator().forEach({ superType => 
+            superType.traverse(this)
+        })
+
+        interfaceDecl.body.traverse(this)
+    }
+
+    public override open func visit(body: Body): Unit {
+        body.decls.iterator().forEach({ decl => 
+            decl.traverse(this)
+        })
     }
 
     protected open func beginScope(newScopeType: ScopeType) {
@@ -328,12 +332,6 @@ public open class InitChecker <: DefaultVisitor<Unit> {
 
 
 
-
-
-/*
-Extension of the Checker above that checks initialization of a class 
-    TODO: Add "this" and fix the member access
-*/
 private class ClassInitChecker <: InitChecker {
     protected let classEnvironments: ClassInitCheckerEnvironments
 
@@ -385,7 +383,7 @@ private class ClassInitChecker <: InitChecker {
             resume with ()
         } handle(exactFuncReference: ExactFuncReference) {
             let funcReference = exactFuncReference.funcReference
-            if (classEnvironments.isMember(funcReference) && !allClassMembersInitialized) {
+            if (classEnvironments.isFunctionMember(funcReference) && !allClassMembersInitialized) {
                 throw Exception("Member function ${funcReference.identifier} is referenced before" +
                 " all member variables are initialized")
             }
@@ -408,7 +406,7 @@ private class ClassInitChecker <: InitChecker {
         }
 
         match (environments.classMembersContainer.getGlobal(memberAccess.ref.getOrThrow().
-            identifier.value).getOrThrow().getMembersReference(memberAccess.field.value)) {
+            identifier.value).getOrThrow().getVariableMembersReference(memberAccess.field.value)) {
             case Some(ref) => 
                 try {
                     ref.traverse(this)
@@ -425,8 +423,6 @@ private class ClassInitChecker <: InitChecker {
         }
     }
 
-    // TODO : Fix by removing the "as"/"is", add Effect handlers for ThisSuperReference and 
-    // function call check
     public override func visit(callExpr: CallExprWithRef) {
         callExpr.arguments.iterator().forEach({ arg => 
             arg.traverse(this)
@@ -442,7 +438,7 @@ private class ClassInitChecker <: InitChecker {
                                 callExpr.ref.getOrThrow().traverse(this)
                             } handle(exactFuncReference: ExactFuncReference) {
                                 let funcReference = exactFuncReference.funcReference
-                                if (classEnvironments.isMember(funcReference) && 
+                                if (classEnvironments.isFunctionMember(funcReference) && 
                                     !allClassMembersInitialized) {
                                     throw Exception("Member function ${funcReference.identifier}" + 
                                     " is referenced before all member variables are initialized")
@@ -465,11 +461,7 @@ private class ClassInitChecker <: InitChecker {
     }
 
     private func visitConstructorBlock(block: Block) {
-        // TODO : Can we remove use of "as" here and make the code better?
-        // I believe it is possible to remove "as" here using effect handlers. Figure out the best
-        // way to implement it
-        // TODO : Also need to check if super() is not called explicitly, and it not, check if super
-        // class contains default constructor
+        var superIsCalled: Bool = false
         match (block.nodes.get(0)) {
             case Some(node) => 
                 match (node as CallExprWithRef) {
@@ -478,11 +470,29 @@ private class ClassInitChecker <: InitChecker {
                             case Some(thisSuperReference) => 
                                 block.nodes.remove(at: 0)
                                 tryVisitConstructor(callExpr.ref.getOrThrow())
+                                superIsCalled = true
                             case _ => ()
                         }
                     case _ => ()
                 }
             case _ => ()
+        }
+
+        // If super() is not called explicitly, check if super class contains default constructor
+        if (
+            !superIsCalled && 
+            let Some(superClass) <- classEnvironments.accessibleMembers.superClass &&
+            !superClass.typeManager.getOrThrow().exactFuncExists(
+                FuncReference(
+                    NodeIdManager.nextId(), 
+                    Token(TokenKind.ILLEGAL, "", Position()), 
+                    ArrayList<VariableReference>()
+                )
+            )
+        ) {
+            throw Exception("Super class ${superClass.typeReference.identifier} of the class " + 
+            "${classEnvironments.accessibleMembers.typeReference.identifier} does not have a " + 
+            "default constructor and constructor is not called explicitly!")
         }
 
         beginScope(perform InferBlockType())
@@ -589,15 +599,6 @@ private class ClassInitChecker <: InitChecker {
 }
 
 
-
-
-
-/*
-
-TODO : In the future, For static variables similar check can be done probably
-
-*/
-
 public class StaticGlobalVariableInitializationChecker <: DefaultVisitor<Unit> {
     private let unvisitedFunctions = Environment<Reference, FuncDeclWithRef>()
     private let uninitializedVariables = HashSet<Reference>()
@@ -693,9 +694,6 @@ public class StaticGlobalVariableInitializationChecker <: DefaultVisitor<Unit> {
         }
     }
 
-    // TODO : Can we remove "as" and make the code of the following better?
-    // I believe the removal of "as"/"is" here will not result in "better" code. They do not cause 
-    // a lot of harm. Hence, I think it is okay to leave them here
     private func process(decl: Decl): Unit {
         if (let Some(funcDecl) <- (decl as FuncDeclWithRef)) {
             declareFunction(funcDecl)

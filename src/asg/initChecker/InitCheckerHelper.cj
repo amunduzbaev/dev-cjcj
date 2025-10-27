@@ -331,7 +331,7 @@ public class ClassInitCheckerEnvironments <: InitCheckerEnvironments {
             allClassMembersInitialized || 
             environments.definiteInitializeEnvironment.getGlobal(reference).isSome()
         } else if (
-            let Some(ref) <- accessibleMembers.getMembersReference(reference.identifier.value) &&
+            let Some(ref) <- accessibleMembers.getVariableMembersReference(reference.identifier.value) &&
             ref == reference
         ) {
             superIsInitialized
@@ -356,7 +356,7 @@ public class ClassInitCheckerEnvironments <: InitCheckerEnvironments {
             allClassMembersInitialized || 
             environments.possibleInitializeEnvironment.getGlobal(reference).isSome()
         } else if (
-            let Some(ref) <- accessibleMembers.getMembersReference(reference.identifier.value) && 
+            let Some(ref) <- accessibleMembers.getVariableMembersReference(reference.identifier.value) && 
             ref == reference
         ) {
             superIsInitialized
@@ -371,5 +371,9 @@ public class ClassInitCheckerEnvironments <: InitCheckerEnvironments {
 
     protected func isMember(ref: Reference) {
         decls.contains(ref)
+    }
+
+    protected func isFunctionMember(funcRef: FuncReference) {
+        accessibleMembers.isFunctionMember(funcRef)
     }
 }

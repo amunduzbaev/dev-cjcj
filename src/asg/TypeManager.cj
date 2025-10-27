@@ -86,6 +86,17 @@ public class TypeManager {
         return (totalFuncDef.get(funcName).isSome())
     }
 
+    
+    public func exactFuncExists(funcReference: FuncReference): Bool {
+        let funcName: String = funcReference.identifier.value
+        let params: Array<Type> = Utils.refToType(funcReference.paramRef.getOrThrow())
+        if (let Some(fun) <- immediateFuncDef.get(funcHashConcat(funcName, params))){
+            true
+        } else {
+            false
+        }
+    }
+
     /*
     * Extension for method applyFunction
     * For a function call with name : funcName and arguments : args

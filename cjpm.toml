@@ -1,0 +1,18 @@
+[package]
+  cjc-version = "1.0.0"
+  name = "cjcj"
+  description = "nothing here"
+  version = "1.0.0"
+  target-dir = ""
+  src-dir = ""
+  output-type = "executable"
+  compile-option = "-ldl --experimental --enable-eh"
+  override-compile-option = ""
+  link-option = ""
+  [package.package-configuration]
+
+[dependencies]
+
+[target]
+# Refer to in order to set up target
+# https://gitcode.com/Cangjie/cangjie_stdx?source_module=home_main_tabs_68db866406fdf740df364584#使用示例

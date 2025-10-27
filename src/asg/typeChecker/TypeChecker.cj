@@ -74,7 +74,7 @@ public class TypeChecker <: Visitor<Unit> {
             }
         })
 
-        let globalAsgDeclarator: Declarator = DeclaratorFactory.globalAsgDeclaratorWithInterfaces(
+        let globalAsgDeclarator: Declarator = DeclaratorFactory.globalAsgDeclarator(
             Environment(), Environment(), typeManager, refToDecl, declToTypeManager
         )
         program.decls.iterator().forEach({ d => d.traverse(globalAsgDeclarator) })
@@ -292,7 +292,6 @@ public class TypeChecker <: Visitor<Unit> {
         }
         referenceStatus.add(ref, Status.IN)
 
-        let params = funcDeclWithRef.params
         // Set effective type to parameters (= to declaration type)
         ref.paramRef.getOrThrow().iterator().enumerate().forEach({ entry => 
             let (idx, paramRef) = entry
@@ -359,11 +358,6 @@ public class TypeChecker <: Visitor<Unit> {
         perform CallableFieldBus("", classReference.identifier.value)
     }
 
-    /* 
-    * TODO : We can not traverse any function reference when we see it, since it can be a dummy
-    * reference. This can be resolved using effect handlers where from the context we can know 
-    * whether the reference is valid or not
-    */
     public override func visit(funcReference: FuncReference): Unit {
         if (let Some(effectiveType) <- funcReference.effectiveType) {
             nodePossibleTypes.add(funcReference.id, HashSet([effectiveType]))

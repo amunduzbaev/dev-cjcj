@@ -44,10 +44,6 @@ private class ReferenceDeclarator <: Declarator {
 
 /*
 * Factory for declarators, can retrieve declarators with different behaviors.
-* !!! TODO : Global canDeclare function can not be used. This is because if we are declaring a function
-* no need to check if the function with the same name exists, since we can overload function. 
-* However, if we are declaring a class/interface, we need to check if a function with this name
-* exists or not
 */
 public abstract class DeclaratorFactory {
 
@@ -75,28 +71,6 @@ public abstract class DeclaratorFactory {
     * Declarator for the global scope in the AST, declares all function and classes.
     */
     public static func globalAstDeclarator(
-        funcEnvironment: Environment<String, FuncReference>,
-        classEnvironment: Environment<String, ClassReference>
-    ): Declarator {
-        let canDeclareFunc: (String) -> Bool = canDeclare([
-            { k =>  classEnvironment.getLocal(k).isNone() }
-        ])
-        let canDeclareClass: (String) -> Bool = canDeclare([
-            { k =>  classEnvironment.getLocal(k).isNone() && 
-                    funcEnvironment.getLocal(k).isNone() }
-        ])
-        Declarator(
-            visitFunc: functionAstDeclaration(funcEnvironment, canDeclareFunc),
-            visitClass: classAstDeclaration(classEnvironment, canDeclareClass),
-        )
-    }
-
-
-    /*
-    * Same as the globalAstDeclarator but contains interfaces
-    * TODO : update all declarators by adding Interfaces
-    */
-    public static func globalAstDeclaratorWithInterfaces(
         funcEnvironment: Environment<String, FuncReference>,
         classEnvironment: Environment<String, ClassReference>, 
         interfaceEnvironment: Environment<String, InterfaceReference>
@@ -153,30 +127,6 @@ public abstract class DeclaratorFactory {
     * Every reference will be linked with its declaration.
     */
     public static func globalAsgDeclarator(
-        classEnvironment: Environment<String, ClassReference>,
-        typeManager: TypeManager,
-        refToDecl: Map<Reference, Decl>,
-        declToTypeManager: Map<Decl, TypeManager>
-    ): Declarator {
-        let canDeclareFunc: (String) -> Bool = canDeclare([
-            { k => classEnvironment.getLocal(k).isNone() }
-        ])
-        let canDeclareVarClass: (String) -> Bool = canDeclare([
-            { k => classEnvironment.getLocal(k).isNone() && 
-                    !typeManager.funcExists(k) }
-        ])
-        ReferenceDeclarator(
-            visitFunc: functionAsgDeclaration(typeManager, canDeclareFunc, refToDecl, declToTypeManager),
-            visitClass: classAsgDeclaration(classEnvironment, canDeclareVarClass),
-            visitVar: variableAsgDeclaration(Environment(), canDeclareVarClass, refToDecl)
-        )
-    }
-
-    /*
-    * Same as the globalAsgDeclarator but contains interfaces
-    * TODO : update all declarators by adding Interfaces
-    */
-    public static func globalAsgDeclaratorWithInterfaces(
         classEnvironment: Environment<String, ClassReference>,
         interfaceEnvironment: Environment<String, InterfaceReference>,
         typeManager: TypeManager,
@@ -357,8 +307,6 @@ public abstract class DeclaratorFactory {
             None
         }
     }
-
-    //TODO : make interfaceAsgDeclaration when adding Interfaces into Type Checking
 
     private static func canDeclare(predicates: Array<(String) -> Bool>): (String) -> Bool {
         { key => predicates.iterator().all({ p => p(key) }) }

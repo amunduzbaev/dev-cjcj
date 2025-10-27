@@ -14,11 +14,11 @@ public class MembersContainer {
     private var variableEnvironment_: ?Environment<String, VariableReference> = None
     private var typeManager_: ?TypeManager = None
     private let typeReference_: Reference
-    private let superClass: ?MembersContainer
+    private let superClass_: ?MembersContainer
 
     public init(typeReference: Reference, superClass: ?MembersContainer) {
         typeReference_ = typeReference
-        this.superClass = superClass
+        superClass_ = superClass
     }
     public init(typeReference: Reference) {
         this(typeReference, None)
@@ -57,7 +57,22 @@ public class MembersContainer {
         }
     }
 
-    public func getMembersReference(field: String): ?VariableReference {
+    public func getVariableMembersReference(field: String): ?VariableReference {
         variableEnvironment.getOrThrow().getGlobal(field)
+    }
+
+    public func isFunctionMember(ref: FuncReference): Bool {
+        if (typeManager.getOrThrow().exactFuncExists(ref)) {
+            return true
+        }
+
+        match (superClass) {
+            case Some(superClass) => superClass.isFunctionMember(ref)
+            case _ => false
+        }
+    }
+
+    public prop superClass: ?MembersContainer {
+        get() { superClass_ }
     }
 }

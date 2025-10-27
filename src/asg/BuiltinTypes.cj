@@ -6,41 +6,39 @@ import cjcj.parser.NodeIdManager
 import cjcj.scanner.*
 
 import std.collection.ArrayList
-import std.collection.HashMap
-import std.collection.Map
 import std.ast.Position
 
 // TODO: Fix this, for exampe Int64 is <: ToString & Hashable and others probably. For now I
 // assume that it's just <: Any
 public let BUILTIN_CLASSES: Array<(ClassReference, ?String, Array<String>)> = [
     (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Int16", Position()), true), 
-        None, ["Any", "Object"]),
+        None, ["Any", "Object", "Hashable", "ToString"]),
     (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Int8", Position()), true), 
-        None, ["Any", "Object"]),
+        None, ["Any", "Object", "Hashable", "ToString"]),
     (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "IntNative", Position()), true), 
-        None, ["Any", "Object"]),
+        None, ["Any", "Object", "Hashable", "ToString"]),
     (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "UInt64", Position()), true), 
-        None, ["Any", "Object"]),
+        None, ["Any", "Object", "Hashable", "ToString"]),
     (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "UInt32", Position()), true), 
-        None, ["Any", "Object"]),
+        None, ["Any", "Object", "Hashable", "ToString"]),
     (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "UInt16", Position()), true), 
-        None, ["Any", "Object"]),
+        None, ["Any", "Object", "Hashable", "ToString"]),
     (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "UInt8", Position()), true), 
-        None, ["Any", "Object"]),
+        None, ["Any", "Object", "Hashable", "ToString"]),
     (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "UIntNative", Position()), true), 
-        None, ["Any", "Object"]),
+        None, ["Any", "Object", "Hashable", "ToString"]),
     (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Float64", Position()), true), 
-        None, ["Any", "Object"]),
+        None, ["Any", "Object", "Hashable", "ToString"]),
     (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Float32", Position()), true), 
-        None, ["Any", "Object"]),
+        None, ["Any", "Object", "Hashable", "ToString"]),
     (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Float16", Position()), true), 
-        None, ["Any", "Object"]),
+        None, ["Any", "Object", "Hashable", "ToString"]),
     (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Rune", Position()), true), 
-        None, ["Any", "Object"]),
+        None, ["Any", "Object", "Hashable", "ToString"]),
     (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Unit", Position()), true), 
-        None, ["Any", "Object"]),
+        None, ["Any", "Object", "Hashable", "ToString"]),
     (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Bool", Position()), true), 
-        None, ["Any", "Object"]),
+        None, ["Any", "Object", "Hashable", "ToString"]),
     // Testing phase
     (ClassReference(NodeIdManager.nextId(), Token(TokenKind.ILLEGAL, "Int64", Position()), true), 
         None, ["Any", "Object", "Hashable", "ToString"]),

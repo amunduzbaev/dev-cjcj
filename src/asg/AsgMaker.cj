@@ -69,7 +69,7 @@ public class AsgMaker <: Visitor<Node> {
     public override func visit(program: Program): Node {
         let decls: ArrayList<Decl> = ArrayList()
         
-        let globalDeclarator: Declarator = DeclaratorFactory.globalAstDeclaratorWithInterfaces(
+        let globalDeclarator: Declarator = DeclaratorFactory.globalAstDeclarator(
             environments.funcEnvironment, 
             environments.classEnvironment, 
             environments.interfaceEnvironment

@@ -444,8 +444,6 @@ public class TypeAssigner <: Visitor<Type> {
         })
         expectedReturnType.value = exp
 
-        // TODO: I don't visit my calle because in every case it'll be fixed, think about it.
-
         // Set the reference to the correct one.
         callExprWithRef.ref = bestFunc.getOrThrow()
         bestFunc.getOrThrow().effectiveType.getOrThrow()
@@ -462,7 +460,6 @@ public class TypeAssigner <: Visitor<Type> {
     }
 
     public override func visit(memberAccessWithRef: MemberAccessWithRef): Type {
-        // TODO: Remember to change this when we add other class-like structures.
         let expected: ?Type = expectedReturnType
 
         // Call baseClass without exected return type because it is independent from outside.

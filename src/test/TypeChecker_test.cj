@@ -607,51 +607,6 @@ class TypeCheckTests {
     }
 
     @TestCase
-    func memberShadowing_test() {
-        let testFunc: String = """
-            class c {
-                let cvar = 5
-                func f() {
-                }
-            }
-            class a <: b {
-                func f() {
-                }
-                init() {
-                }
-            }
-            class b <: c {
-                func bfunc() {
-                }
-            }
-            main(){
-                let a = a()
-                let v: Int64 = a.cvar
-                let f: Unit = a.bfunc()
-            }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(testFunc)))
-        let testVar: String = """
-            class c {
-                let cvar = 5
-            }
-            class a <: b {
-                let cvar = 2
-                init() {
-                }
-            }
-            class b <: c {
-                func bfunc() {
-                }
-            }
-            main(){
-                let a = a()
-                let v: Int64 = a.cvar
-                let f: Unit = a.bfunc()
-            }"""
-        @AssertThrows[Exception](TypeChecker(getAsg(testVar)))
-    }
-
-    @TestCase
     func bodyMemberAccess_test() {
         let testRight: String = """
             class a {
@@ -986,4 +941,580 @@ class TypeCheckTests {
 
         @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
     }
+
+    @TestCase
+    func interfaceOverloadedFunctionCall_test() {
+        var testRight = """
+        func F(a: ToString): Int64 {
+            1
+        }
+
+        func F(a: Hashable): Hashable {
+            a
+        }
+
+        func G(a: ToString): ToString {
+            a
+        }
+
+        func G(a: Hashable): Hashable {
+            a
+        }
+
+        func toStr(a: ToString) {
+            "String"
+        }
+
+        main() {
+            let d = toStr(F(G(1)))      // ok
+        }
+        """
+
+        TypeChecker(getAsg(testRight))
+
+        testRight = """
+        func F(a: Any): Int64 {
+            1
+        }
+
+        func F(a: Hashable): Int64 {
+            1
+        }
+
+        func F(a: ToString): ToString {
+            "aa"
+        }
+
+        func G(a: ToString): ToString {
+            a
+        }
+        func G(a: Hashable): Hashable {
+            a
+        }
+
+        main() {
+            let a: Hashable = F(G(1))
+        }        
+        """
+
+        TypeChecker(getAsg(testRight))
+    }
+
+    @TestCase
+    func interfaceOverloadedFunctionCall2_test() {
+        var testRight = """
+        func F(a: Any): Int64 {
+            1
+        }
+
+        func F(a: Hashable): Hashable {
+            a
+        }
+
+        func G(a: ToString): ToString {
+            a
+        }
+
+        func G(a: Hashable): Hashable {
+            a
+        }
+
+        func toStr(a: ToString) {
+            "String"
+        }
+
+        main() {
+            F(G(1))                     // ok (the type of the expression should be Hashable)
+            let f: Int64 = F(G(1))
+
+            let integer: Int64 = 1
+            let a: Hashable = integer
+            let c = F(G(a))             // ok
+            let d: ToString = F(G(1))   // ok
+            let e = toStr(F(G(1)))      // ok
+        }
+        """
+
+        TypeChecker(getAsg(testRight))
+
+        var testWrong = """
+        func F(a: Any): Int64 {
+            1
+        }
+
+        func F(a: Hashable): Hashable {
+            a
+        }
+
+        func G(a: ToString): ToString {
+            a
+        }
+
+        func G(a: Hashable): Hashable {
+            a
+        }
+
+        func toStr(a: ToString) {
+            "String"
+        }
+
+        main() {
+            G(F(1))                     // error
+        }
+        """
+
+
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+
+        testWrong = """
+        func F(a: Any): Int64 {
+            1
+        }
+
+        func F(a: Hashable): Hashable {
+            a
+        }
+
+        func G(a: ToString): ToString {
+            a
+        }
+
+        func G(a: Hashable): Hashable {
+            a
+        }
+
+        func toStr(a: ToString) {
+            "String"
+        }
+
+        main() {
+            G(1)                        // error
+        }
+        """
+
+
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))    
+    }
+
+    @TestCase
+    func interfaceInheritanceFunctionCall_test() {
+        var testRight = """
+        interface A{}
+        interface B{}
+        interface C{}
+
+        class D <: A & B{}
+        class E <: D {}
+        class H <: E {}
+        class G <: H & A & B & C {}
+
+        func F(a: D) {}
+        func F(a: A) {}
+        func F(a: B) {}
+
+        main () {
+            F(G())
+        }        
+        """
+
+        TypeChecker(getAsg(testRight))
+
+        var testWrong = """
+        interface A{}
+        interface B{}
+        interface C{}
+
+        class D <: A & B{}
+        class E <: D {}
+        class H <: E {}
+        class G <: H & A & B & C {}
+
+        func F(a: C) {}
+        func F(a: A) {}
+        func F(a: B) {}
+
+        main () {
+            F(G())
+        }
+        """
+
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+    }
+
+    @TestCase
+    func interfaceOverloadedFunctionCallComplex_test() {
+        /* Explanation of tests checked here 
+
+            // F(1) has a type a or b
+            // G(1) has a type c or b
+            // even if without any context best match for G(1) is c and best match for F(1) is a, 
+            // a and c can not have common supertype, hence both of them are chosen as b, since best match 
+            // for H is H(a: b)
+        */
+
+        var testRight = """
+        interface T { }
+        interface K { }
+        class a <: T & K {}
+        class b <: T {}
+        class c <: T & K {}
+
+        func F(c: Int64): a {
+            a()
+        }
+        func F(c: Hashable): b {
+            b()
+        }
+
+        func G(d: Int64): c {
+            c()
+        }
+
+        func G(d: Hashable): b {
+            b()
+        }
+
+        func H(a: b): Any {
+            String()
+        }
+
+        func H(a: T): Int64 {
+            1
+        }
+
+        main(){
+            let v1 = H( if(true) { F(1) } else { G(1) } )            // ok
+            let v2: b = if (true) { F(1) } else { G(1) }             // ok
+            let v3: Int64 = H( if(true) { F(1) } else { G(1) } )     // ok
+        }
+        """
+
+        TypeChecker(getAsg(testRight))
+
+        var testWrong = """
+        interface T { }
+        interface K { }
+        class a <: T & K {}
+        class b <: T {}
+        class c <: T & K {}
+
+        func F(c: Int64): a {
+            a()
+        }
+        func F(c: Hashable): b {
+            b()
+        }
+
+        func G(d: Int64): c {
+            c()
+        }
+
+        func G(d: Hashable): b {
+            b()
+        }
+
+        func H(a: b): Any {
+            String()
+        }
+
+        func H(a: T): Int64 {
+            1
+        }
+
+        main(){
+            let v4 = if (true) { F(1) } else { G(1) }                // error
+        }
+        """
+
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+
+        testWrong = """
+        interface T { }
+        interface K { }
+        class a <: T & K {}
+        class b <: T {}
+        class c <: T & K {}
+
+        func F(c: Int64): a {
+            a()
+        }
+        func F(c: Hashable): b {
+            b()
+        }
+
+        func G(d: Int64): c {
+            c()
+        }
+
+        func G(d: Hashable): b {
+            b()
+        }
+
+        func H(a: b): Any {
+            String()
+        }
+
+        func H(a: T): Int64 {
+            1
+        }
+
+        main(){
+            let v5: a = if (true) { F(1) } else { G(1) }             // error
+        }
+        """
+
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+    }
+
+    @TestCase
+    func interfaceMemberAccess_test() {
+        var testRight = """
+        interface I {
+            func f(): Int64
+        }
+
+        class C <: I {
+            func f(): Int64 {
+                1
+            }
+        }
+
+        func g(): I{
+            C()
+        }
+
+        main() {
+            let a: I = C()
+            a.f()
+
+            g().f()
+        }
+        """
+
+        TypeChecker(getAsg(testRight))
+    }
+
+    @TestCase
+    func inheritedMemberAccess_test() {
+        var testRight = """
+        class S {
+            func f() {
+                1
+            }
+        }
+
+        func f() {
+            "str"
+        }
+
+        class C <: S {
+            func g() {
+                f()
+            }
+        }
+
+        func g(): String{
+            "str"
+        }
+
+        main() {
+            let a: Int64 = C().g()
+        }
+        """
+
+        TypeChecker(getAsg(testRight))
+
+        var testWrong = """
+        class S {
+            func f() {
+                1
+            }
+        }
+
+        func f() {
+            "str"
+        }
+
+        class C <: S {
+            func g() {
+                f()
+            }
+        }
+
+        func g(): String{
+            "str"
+        }
+
+        main() {
+            let a: String = C().g()
+        }
+        """
+
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+
+        testWrong = """
+        func f() {
+            1
+        }
+
+        class C {
+        }
+
+        main() {
+            C().f()
+        }
+        """
+
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+    }
+
+    @TestCase
+    func globalVariablesConsistency_test() {
+        var testRight = """
+        class C {
+            func f() {
+                func g(): Int64 {
+                    1
+                }
+
+                g()
+            }
+        }
+        main() {
+        }
+        """
+
+        TypeChecker(getAsg(testRight))
+
+        testRight = """
+        class C{
+            func f() {
+                func g() {
+                    "ff"
+                }
+                D().g()
+            }
+        }
+
+        class D {
+            func g() {
+                1
+            }
+        }
+
+
+        main() {
+            let c: Int64 = C().f()
+        }
+        """
+
+        TypeChecker(getAsg(testRight))
+
+        var testWrong = """
+        class C{
+            func f() {
+                func g() {
+                    "ff"
+                }
+                D().g()
+            }
+        }
+
+        class D {
+            func g() {
+                1
+            }
+        }
+
+
+        main() {
+            let c: String = C().f()
+        }
+        """
+
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+    }
+
+    @TestCase
+    func globalVariablesConsistencyComplex_test() {
+        var testRight = """
+        func k(a: Int64): Int64 {
+            1
+        }
+
+        func f(){
+            func k(a: Int64): String {
+                "String"
+            }
+
+            h()
+        }
+
+        func h() {
+            k(1)
+        }
+
+        main() {
+            let a: Int64 = f()
+        }
+        """
+
+        TypeChecker(getAsg(testRight))
+
+        var testWrong = """
+        func k(a: Hashbel): Int64 {
+            1
+        }
+
+        func f(){
+            func k(a: Int64): String {
+                "String"
+            }
+
+            h()
+        }
+
+        func h() {
+            k(1)
+        }
+
+        main() {
+            let a: String = f()
+        }        
+        """
+
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+    }
+
+    @TestCase
+    func NodeTraversalOrder_test() {
+        var testRight = """
+        class C {
+            func f() {
+                D().t()
+            }
+
+            func t() {
+                1
+            }
+        }
+
+        class D {
+            func g() {
+                C().t()
+            }
+
+            func t() {
+                1
+            }
+        }
+
+        main() {
+        }
+        """
+
+        TypeChecker(getAsg(testRight))
+    }
+
+
 }

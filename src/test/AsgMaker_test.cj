@@ -1078,5 +1078,51 @@ class AsgMakerTests {
 
         getAsg(testRight)
     }
+
+
+    @TestCase
+    func memberShadowing_test() {
+        let testFunc: String = """
+            class c {
+                let cvar = 5
+                func f() {
+                }
+            }
+            class a <: b {
+                func f() {
+                }
+                init() {
+                }
+            }
+            class b <: c {
+                func bfunc() {
+                }
+            }
+            main(){
+                let a = a()
+                let v: Int64 = a.cvar
+                let f: Unit = a.bfunc()
+            }"""
+        @AssertThrows[Exception](getAsg(testFunc))
+        let testVar: String = """
+            class c {
+                let cvar = 5
+            }
+            class a <: b {
+                let cvar = 2
+                init() {
+                }
+            }
+            class b <: c {
+                func bfunc() {
+                }
+            }
+            main(){
+                let a = a()
+                let v: Int64 = a.cvar
+                let f: Unit = a.bfunc()
+            }"""
+        @AssertThrows[Exception](getAsg(testVar))
+    }
 }
 
