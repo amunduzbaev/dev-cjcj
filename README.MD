@@ -66,5 +66,7 @@ Verifies proper variable and class initialization:
 - Make sure to put the right target in cjpm.toml, see the cjpm.toml for more details
 - Run the following command where TEST_FILE_NAME is the file containing input code
 
+```console
 cjpm run --run-args="TEST_FILE_NAME"
+```
 
