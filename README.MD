@@ -63,8 +63,8 @@ Verifies proper variable and class initialization:
 
 - Short guide on how to run the program
 - First clone this repo and make sure that Cangjie 1.0.0 and stdx library is installed
-- Make sure to put the right target in cjpm.toml, see the cjpm.toml for more details
-- Run the following command where TEST_FILE_NAME is the file containing input code
+- Make sure to put the right target in [cjpm.toml](https://github.com/amunduzbaev/personal-cjcj/blob/interfaces/cjpm.toml), see the [cjpm.toml](https://github.com/amunduzbaev/personal-cjcj/blob/interfaces/cjpm.toml) for more details
+- Run the following command where ```TEST_FILE_NAME``` is the file containing input code
 
 ```console
 cjpm run --run-args="TEST_FILE_NAME"
