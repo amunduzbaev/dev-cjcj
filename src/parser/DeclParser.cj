@@ -307,8 +307,6 @@ internal open class DeclParser {
             reporter.unclosedDelimiterError(helper.peek(), start[0], start[1], helper.current)
         }
 
-        println("Error is found in body : ${reporter.empty}")
-
         Body(NodeIdManager.nextId(), decls)
     }
 

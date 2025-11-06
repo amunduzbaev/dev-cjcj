@@ -123,7 +123,7 @@ public class Scanner {
             case '#' => addToken(TokenKind.HASH)
             case '?' => addToken(TokenKind.QUEST)
             case '_' =>
-                if (isAlpha(peekNext())) {
+                if (isAlpha(peek())) {
                     identifier()
                 } else {
                     addToken(TokenKind.WILDCARD)
