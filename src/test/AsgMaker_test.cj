@@ -240,8 +240,8 @@ class AsgMakerTests {
                 ArrayList(),
                 {
                     res, decl =>
-                    res.add(decl);
-                    res
+                        res.add(decl);
+                        res
                 }
             )
         @Expect(decls[0].initializer.isNone())
@@ -529,7 +529,7 @@ class AsgMakerTests {
 
         let testRight: String = """
             main(){
-                func f() {
+                func f():Int64 {
                     f()
                     1
                 }
@@ -556,7 +556,7 @@ class AsgMakerTests {
             func g() {
                 f()
             }
-            func f(){
+            func f(): Int64 {
                 g()
                 5
             }
@@ -698,7 +698,11 @@ class AsgMakerTests {
     func thisSuperExpression_test() {
         var testRight: String = """
         class T{
-            let a = this
+            var a: Int64 = 1
+
+            func f() {
+                this.a = 1
+            }
         }
         main() {
         }
@@ -847,41 +851,33 @@ class AsgMakerTests {
             }
             
             main(args: Int32){
-                let a: Int32
+                var a: Int32
                 func A (a: Type, b: Type, c: Type){
-                    a = 1
-                    b = a + c
-
                     if(true) {
                         return a;
                     } else {
                     }
                     
-                    return a;
+                    return b;
 
-                    a + b
+                    c
                 }
 
                 a = if(true) {
                     2
                 } else {
-                    "test-string"
+                    5
                 }
 
                 let b = a + a
                 let c = a - a
 
                 a = 3
-                a = 5.2
-                a = (a * c + (b - c)) ** 3
+                a = (a * c + (b - c)) * 3
 
-                A()
-                A(1, 2, "test-param")
+                A(Type(), Type(), Type())
             }
-            /*
-                Some comment
-                3(*&#@71I#(@))))))
-            */
+
             """
         getAsg(test)
     }

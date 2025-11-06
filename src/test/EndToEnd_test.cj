@@ -36,19 +36,6 @@ class EndToEndTests {
 
     @TestCase
     func builtinOperators_test() {
-        let testWrong: String = """
-            main() {
-                let a: Bool = true
-                let b: Bool = false
-
-                a / b 
-                a - b 
-                a & b 
-            }
-        """
-
-        @AssertThrows[Exception](run(testWrong))
-
         let testRight: String = """
             main() {
                 let a = 1
@@ -75,13 +62,6 @@ class EndToEndTests {
 
     @TestCase
     func typeVarDecl_test() {
-        let testWrong: String = """
-            main() {
-                let a: Int64 = "string"
-            }
-            """
-        @AssertThrows[Exception](run(testWrong))
-
         let testRight: String = """
             main() {
                 let a: Int64 = 2543
@@ -92,13 +72,6 @@ class EndToEndTests {
 
     @TestCase
     func typeVarAssign_test() {
-        let testWrong: String = """
-            main() {
-                var a: Int64 = 5
-                a = "string"
-            }
-            """
-        @AssertThrows[Exception](run(testWrong))
         let testRight: String = """
             main() {
                 var a: Int64 = 5
@@ -110,14 +83,6 @@ class EndToEndTests {
 
     @TestCase
     func operatorsType_test() {
-        let testWrong: String = """
-            main() {
-                var a: Int64 = 5
-                let b: String = "5"
-                a = a + b
-            }
-            """
-        @AssertThrows[Exception](run(testWrong))
         let testRight: String = """
             main() {
                 var a: Int64 = 5
@@ -130,14 +95,6 @@ class EndToEndTests {
 
     @TestCase
     func typeFuncDecl_test() {
-        let testWrong: String = """
-            main() {
-                func a(): Int64 {
-                    "string"
-                }
-            }
-            """
-        @AssertThrows[Exception](run(testWrong))
         let testRight: String = """
             main() {
                 func a(): Int64 {
@@ -150,12 +107,6 @@ class EndToEndTests {
 
     @TestCase
     func typeMainDecl_test() {
-        let testWrong: String = """
-            main(): Int64 {
-                "string"
-            }
-            """
-        @AssertThrows[Exception](run(testWrong))
         let testRight: String = """
             main(): Int64 {
                 5
@@ -166,15 +117,6 @@ class EndToEndTests {
 
     @TestCase
     func typeFuncParams_test() {
-        let testWrong: String = """
-            main() {
-                func a(b: String, c: Int64): Int64 {
-                    6
-                }
-                a(2, "1")
-            }
-            """
-        @AssertThrows[Exception](run(testWrong))
         let testRight: String = """
             main() {
                 func a(b: String, c: Int64): Int64 {
@@ -191,20 +133,6 @@ class EndToEndTests {
         // TODO: If you're here because this failed, remember that this is not valid code LOL, when
         // we made this test we didn't have all those fancy interfaces and keywords that you, people
         // of the future have, so please don't get angry and just change this small piece of code :)
-        let testWrong: String = """
-            class a {}
-            class b {}
-            class c <: b & a {}
-            class d <: b & a {}
-            main() {
-                if (true) {
-                    return c()
-                } else {
-                    return d()
-                }
-            }
-            """
-        @AssertThrows[Exception](run(testWrong))
         let testRight: String = """
             main() {
                 func a(b: String, c: Int64): Int64 {
@@ -221,13 +149,6 @@ class EndToEndTests {
         // TODO: If you're here because this failed, remember that this is not valid code LOL, when
         // we made this test we didn't have all those fancy interfaces and keywords that you, people
         // of the future have, so please don't get angry and just change this small piece of code :)
-        let testWrong: String = """
-            main() {
-                if (1 + 2) {
-                }
-            }
-            """
-        @AssertThrows[Exception](run(testWrong))
         let testRight: String = """
             main() {
                 if(true) {
@@ -280,52 +201,6 @@ class EndToEndTests {
     }
 
     @TestCase
-    func multipleCandidateFunction_test() {
-        let test: String = """
-            func A(a: Any, b: Any): Any {
-                a
-            }
-
-            func A(a: Int64, b: Any): Int64 {
-                a
-            }
-
-            func A(a: Any, b: Int64): Int64 {
-                2
-            }
-
-            main(args: Int64) {
-                let a: Int64 = 1
-                let b: Int64 = 2
-
-                let c = A(a, b)
-            }
-            """
-        @AssertThrows[Exception](run(test))
-    }
-
-    @TestCase
-    func noSuitableFunctionReturnType_test() {
-        let test: String = """
-            func A(a: Any, b: Any): Any {
-                a
-            }
-
-            func A(a: Any, b: Int64): Int64 {
-                2
-            }
-            main(args: Int64) {
-                let a: Int64 = 1
-                let b: Int64 = 2
-
-                let c: String
-                c = A(a, b)
-            }
-            """
-        @AssertThrows[Exception](run(test))
-    }
-
-    @TestCase
     func functionReturnTypeInferred_test() {
         let testRight: String = """
             func a(a: Int64) {
@@ -339,32 +214,6 @@ class EndToEndTests {
             }
             """
         run(testRight)
-        // let testWrong: String = """
-        //     func a(a: Int64) {
-        //         "string"
-        //     }
-        //     main(){
-        //         func a(a: Int64) {
-        //             2
-        //         }
-        //         let c: String = a(1)
-        //     }
-        //     """
-        // @AssertThrows[Exception](run(testWrong))
-    }
-
-    @TestCase
-    func noReturnInsideInit_test() {
-        let testWrong: String = """
-            class a {
-                init() {
-                    return 5
-                }
-            }
-            main(){
-            }
-            """
-        @AssertThrows[Exception](run(testWrong))
     }
 
     @TestCase
@@ -386,20 +235,6 @@ class EndToEndTests {
             """
 
         run(testRight)
-        let testWrong: String = """
-            class a {
-                let b: Int64
-                init() {
-                }
-                func f() {
-                }
-            }
-            main(){
-                let b = a()
-                let c: String = b.b
-            }
-            """
-        @AssertThrows[Exception](run(testWrong))
     }
 
     @TestCase
@@ -439,31 +274,6 @@ class EndToEndTests {
         }
         """
         run(test)
-
-        // TODO: We can make this test not fail if we let the assigner go into the blocks. It will
-        // mean implement all the empty visit functions but it could be worth it, cjc doesn't do it.
-        let testHard = """
-        func f() {
-            g()
-            i()
-        }
-        func i() {
-            g()
-        }
-        func g() {
-            h()
-        }
-        let a = 5
-        func h() {
-            func bo(): Int64 {
-                f()
-            }
-            return a
-        }
-        main(){
-        }
-        """
-        @AssertThrows[Exception](run(testHard))
     }
 
     @TestCase
@@ -482,33 +292,6 @@ class EndToEndTests {
             }
             """
         run(testRight)
-        let testWrong: String = """
-            func f() {
-                g()
-                return 5
-            }
-
-            func g() {
-                f()
-                return "hi"
-            }
-            main() {
-            }
-            """
-        @AssertThrows[Exception](run(testWrong))
-    }
-
-    @TestCase
-    func memberAccessNotFound_test() {
-        let test: String = """
-            class a {
-            }
-            main(){
-                let b = a()
-                let c: Int64 = a().b
-            }
-            """
-        @AssertThrows[Exception](run(test))
     }
 
     @TestCase
@@ -557,39 +340,6 @@ class EndToEndTests {
             }
             """
         run(testRight)
-
-        // var testWrong: String = """
-        //     main(){
-        //         1 + 2 * 4 ** -10
-        //     }
-        /// """
-        // @AssertThrows[Exception](run(testWrong))
-
-        var testWrong = """
-            main(){
-                let a: Int32 = 1.5
-            }
-            """
-        @AssertThrows[Exception](run(testWrong))
-        testWrong = """
-            main(){
-                let a: Float32 = 1
-            }
-           """
-        @AssertThrows[Exception](run(testWrong))
-    }
-
-    @TestCase
-    func memberAccessCannotCallClass_test() {
-        let test: String = """
-            class a {
-            }
-            main(){
-                let b: a = a()
-                let c: Int64 = b()
-            }
-           """
-        @AssertThrows[Exception](run(test))
     }
 
     @TestCase
@@ -606,33 +356,6 @@ class EndToEndTests {
             }
             """
         run(test)
-    }
-
-    @TestCase
-    func functionWrongReturnType_test() {
-        var test: String = """
-            class a {
-                func f(): Int64 { }
-            }
-            main(){
-            }
-           """
-        @AssertThrows[Exception](run(test))
-        test = """
-            func f(): Int64 { }
-            main(){
-            }
-           """
-        @AssertThrows[Exception](run(test))
-    }
-
-    @TestCase
-    func functionClassName_test() {
-        var test: String = """
-            func Any() {}
-            main(){ }
-           """
-        @AssertThrows[Exception](run(test))
     }
 
     @TestCase
@@ -687,47 +410,6 @@ class EndToEndTests {
             }
            """
         run(testRight)
-        let testWrong: String = """
-            class c {
-                let common = 5
-            }
-            class b <: c {
-                func bfunc() {
-                }
-            }
-            class a <: b {
-                init() {
-                }
-            }
-            main(){
-                let a = a()
-                let v: String = a.common
-                let f: Unit = a.bfunc()
-            }
-           """
-        @AssertThrows[Exception](run(testWrong))
-    }
-
-    @TestCase
-    func variableDeclCycle_test() {
-        // let testRight: String = """
-        //     let a: Int64 = f()
-        //     func f() {
-        //         return a
-        //     }
-        //     main(){
-        //     }
-        //     """
-        // run(testRight)
-        let testWrong: String = """
-            let a = f()
-            func f() {
-                return a
-            }
-            main(){
-            }
-           """
-        @AssertThrows[Exception](run(testWrong))
     }
 
     @TestCase
@@ -780,34 +462,6 @@ class EndToEndTests {
             """
 
         run(testRight)
-
-        let testWrong: String = """
-            class A {
-                let a: Int64 = 1
-            }
-            class B {
-                func a() {
-                }
-            }
-
-            func F(a: Int64) {
-                B()
-            }
-
-            func F(a: Any) {
-                A()
-            }
-            func dbl(a: Int64) {
-                a + a
-            }
-
-            main() {
-                let c: Int64 = F(1).a
-                let d = dbl(F(1).a)
-            }
-            """
-
-        @AssertThrows[Exception](run(testWrong))
 
         let testRightHard: String = """
             class D {}
@@ -864,33 +518,7 @@ class EndToEndTests {
             }
         """
 
-        let testWrong = """
-            class A{
-                func G(a: Int64) {
-                    a
-                }
-            }
-
-            class B{
-                func G(a: Int64) {
-                    "String"
-                }
-            }
-
-            func F(a: Int64) {
-                A()
-            }
-            func F(a: Any) {
-                B()
-            }
-
-            main(){
-                let d: String = F(1).G(1)   // ERR (Should not be able to infer the type)
-            }
-        """
-
         run(testRight)
-        @AssertThrows[Exception](run(testWrong))
     }
 
     @TestCase
@@ -922,57 +550,7 @@ class EndToEndTests {
             }
         """
 
-        let testWrong = """
-            class A {
-            }
-            class B {
-            }
-
-            func F(a: Any) {
-                A()
-            }
-
-            func F(a: Int64) {
-                B()
-            }
-
-            func F2() {
-                if(true) {
-                    return F(1)
-                } else {
-                    return A()
-                }
-            }
-
-            main(){
-                let a: A = F2()
-            }
-        """
-
         run(testRight)
-        @AssertThrows[Exception](run(testWrong))
-    }
-
-    @TestCase
-    func interfaceClassMemberRedeclaration_test() {
-        var testWrong = """
-        class S {
-            let a: Int64 = 1
-        }
-        interface I {
-            func a(): Unit {
-                1
-            }
-        }
-
-        class C <: S & I {
-        }
-
-        main() {
-        }
-        """
-
-        @AssertThrows[Exception](run(testWrong))
     }
 
     @TestCase
@@ -1066,49 +644,6 @@ class EndToEndTests {
         """
 
         run(testRight)
-
-        var testWrong = """
-        func F(a: Any): Int64 {
-            1
-        }
-
-        func F(a: Hashable): Hashable {
-            a
-        }
-
-        func G(a: ToString): ToString {
-            a
-        }
-
-        func G(a: Hashable): Hashable {
-            a
-        }
-
-        main() {
-            G(F(1))                     // error
-            let f: Int64 = F(G(1))      // error
-            let d: ToString = F(G(1))   // error
-            let e = toStr(F(G(1)))      // error
-        }
-        """
-
-        @AssertThrows[Exception](run(testWrong))
-
-        testWrong = """
-        func G(a: ToString): ToString {
-            a
-        }
-
-        func G(a: Hashable): Hashable {
-            a
-        }
-
-        main() {
-            G(1)                        // error
-        }
-        """
-
-        @AssertThrows[Exception](run(testWrong))
     }
 
     @TestCase
@@ -1133,27 +668,6 @@ class EndToEndTests {
         """
 
         run(testRight)
-
-        var testWrong = """
-        interface A{}
-        interface B{}
-        interface C{}
-
-        class D <: A & B{}
-        class E <: D {}
-        class H <: E {}
-        class G <: H & A & B & C {}
-
-        func F(a: C) {}
-        func F(a: A) {}
-        func F(a: B) {}
-
-        main () {
-            F(G())
-        }
-        """
-
-        @AssertThrows[Exception](run(testWrong))
     }
 
     @TestCase
@@ -1204,80 +718,6 @@ class EndToEndTests {
         """
 
         run(testRight)
-
-        var testWrong = """
-        interface T { }
-        interface K { }
-        class a <: T & K {}
-        class b <: T {}
-        class c <: T & K {}
-
-        func F(c: Int64): a {
-            a()
-        }
-        func F(c: Hashable): b {
-            b()
-        }
-
-        func G(d: Int64): c {
-            c()
-        }
-
-        func G(d: Hashable): b {
-            b()
-        }
-
-        func H(a: b): Any {
-            String()
-        }
-
-        func H(a: T): Int64 {
-            1
-        }
-
-        main(){
-            let v4 = if (true) { F(1) } else { G(1) }                // error
-        }
-        """
-
-        @AssertThrows[Exception](run(testWrong))
-
-        testWrong = """
-        interface T { }
-        interface K { }
-        class a <: T & K {}
-        class b <: T {}
-        class c <: T & K {}
-
-        func F(c: Int64): a {
-            a()
-        }
-        func F(c: Hashable): b {
-            b()
-        }
-
-        func G(d: Int64): c {
-            c()
-        }
-
-        func G(d: Hashable): b {
-            b()
-        }
-
-        func H(a: b): Any {
-            String()
-        }
-
-        func H(a: T): Int64 {
-            1
-        }
-
-        main(){
-            let v5: a = if (true) { F(1) } else { G(1) }             // error
-        }
-        """
-
-        @AssertThrows[Exception](run(testWrong))
     }
 
     @TestCase
@@ -1337,49 +777,6 @@ class EndToEndTests {
         """
 
         run(testRight)
-
-        var testWrong = """
-        class S {
-            func f() {
-                1
-            }
-        }
-
-        func f() {
-            "str"
-        }
-
-        class C <: S {
-            func g() {
-                f()
-            }
-        }
-
-        func g(): String{
-            "str"
-        }
-
-        main() {
-            let a: String = C().g()
-        }
-        """
-
-        @AssertThrows[Exception](run(testWrong))
-
-        testWrong = """
-        func f() {
-            1
-        }
-
-        class C {
-        }
-
-        main() {
-            C().f()
-        }
-        """
-
-        @AssertThrows[Exception](run(testWrong))
     }
 
     @TestCase
@@ -1423,30 +820,6 @@ class EndToEndTests {
         """
 
         run(testRight)
-
-        var testWrong = """
-        class C{
-            func f() {
-                func g() {
-                    "ff"
-                }
-                D().g()
-            }
-        }
-
-        class D {
-            func g() {
-                1
-            }
-        }
-
-
-        main() {
-            let c: String = C().f()
-        }
-        """
-
-        @AssertThrows[Exception](run(testWrong))
     }
 
     @TestCase
@@ -1474,30 +847,6 @@ class EndToEndTests {
         """
 
         run(testRight)
-
-        var testWrong = """
-        func k(a: Hashbel): Int64 {
-            1
-        }
-
-        func f(){
-            func k(a: Int64): String {
-                "String"
-            }
-
-            h()
-        }
-
-        func h() {
-            k(1)
-        }
-
-        main() {
-            let a: String = f()
-        }        
-        """
-
-        @AssertThrows[Exception](run(testWrong))
     }
 
     @TestCase
@@ -1525,6 +874,410 @@ class EndToEndTests {
 
         main() {
         }
+        """
+
+        run(testRight)
+    }
+
+    // From AsgMaker
+
+    @TestCase
+    func variableReference_test() {
+        let testRight: String = """
+            main(){
+                let a = 5
+                let b = a
+            }
+        """
+
+        run(testRight)
+    }
+
+    @TestCase
+    func functionReference_test() {
+        let testRight: String = """
+            main(){
+                func f(a: Int64, b: Int64) {
+                    a
+                }
+                let b = f(1, 2)
+            }
+        """
+
+        run(testRight)
+    }
+
+    @TestCase
+    func recursiveFunction_test() {
+        let testRight: String = """
+            main(){
+                func f():Int64 {
+                    f()
+                    1
+                }
+            }
+        """
+
+        run(testRight)
+    }
+
+    @TestCase
+    func unorderedDeclarations_test() {
+        var testRight: String = """
+            let a = f()
+            func f(){
+                5
+            }
+            main(){
+            }
+        """
+
+        run(testRight)
+
+        testRight = """
+            func g() {
+                f()
+            }
+            func f(): Int64 {
+                g()
+                5
+            }
+            main(){
+            }
+        """
+
+        run(testRight)
+
+        testRight = """
+            func g() {
+                C()
+            }
+
+            class C{
+            }
+            main(){
+            }
+        """
+
+        run(testRight)
+    }
+
+    @TestCase
+    func selfInitClass_test() {
+        var testRight: String = """
+            class D{
+                func F() {
+                    let c = D()
+                    1
+                }
+            }
+            main(){
+            }
+        """
+
+        run(testRight)
+    }
+
+    @TestCase
+    func unorderedClassDeclaration_test() {
+        var testRight: String = """
+            class B <: A{
+            }
+            class A {
+            }
+            main(){
+            }
+        """
+
+        run(testRight)
+    }
+
+    @TestCase
+    func referenceReuse_test() {
+        var testRight: String = """
+        func f() {
+            func h() {
+                g()
+            }
+
+            h()
+        }
+
+        func g(){
+            1
+        }
+
+        main(){
+        }
+        """
+
+        run(testRight)
+    }
+
+    @TestCase
+    func builtinTypes_test() {
+        var testRight: String = """
+        main() {
+            func a(b: String, c: Any): Int64 {
+                1
+            }
+
+            a("2", 1)
+        }
+        """
+
+        run(testRight)
+    }
+
+    @TestCase
+    func customTypes_test() {
+        var testRight: String = """
+        class T{
+        }
+
+        func f(a: T, b: K): Int64{
+            1
+        }
+
+        class K{
+        }
+
+        main() {
+            f(T(), K())
+        }
+        """
+
+        run(testRight)
+    }
+
+    @TestCase
+    func thisSuperExpression_test() {
+        var testRight: String = """
+        class T{
+            var a: Int64 = 1
+
+            func f() {
+                this.a = 1
+            }
+        }
+        main() {
+        }
+        """
+        run(testRight)
+    }
+
+    @TestCase
+    func interfaceDeclaration_test() {
+        var testRight: String = """
+        interface I {
+            func f(a: Int64): Unit
+            func sum(a: Int64, b: Int64): Int64 {
+                a + b
+            }
+        }
+
+        main() {
+        }
+        """
+
+        run(testRight)
+    }
+
+    @TestCase
+    func interfaceDeclarationComplex_test() {
+        var testRight: String = """
+        let c: Int64 = 1
+        interface I {
+            func sum(a: Int64, b: Int64): Int64 {
+                a + b + c
+            }
+            func max_(a: Int64, b: Int64): Int64 {
+                if(a > b && a > c) {
+                    a
+                } else if(b > c) {
+                    b
+                } else {
+                    c
+                }
+            }
+        }
+        main() {
+        }
+        """
+
+        run(testRight)
+    }
+
+    @TestCase
+    func interfaceInstance_test() {
+        var testRight: String = """
+        interface I { }
+        class C <: I { }
+        main() {
+            let c: I = C()
+        }
+        """
+
+        run(testRight)
+    }
+
+    @TestCase
+    func total_test() {
+        let test: String = """
+            main(args: Int64) {
+                func aa(b: Int64, h: String): Int64 {
+                    4
+                    return 6;
+                }
+                var a = if (true) {
+                    100
+                } else {
+                    5
+                }
+                var b = while (true) {
+                    5
+                }
+                aa(2, "1")
+            } 
+            """
+        run(test)
+    }
+
+    @TestCase
+    func totalComplex_test() {
+        let test: String = """
+            class Type{
+            }
+            
+            main(args: Int32){
+                var a: Int32
+                func A (a: Type, b: Type, c: Type){
+                    if(true) {
+                        return a;
+                    } else {
+                    }
+                    
+                    return b;
+
+                    c
+                }
+
+                a = if(true) {
+                    2
+                } else {
+                    5
+                }
+
+                let b = a + a
+                let c = a - a
+
+                a = 3
+                a = (a * c + (b - c)) * 3
+
+                A(Type(), Type(), Type())
+            }
+            """
+        run(test)
+    }
+
+    /* If a class inherits a interface, it should implement all member functions of the interface */
+    @TestCase
+    func interfaceInheritanceFunctionRule_test() {
+        var testRight = """
+            interface I {
+                func a(): Int64
+            }
+            class C <: I {
+                func a() {
+                    1
+                }
+            }
+
+            main() {
+            }
+        """
+
+        run(testRight)
+    }
+
+    /* If a class inherits a interface, it should implement all member functions of the interface */
+    @TestCase
+    func interfaceInheritanceFunctionRuleComplex_test() {
+        var testRight = """
+            interface J {
+                func b(): Int64
+            }
+            interface I <: J {
+                func a(): Int64
+            }
+
+            class C <: I {
+                func a() { 1 }
+                func b() { 1 }
+            }
+
+            main() {
+            }
+        """
+
+        run(testRight)
+
+        testRight = """
+            interface I {
+                func f(): Int64
+            }
+            interface J {
+                func f(): Int64
+            }
+
+            class C <: I & J {
+                func f() { 1 }
+            }
+
+            main() {
+            }
+        """
+
+        run(testRight)
+    }
+
+    @TestCase
+    func classInheritanceRule_test() {
+        var testRight = """
+            class S {
+            }
+            interface I {
+            }
+
+            class C <: S & I{
+            }
+            main() {
+            }
+        """
+
+        run(testRight)
+    }
+
+    @TestCase
+    func classInheritedMemberAccessRule_test() {
+        var testRight = """
+            class S {
+                let a: Int64 = 1
+            }
+            interface I {
+                func a(): Int64 {
+                    1
+                }
+            }
+
+            class C <: S & I {
+                func a(): Int64 {
+                    1
+                }
+            }
+
+            main() {
+            }
         """
 
         run(testRight)

@@ -1517,4 +1517,27 @@ class TypeCheckTests {
 
         TypeChecker(getAsg(testRight))
     }
+
+    @TestCase
+    func recursiveFunction_test() {
+        let testWrong: String = """
+            main(){
+                func f() {
+                    f()
+                    1
+                }
+            }
+        """
+        @AssertThrows[Exception](TypeChecker(getAsg(testWrong)))
+
+        let testRight: String = """
+            main(){
+                func f():Int64 {
+                    f()
+                    1
+                }
+            }
+        """
+        TypeChecker(getAsg(testRight))
+    }
 }

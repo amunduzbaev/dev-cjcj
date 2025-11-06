@@ -214,8 +214,8 @@ class ParserTests {
             ArrayList(),
             {
                 res, decl =>
-                res.add(decl);
-                res
+                    res.add(decl);
+                    res
             }
         )
         @Expect(decls[0].initializer.isNone())
