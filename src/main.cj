@@ -7,9 +7,9 @@ import cjcj.parser.*
 import cjcj.scanner.*
 import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.asg.initChecker.InitChecker
-
 import std.env.*
-import std.fs.File 
+import std.fs.File
+import std.time.MonoTime
 
 public class Cj {
     static var hadError: Bool = false
@@ -48,11 +48,13 @@ public class Cj {
             initChecker.resolve(asg)
 
             println(printer.toString())
+        } else {
+            throw Exception("Program is not parsed")
         }
     }
 }
 
-main (args: Array<String>) {
+main(args: Array<String>) {
     if (args.size > 1) {
         getStdOut().writeln("Usage: cjcj [script]")
         exit(64)
@@ -64,4 +66,3 @@ main (args: Array<String>) {
         Cj.runFile("testcode.txt")
     }
 }
-

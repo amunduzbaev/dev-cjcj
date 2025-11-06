@@ -5,7 +5,6 @@ import cjcj.asg.AsgMaker
 import cjcj.visitor.Program
 import cjcj.parser
 import cjcj.scanner.*
-
 import std.env.*
 import std.collection.ArrayList
 

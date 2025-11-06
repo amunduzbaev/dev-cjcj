@@ -2,9 +2,8 @@ package cjcj.parser
 
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
-import std.collection.*
+import std.collection.ArrayList
 import std.ast.Position
-
 import std.env.ConsoleWriter
 
 public class Reporter {
@@ -16,23 +15,25 @@ public class Reporter {
     }
 
     public func pop() {
-        errors.remove(at: errors.size-1)
+        errors.remove(at: errors.size - 1)
     }
 
     public prop empty: Bool {
-        get() { errors.isEmpty() }
+        get() {
+            errors.isEmpty()
+        }
     }
 
     private func getSuffixPrefix(current: Int64): (String, String) {
         var prefix: String = ""
         var suffix: String = ""
-        for(i in max(current-9,0)..current) {
-            if(tokens[i].pos.line == tokens[current].pos.line) {
+        for (i in max(current - 9, 0)..current) {
+            if (tokens[i].pos.line == tokens[current].pos.line) {
                 prefix += tokens[i].value + " "
             }
         }
-        for(i in current+1..min(current+10,tokens.size)) {
-            if(tokens[i].pos.line == tokens[current].pos.line) {
+        for (i in current + 1..min(current + 10, tokens.size)) {
+            if (tokens[i].pos.line == tokens[current].pos.line) {
                 suffix += tokens[i].value + " "
             }
         }
@@ -50,43 +51,41 @@ public class Reporter {
 
     func consumeError(token: Token, index: Int64, expected: TokenKind, found: String) {
         if (token.kind == TokenKind.END) {
-            errors.add(Error(token.pos.line, index, "end",
-            "expected '${redify(expected.toString())}', found '${redify(found.toString())}'", 
-            getSuffixPrefix(index)))
+            errors.add(
+                Error(token.pos.line, index, "end",
+                    "expected '${redify(expected.toString())}', found '${redify(found.toString())}'",
+                    getSuffixPrefix(index)))
         } else {
-            errors.add(Error(token.pos.line, index, token.value, 
-            "expected '${redify(expected.toString())}', found '${redify(found.toString())}'", 
-            getSuffixPrefix(index)))
+            errors.add(
+                Error(token.pos.line, index, token.value,
+                    "expected '${redify(expected.toString())}', found '${redify(found.toString())}'",
+                    getSuffixPrefix(index)))
         }
     }
 
-    func unclosedDelimiterError(currentToken: Token, startToken: Token, startIndex: Int64, 
-                                currentIndex: Int64) {
-            pop()
-            pop()
-            errors.add(ErrorUnclosedDelimiter( currentToken.pos.line, startIndex, startToken.value, 
-            getSuffixPrefix(startIndex), currentIndex, currentToken.value, getSuffixPrefix(currentIndex)))
-
+    func unclosedDelimiterError(currentToken: Token, startToken: Token, startIndex: Int64, currentIndex: Int64) {
+        pop()
+        pop()
+        errors.add(
+            ErrorUnclosedDelimiter(currentToken.pos.line, startIndex, startToken.value, getSuffixPrefix(startIndex),
+                currentIndex, currentToken.value, getSuffixPrefix(currentIndex)))
     }
 
-    static public func redify(str: String) {
+    public static func redify(str: String) {
         return "\u{001b}[31m${str}\u{001b}[0m"
     }
 
     public func logErrors() {
         if (errors.size > 0) {
-            for(i in 0..(min(errors.size,5))) {
+            for (i in 0..(min(errors.size, 5))) {
                 console.write(errors[i])
             }
             console.write(
                 """
 
-${errors.size} errors generated, ${min(errors.size,5)} errors printed.
+${errors.size} errors generated, ${min(errors.size, 5)} errors printed.
 Failed to parse program.
-"""
-            )
+""")
         }
     }
-
-
 }

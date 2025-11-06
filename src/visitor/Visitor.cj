@@ -1,11 +1,10 @@
 package cjcj.visitor
 
 public abstract class Visitor<R> {
-
     protected open func visit(_: Program): R {
         throw Exception("Unimplemented method for Visitor : Program")
     }
- 
+
     protected open func visit(_: BinaryExpr): R {
         throw Exception("Unimplemented method for Visitor : Binary Expression")
     }
@@ -107,23 +106,19 @@ public abstract class Visitor<R> {
     }
 
     protected open func visit(_: VarDeclWithRef): R {
-        throw Exception("Unimplemented method for Visitor : Variable Declaration with" + 
-                        "References Stored (ASG)")
+        throw Exception("Unimplemented method for Visitor : Variable Declaration with" + "References Stored (ASG)")
     }
 
     protected open func visit(_: FuncDeclWithRef): R {
-        throw Exception("Unimplemented method for Visitor : Function Declaration with" + 
-                        "References Stored (ASG)")
+        throw Exception("Unimplemented method for Visitor : Function Declaration with" + "References Stored (ASG)")
     }
 
     protected open func visit(_: MainDeclWithRef): R {
-        throw Exception("Unimplemented method for Visitor : Main Declaration with" + 
-                        "References Stored (ASG)")
+        throw Exception("Unimplemented method for Visitor : Main Declaration with" + "References Stored (ASG)")
     }
 
     protected open func visit(_: ClassDeclWithRef): R {
-        throw Exception("Unimplemented method for Visitor : Class Declaration with" + 
-                        "References Stored (ASG)")
+        throw Exception("Unimplemented method for Visitor : Class Declaration with" + "References Stored (ASG)")
     }
 
     protected open func visit(_: MemberAccess): R {
@@ -167,7 +162,6 @@ public abstract class Visitor<R> {
     }
 }
 
-
 public abstract class DefaultVisitor<R> <: Visitor<R> {
     // public open func merge(a: R, b: R): R {
     //     a
@@ -177,75 +171,75 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
     //     col.iterator().fold(default, {acc, entry => merge(acc, entry)})
     // }
 
-    public DefaultVisitor(private let default: R){
+    public DefaultVisitor(private let default: R) {
     }
 
-    public override open func visit(program: Program): R {
-        program.decls.iterator().forEach({ decl => decl.traverse(this) })
+    public open override func visit(program: Program): R {
+        program.decls.iterator().forEach({decl => decl.traverse(this)})
         default
     }
- 
-    public override open func visit(binaryExpr: BinaryExpr): R {
+
+    public open override func visit(binaryExpr: BinaryExpr): R {
         binaryExpr.left.traverse(this)
         binaryExpr.right.traverse(this)
     }
 
-    public override open func visit(unaryExpr: UnaryExpr): R {
+    public open override func visit(unaryExpr: UnaryExpr): R {
         unaryExpr.right.traverse(this)
     }
 
-    public override open func visit(parenExpr: ParenExpr): R {
+    public open override func visit(parenExpr: ParenExpr): R {
         parenExpr.parenthesizedExpr.traverse(this)
     }
 
-    public override open func visit(_: LitConstExpr): R {
+    public open override func visit(_: LitConstExpr): R {
         default
     }
 
-    public override open func visit(assignExpr: AssignExpr): R {
+    public open override func visit(assignExpr: AssignExpr): R {
         assignExpr.right.traverse(this)
     }
 
-    public override open func visit(_: RefExpr): R {
+    public open override func visit(_: RefExpr): R {
         default
     }
 
-    public override open func visit(block: Block): R {
-        block.nodes.iterator().forEach({ node => node.traverse(this) })
+    public open override func visit(block: Block): R {
+        block.nodes.iterator().forEach({node => node.traverse(this)})
         default
     }
 
-    public override open func visit(ifExpr: IfExpr): R {
+    public open override func visit(ifExpr: IfExpr): R {
         ifExpr.elseBranch.traverse(this)
         ifExpr.condition.traverse(this)
         ifExpr.ifBlock.traverse(this)
     }
 
-    public override open func visit(whileExpr: WhileExpr): R {
+    public open override func visit(whileExpr: WhileExpr): R {
         whileExpr.block.traverse(this)
         whileExpr.condition.traverse(this)
     }
 
-    public override open func visit(callExpr: CallExpr): R {
-        callExpr.arguments.iterator().forEach({ arg => 
-            arg.traverse(this)
+    public open override func visit(callExpr: CallExpr): R {
+        callExpr.arguments.iterator().forEach({
+            arg => arg.traverse(this)
         })
 
         callExpr.callee.traverse(this)
     }
 
-    public override open func visit(returnExpr: ReturnExpr): R {
+    public open override func visit(returnExpr: ReturnExpr): R {
         match (returnExpr.expr) {
             case Some(expr) => expr.traverse(this)
             case _ => default
         }
     }
 
-    public override open func visit(_: JumpExpr): R {
+    public open override func visit(_: JumpExpr): R {
         default
     }
 
-    public override open func visit(varDecl: VarDecl): R {
+    public open override func visit(varDecl: VarDecl): R {
         if (let Some(initzer) <- varDecl.initializer) {
             initzer.traverse(this)
         }
@@ -256,22 +250,22 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
         default
     }
 
-    public override open func visit(funcParam: FuncParam): R {
+    public open override func visit(funcParam: FuncParam): R {
         funcParam.paramType.traverse(this)
     }
 
-    public override open func visit(funcDecl: FuncDecl): R {
+    public open override func visit(funcDecl: FuncDecl): R {
         if (let Some(declType) <- funcDecl.declType) {
             declType.traverse(this)
         }
 
-        if (let Some(realBlock) <- funcDecl.block){
+        if (let Some(realBlock) <- funcDecl.block) {
             realBlock.traverse(this)
         }
         default
     }
 
-    public override open func visit(mainDecl: MainDecl): R {
+    public open override func visit(mainDecl: MainDecl): R {
         if (let Some(declType) <- mainDecl.declType) {
             declType.traverse(this)
         }
@@ -279,51 +273,51 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
         mainDecl.block.traverse(this)
     }
 
-    public override open func visit(classDecl: ClassDecl): R {
-        classDecl.superTypes.iterator().forEach({ superType => superType.traverse(this) })
+    public open override func visit(classDecl: ClassDecl): R {
+        classDecl.superTypes.iterator().forEach({superType => superType.traverse(this)})
         classDecl.body.traverse(this)
     }
 
-    public override open func visit(body: Body): R {
-        body.decls.iterator().forEach({ decl => 
-            decl.traverse(this)
+    public open override func visit(body: Body): R {
+        body.decls.iterator().forEach({
+            decl => decl.traverse(this)
         })
         default
     }
 
-    public override open func visit(argument: Argument): R {
+    public open override func visit(argument: Argument): R {
         argument.expr.traverse(this)
     }
 
-    public override open func visit(_: TypeNode): R {
+    public open override func visit(_: TypeNode): R {
         default
     }
 
-    public override open func visit(_: PrimitiveType): R {
+    public open override func visit(_: PrimitiveType): R {
         default
     }
 
-    public override open func visit(_: RefType): R {
+    public open override func visit(_: RefType): R {
         default
     }
 
-    public override open func visit(_: VariableReference): R {
+    public open override func visit(_: VariableReference): R {
         default
     }
 
-    public override open func visit(_: FuncReference): R {
+    public open override func visit(_: FuncReference): R {
         default
     }
 
-    public override open func visit(_: ClassReference): R {
+    public open override func visit(_: ClassReference): R {
         default
     }
 
-    public override open func visit(_: InterfaceReference): R {
+    public open override func visit(_: InterfaceReference): R {
         default
     }
 
-    public override open func visit(varDecl: VarDeclWithRef): R {
+    public open override func visit(varDecl: VarDeclWithRef): R {
         if (let Some(initzer) <- varDecl.initializer) {
             initzer.traverse(this)
         }
@@ -334,18 +328,18 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
         default
     }
 
-    public override open func visit(funcDecl: FuncDeclWithRef): R {
+    public open override func visit(funcDecl: FuncDeclWithRef): R {
         if (let Some(declType) <- funcDecl.declType) {
             declType.traverse(this)
         }
 
-        if (let Some(realBlock) <- funcDecl.block){
+        if (let Some(realBlock) <- funcDecl.block) {
             realBlock.traverse(this)
         }
         default
     }
 
-    public override open func visit(mainDecl: MainDeclWithRef): R {
+    public open override func visit(mainDecl: MainDeclWithRef): R {
         if (let Some(declType) <- mainDecl.declType) {
             declType.traverse(this)
         }
@@ -353,50 +347,50 @@ public abstract class DefaultVisitor<R> <: Visitor<R> {
         mainDecl.block.traverse(this)
     }
 
-    public override open func visit(classDecl: ClassDeclWithRef): R {
-        classDecl.superTypes.iterator().forEach({ superType => superType.traverse(this) })
+    public open override func visit(classDecl: ClassDeclWithRef): R {
+        classDecl.superTypes.iterator().forEach({superType => superType.traverse(this)})
         classDecl.body.traverse(this)
     }
 
-    public override open func visit(memberAccess: MemberAccess): R {
+    public open override func visit(memberAccess: MemberAccess): R {
         memberAccess.baseExpr.traverse(this)
     }
 
-    public override open func visit(memberAccess: MemberAccessWithRef): R {
+    public open override func visit(memberAccess: MemberAccessWithRef): R {
         memberAccess.baseExpr.traverse(this)
     }
 
-    public override open func visit(_: PrimitiveTypeExpr): R {
+    public open override func visit(_: PrimitiveTypeExpr): R {
         default
     }
 
-    public override open func visit(refExpr: RefExprWithRef): R {
+    public open override func visit(refExpr: RefExprWithRef): R {
         refExpr.ref.traverse(this)
     }
 
-    public override open func visit(_: ThisSuperExpr): R {
+    public open override func visit(_: ThisSuperExpr): R {
         default
     }
 
-    public override open func visit(_: ThisSuperReference): R {
+    public open override func visit(_: ThisSuperReference): R {
         default
     }
 
-    public override open func visit(callExpr: CallExprWithRef): R {
-        callExpr.arguments.iterator().forEach({ arg => 
-            arg.traverse(this)
+    public open override func visit(callExpr: CallExprWithRef): R {
+        callExpr.arguments.iterator().forEach({
+            arg => arg.traverse(this)
         })
 
         callExpr.callee.traverse(this)
     }
 
-    public override open func visit(interfaceDecl: InterfaceDecl): R {
-        interfaceDecl.superTypes.iterator().forEach({ superType => superType.traverse(this) })
+    public open override func visit(interfaceDecl: InterfaceDecl): R {
+        interfaceDecl.superTypes.iterator().forEach({superType => superType.traverse(this)})
         interfaceDecl.body.traverse(this)
     }
 
-    public override open func visit(interfaceDecl: InterfaceDeclWithRef): R {
-        interfaceDecl.superTypes.iterator().forEach({ superType => superType.traverse(this) })
+    public open override func visit(interfaceDecl: InterfaceDeclWithRef): R {
+        interfaceDecl.superTypes.iterator().forEach({superType => superType.traverse(this)})
         interfaceDecl.body.traverse(this)
     }
 }

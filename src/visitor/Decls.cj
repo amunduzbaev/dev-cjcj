@@ -1,17 +1,15 @@
 package cjcj.visitor
 
 import cjcj.prettyPrinter.PrettyPrinter
-
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
-
 import std.collection.ArrayList
 
 public abstract class Decl <: Node & Equatable<Decl> {
     protected var identifier_: Token = Token()
     protected var keyword_: Token = identifier_
     protected var declType_: ?TypeNode = None
-    
+
     init() {
         this(NodeId())
     }
@@ -43,32 +41,44 @@ public abstract class Decl <: Node & Equatable<Decl> {
     }
 
     // Copy constructor
-    init (decl: Decl) {
+    init(decl: Decl) {
         this(decl.id)
         this.identifier_ = decl.identifier_
         this.keyword_ = decl.keyword_
     }
 
-    public override open func traverse<R>(_: Visitor<R>): R {
+    public open override func traverse<R>(_: Visitor<R>): R {
         throw UnsupportedException("Traverse for Decl is not implemented")
     }
 
-    public mut open prop identifier: Token {
-        get() { identifier_ }
-        set(v) { identifier_ = v }
+    public open mut prop identifier: Token {
+        get() {
+            identifier_
+        }
+        set(v) {
+            identifier_ = v
+        }
     }
 
-    public mut open prop keyword: Token {
-        get() { keyword_ }
-        set(v) { keyword_ = v }
+    public open mut prop keyword: Token {
+        get() {
+            keyword_
+        }
+        set(v) {
+            keyword_ = v
+        }
     }
 
     public mut prop declType: ?TypeNode {
-        get() { declType_ }
-        set(v) { declType_ = v }
+        get() {
+            declType_
+        }
+        set(v) {
+            declType_ = v
+        }
     }
 
-    public override open func prettyPrint(printer: PrettyPrinter) {
+    public open override func prettyPrint(printer: PrettyPrinter) {
         if (keyword.kind != TokenKind.ILLEGAL) {
             printer.append(keyword.value + " ")
         }
@@ -77,11 +87,11 @@ public abstract class Decl <: Node & Equatable<Decl> {
         }
     }
 
-    public override operator func==(other: Decl) {
+    public override operator func ==(other: Decl) {
         id == other.id
     }
 
-    public override operator func!=(other: Decl) {
+    public override operator func !=(other: Decl) {
         !(this == other)
     }
 }
@@ -93,7 +103,7 @@ public open class VarDecl <: Decl {
         this(NodeId(), Token(), Token())
     }
 
-    public init (id: NodeId, keyword: Token, identifier: Token) {
+    public init(id: NodeId, keyword: Token, identifier: Token) {
         this(id, keyword, identifier, None)
     }
 
@@ -101,8 +111,7 @@ public open class VarDecl <: Decl {
         this(id, keyword, identifier, initializer, None)
     }
 
-    public init(id: NodeId, keyword: Token, identifier: Token, initializer: ?Expr,
-            declType: ?TypeNode) {
+    public init(id: NodeId, keyword: Token, identifier: Token, initializer: ?Expr, declType: ?TypeNode) {
         super(id, keyword, identifier, declType)
         initializer_ = initializer
     }
@@ -112,8 +121,12 @@ public open class VarDecl <: Decl {
     }
 
     public mut prop initializer: ?Expr {
-        get() { initializer_ }
-        set(v) { initializer_ = v }
+        get() {
+            initializer_
+        }
+        set(v) {
+            initializer_ = v
+        }
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -122,15 +135,17 @@ public open class VarDecl <: Decl {
             printer.append(": ")
             dtype.prettyPrint(printer)
         }
-        printer.append("${if (initializer.isSome()) {" = "} else {""}}")
-        if (let Some(ini) <- initializer) {ini.prettyPrint(printer)}
+        printer.append("${if (initializer.isSome()) { " = " } else { "" }}")
+        if (let Some(ini) <- initializer) {
+            ini.prettyPrint(printer)
+        }
     }
 }
 
 public open class MainDecl <: Decl {
     private var block_: Block
     private var param_: ?FuncParam
-    
+
     public init() {
         this(NodeId(), Block(), None, None)
     }
@@ -142,7 +157,7 @@ public open class MainDecl <: Decl {
         this.declType_ = declType
     }
 
-    public override open func traverse<R>(v: Visitor<R>): R {
+    public open override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 
@@ -163,13 +178,21 @@ public open class MainDecl <: Decl {
     }
 
     public mut prop block: Block {
-        get() { block_ }
-        set(v) { block_ = v }
+        get() {
+            block_
+        }
+        set(v) {
+            block_ = v
+        }
     }
 
     public mut prop param: ?FuncParam {
-        get() { param_ }
-        set(v) { param_ = v }
+        get() {
+            param_
+        }
+        set(v) {
+            param_ = v
+        }
     }
 }
 
@@ -200,12 +223,18 @@ public class FuncParam <: Decl {
     }
 
     public mut prop paramType: TypeNode {
-        get() { paramType_ }
-        set(v) { paramType_ = v }
+        get() {
+            paramType_
+        }
+        set(v) {
+            paramType_ = v
+        }
     }
 
     public prop name: Token {
-        get() { paramType.typeParameterName }
+        get() {
+            paramType.typeParameterName
+        }
     }
 
     public func isMemberParam() {
@@ -221,16 +250,15 @@ public open class FuncDecl <: Decl {
         this(NodeId(), Token(), Token(), Block(), ArrayList(), None)
     }
 
-    public init(id: NodeId, keyword: Token, identifier: Token, block: ?Block,
-                params: ArrayList<FuncParam>, declType: ?TypeNode) {
+    public init(id: NodeId, keyword: Token, identifier: Token, block: ?Block, params: ArrayList<FuncParam>,
+        declType: ?TypeNode) {
         super(id, keyword, identifier, declType)
         this.block_ = block
         this.params_ = params
         this.declType_ = declType
     }
 
-    public init(id: NodeId, keyword: Token, block: ?Block,
-                params: ArrayList<FuncParam>) {
+    public init(id: NodeId, keyword: Token, block: ?Block, params: ArrayList<FuncParam>) {
         this(id, keyword, Token(), block, params, None)
     }
 
@@ -254,19 +282,27 @@ public open class FuncDecl <: Decl {
             dtype.prettyPrint(printer)
         }
         printer.append(" ")
-        if (let Some(realBlock) <- block_){
+        if (let Some(realBlock) <- block_) {
             realBlock.prettyPrint(printer)
         }
     }
 
     public mut prop block: ?Block {
-        get() { block_ }
-        set(v) { block_ = v }
+        get() {
+            block_
+        }
+        set(v) {
+            block_ = v
+        }
     }
 
     public mut prop params: ArrayList<FuncParam> {
-        get() { params_ }
-        set(v) { params_ = v }
+        get() {
+            params_
+        }
+        set(v) {
+            params_ = v
+        }
     }
 }
 
@@ -274,12 +310,10 @@ public open class ClassDecl <: Decl {
     private let body_: Body
     private let superTypes_: ArrayList<TypeNode>
 
-    public init(id: NodeId, keyword: Token, identifier: Token, body: Body,
-            superTypes: ArrayList<TypeNode>) {
+    public init(id: NodeId, keyword: Token, identifier: Token, body: Body, superTypes: ArrayList<TypeNode>) {
         super(id, keyword, identifier)
         body_ = body
         superTypes_ = superTypes
-
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
@@ -302,11 +336,15 @@ public open class ClassDecl <: Decl {
     }
 
     public prop body: Body {
-        get() { body_ }
+        get() {
+            body_
+        }
     }
 
     public prop superTypes: ArrayList<TypeNode> {
-        get() { superTypes_ }
+        get() {
+            superTypes_
+        }
     }
 }
 
@@ -314,8 +352,7 @@ public open class InterfaceDecl <: Decl {
     private let body_: Body
     private let superTypes_: ArrayList<TypeNode>
 
-    public init(id: NodeId, keyword: Token, identifier: Token, body: Body, 
-            superTypes: ArrayList<TypeNode>){ 
+    public init(id: NodeId, keyword: Token, identifier: Token, body: Body, superTypes: ArrayList<TypeNode>) {
         super(id, keyword, identifier)
         body_ = body
         superTypes_ = superTypes
@@ -325,7 +362,7 @@ public open class InterfaceDecl <: Decl {
         super.prettyPrint(printer)
 
         if (!superTypes.isEmpty()) {
-            printer.append(" <: ") 
+            printer.append(" <: ")
             printer.append(superTypes[0].typeName.value)
             for (i in 1..superTypes.size) {
                 printer.append(" & ")
@@ -342,10 +379,14 @@ public open class InterfaceDecl <: Decl {
     }
 
     public prop superTypes: ArrayList<TypeNode> {
-        get() { superTypes_ }
+        get() {
+            superTypes_
+        }
     }
 
     public prop body: Body {
-        get() { body_ }
+        get() {
+            body_
+        }
     }
 }

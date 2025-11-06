@@ -4,7 +4,6 @@ import cjcj.visitor.*
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
 import cjcj.parser.NodeIdManager
-
 import std.ast.Position
 import std.collection.ArrayList
 import std.collection.ArrayStack
@@ -12,97 +11,98 @@ import std.deriving.Derive
 import std.collection.HashMap
 
 /*
-* Needed to know if I can do some operations inside the current scope, for example a return
-* expression.
-*/
+ * Needed to know if I can do some operations inside the current scope, for example a return
+ * expression.
+ */
 @Derive[Equatable]
 public enum ScopeType {
     NIL | BLOCK | BODY
 }
 
 /*
-* Needed to know if I can do some operations inside the current global type, for example use the
-* "this" keyword.
-*/
+ * Needed to know if I can do some operations inside the current global type, for example use the
+ * "this" keyword.
+ */
 @Derive[Equatable]
 public enum GlobalType {
     NIL | BODY
 }
 
 /*
-* Resolves a Program and retrieves the ASG root. Every variable and function reference will be bound
-* to the link created on the declaration.
-* Traverses the AST and keeps environments for declarations, every envinronment is able to supply
-* liks to the declarations based on the identifier.
-* Note: for function links we cannot know at this stage the exact function that is called, this will
-* require a future step, for now the link is a dummy link to a function with the same identifier.
-* 
-* TODO : use effect handlers to remove some parts and improve the code
-* 
-*    TODO : member shadowing check should be done in AsgMaker. 
-*    In case of variables, for each declared variable member of a class, its super class can not
-*    contain a member with the same identifier
-*    In case of a function, super class can not contain a variable with the same name or 
-*    a function with exactly the same parameter types (except for overloads in the future)
-*
-*/
+ * Resolves a Program and retrieves the ASG root. Every variable and function reference will be bound
+ * to the link created on the declaration.
+ * Traverses the AST and keeps environments for declarations, every envinronment is able to supply
+ * liks to the declarations based on the identifier.
+ * Note: for function links we cannot know at this stage the exact function that is called, this will
+ * require a future step, for now the link is a dummy link to a function with the same identifier.
+ *
+ *    TODO : member shadowing check should be done in AsgMaker.
+ *    In case of variables, for each declared variable member of a class, its super class can not
+ *    contain a member with the same identifier
+ *    In case of a function, super class can not contain a variable with the same name or
+ *    a function with exactly the same parameter types (except for overloads in the future)
+ *
+ */
 public class AsgMaker <: Visitor<Node> {
     private var environments = AsgEnvironments()
     private var superTypeEnvironments = HashMap<String, AsgEnvironments>()
     private let typeDeclaration = TypeDeclaration<Reference>()
 
     /*
-    * Resolves all of the function and variable references and returns the new
-    * Program node that is the ASG root.
-    */
-    
+     * Resolves all of the function and variable references and returns the new
+     * Program node that is the ASG root.
+     */
     public func resolve(program: Program): Program {
         declareBuiltinTypes()
 
         return try {
             (program.traverse(this) as Program).getOrThrow()
-        } handle(noBlock: NoBlock) {
+        } handle (noBlock: NoBlock) {
             throw Exception("The function ${noBlock.name.value} must have a block")
         }
     }
 
     public override func visit(program: Program): Node {
         let decls: ArrayList<Decl> = ArrayList()
-        
+
         let globalDeclarator: Declarator = DeclaratorFactory.globalAstDeclarator(
-            environments.funcEnvironment, 
-            environments.classEnvironment, 
+            environments.funcEnvironment,
+            environments.classEnvironment,
             environments.interfaceEnvironment
         )
 
         let unorderedReferenceDecls = ArrayList<(Decl, ?Reference)>()
-        program.decls.iterator().forEach({ d =>
-            unorderedReferenceDecls.add((d, d.traverse(globalDeclarator)))
+        program.decls.iterator().forEach({
+            d => unorderedReferenceDecls.add((d, d.traverse(globalDeclarator)))
         })
 
         let referenceDecls = typeDeclaration.resolve(unorderedReferenceDecls)
         let globalIdToDecls = HashMap<Int64, Decl>()
-        
-        referenceDecls.iterator().forEach({ entry =>
-            let (d, ref) = entry
-            let refBox = Box(ref)
-            try {
-                globalIdToDecls.add(d.id.id, (d.traverse(this) as Decl).getOrThrow())
-            } handle(_: ExistingReference) {
-                let ret = refBox.value
-                refBox.value = None
-                resume with ret
-            }
-        })
 
-        program.decls.iterator().forEach({ d => 
-            decls.add(globalIdToDecls.get(d.id.id).getOrThrow())
+        referenceDecls.iterator().forEach(
+            {
+                entry =>
+                    let (d, ref) = entry
+                    let refBox = Box(ref)
+                    try {
+                        globalIdToDecls.add(d.id.id, (d.traverse(this) as Decl).getOrThrow())
+                    } handle (_: ExistingReference) {
+                        let ret = refBox.value
+                        refBox.value = None
+                        resume with ret
+                    }
+            }
+        )
+
+        program.decls.iterator().forEach({
+            d => decls.add(globalIdToDecls.get(d.id.id).getOrThrow())
         })
         Program(NodeIdManager.nextId(), decls)
     }
 
     public override func visit(binaryExpr: BinaryExpr): Node {
-        BinaryExpr(NodeIdManager.nextId(),
+        BinaryExpr(
+            NodeIdManager.nextId(),
             binaryExpr.left.traverse(this),
             binaryExpr.oper,
             binaryExpr.right.traverse(this)
@@ -110,13 +110,11 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(unaryExpr: UnaryExpr): Node {
-        UnaryExpr(NodeIdManager.nextId(), unaryExpr.oper,
-            (unaryExpr.right.traverse(this) as Expr).getOrThrow())
+        UnaryExpr(NodeIdManager.nextId(), unaryExpr.oper, (unaryExpr.right.traverse(this) as Expr).getOrThrow())
     }
 
     public override func visit(parenExpr: ParenExpr): Node {
-        ParenExpr(NodeIdManager.nextId(),
-            (parenExpr.parenthesizedExpr.traverse(this) as Expr).getOrThrow())
+        ParenExpr(NodeIdManager.nextId(), (parenExpr.parenthesizedExpr.traverse(this) as Expr).getOrThrow())
     }
 
     public override func visit(litConstExpr: LitConstExpr): Node {
@@ -142,10 +140,10 @@ public class AsgMaker <: Visitor<Node> {
         }
 
         try {
-            block.nodes.iterator().forEach({ n => nodes.add(n.traverse(this)) })
-        } handle(noBlock: NoBlock) {
+            block.nodes.iterator().forEach({n => nodes.add(n.traverse(this))})
+        } handle (noBlock: NoBlock) {
             throw Exception("The function ${noBlock.name.value} must have a block")
-        } handle(_: ExistingReference) {
+        } handle (_: ExistingReference) {
             resume with None
         }
 
@@ -156,15 +154,13 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(ifExpr: IfExpr): Node {
-        IfExpr(NodeIdManager.nextId(),
-            (ifExpr.condition.traverse(this) as Expr).getOrThrow(),
+        IfExpr(NodeIdManager.nextId(), (ifExpr.condition.traverse(this) as Expr).getOrThrow(),
             (ifExpr.ifBlock.traverse(this) as Block).getOrThrow(),
             (ifExpr.elseBranch.traverse(this) as Expr).getOrThrow())
     }
 
     public override func visit(whileExpr: WhileExpr): Node {
-        WhileExpr(NodeIdManager.nextId(),
-            (whileExpr.condition.traverse(this) as Expr).getOrThrow(),
+        WhileExpr(NodeIdManager.nextId(), (whileExpr.condition.traverse(this) as Expr).getOrThrow(),
             (whileExpr.block.traverse(this) as Block).getOrThrow())
     }
 
@@ -172,19 +168,18 @@ public class AsgMaker <: Visitor<Node> {
         let callee: Node = callExpr.callee.traverse(this)
 
         let arguments: ArrayList<Argument> = ArrayList()
-        callExpr.arguments.iterator().forEach({ a => arguments.add(
-            (a.traverse(this) as Argument).getOrThrow()
-        )})
+        callExpr.arguments.iterator().forEach({
+            a => arguments.add((a.traverse(this) as Argument).getOrThrow())
+        })
         CallExprWithRef(NodeIdManager.nextId(), callee, arguments)
     }
 
     public override func visit(returnExpr: ReturnExpr): Node {
         if (environments.currentScopeType == ScopeType.BLOCK) {
-            return ReturnExpr(NodeIdManager.nextId(),
-                match(returnExpr.expr) {
-                    case Some(expr) => expr.traverse(this) as Expr
-                    case None => None
-                }, returnExpr.keyword)
+            return ReturnExpr(NodeIdManager.nextId(), match (returnExpr.expr) {
+                case Some(expr) => expr.traverse(this) as Expr
+                case None => None
+            }, returnExpr.keyword)
         }
         println("Return statement not inside a function")
         throw ReturnExprError()
@@ -213,17 +208,16 @@ public class AsgMaker <: Visitor<Node> {
         let reference: VariableReference
 
         if (let Some(ref) <- perform ExistingReference()) {
-            reference = (ref as VariableReference).getOrThrow({ => 
-                Exception("Reference given to variable declaration is not VariableReference")})
+            reference = (ref as VariableReference).getOrThrow({
+                => Exception("Reference given to variable declaration is not VariableReference")
+            })
         } else {
-            reference = VariableReference(NodeIdManager.nextId(), varDecl.identifier,
-                varDecl.keyword)
+            reference = VariableReference(NodeIdManager.nextId(), varDecl.identifier, varDecl.keyword)
             declareVar(varDecl.identifier, reference)
         }
 
         let nodeId: NodeId = NodeIdManager.nextId()
-        VarDeclWithRef(nodeId, varDecl.keyword, varDecl.identifier, reference, initializer,
-            declType)
+        VarDeclWithRef(nodeId, varDecl.keyword, varDecl.identifier, reference, initializer, declType)
     }
 
     public override func visit(funcParam: FuncParam): Node {
@@ -242,8 +236,9 @@ public class AsgMaker <: Visitor<Node> {
         if (let Some(ref) <- perform ExistingReference()) {
             // GlobalScope/Body
             declareExactFunc(funcDecl)
-            reference = (ref as FuncReference).getOrThrow({ => 
-                Exception("Reference given to the function declaration is not FuncReference")})
+            reference = (ref as FuncReference).getOrThrow({
+                => Exception("Reference given to the function declaration is not FuncReference")
+            })
         } else {
             reference = FuncReference(NodeIdManager.nextId(), funcDecl.identifier)
             declareFunc(funcDecl.identifier, reference)
@@ -251,12 +246,17 @@ public class AsgMaker <: Visitor<Node> {
 
         let waitingDeclarations = ArrayStack<VariableReference>()
         let paramRefs = ArrayList<VariableReference>()
-        funcDecl.params.iterator()
-            .map({ p => ((p.traverse(this) as VariableReference).getOrThrow(), p.paramType)})
-            .forEach({ p =>
-                paramRefs.add(p[0])
-                waitingDeclarations.add(p[0])
-            })
+        funcDecl
+            .params
+            .iterator()
+            .map({p => ((p.traverse(this) as VariableReference).getOrThrow(), p.paramType)})
+            .forEach(
+                {
+                    p =>
+                        paramRefs.add(p[0])
+                        waitingDeclarations.add(p[0])
+                }
+            )
         reference.paramRef = paramRefs
 
         let block: ?Block = try {
@@ -266,12 +266,12 @@ public class AsgMaker <: Visitor<Node> {
                 perform NoBlock(funcDecl.identifier)
                 None
             }
-        } handle(_: WaitingDeclaration) {
+        } handle (_: WaitingDeclaration) {
             resume with waitingDeclarations.remove()
         }
 
-        FuncDeclWithRef(NodeIdManager.nextId(), funcDecl.keyword, funcDecl.identifier, block,
-            funcDecl.params, declType, reference)
+        FuncDeclWithRef(NodeIdManager.nextId(), funcDecl.keyword, funcDecl.identifier, block, funcDecl.params, declType,
+            reference)
     }
 
     public override func visit(mainDecl: MainDecl): Node {
@@ -291,7 +291,7 @@ public class AsgMaker <: Visitor<Node> {
 
         let block: Block = try {
             (mainDecl.block.traverse(this) as Block).getOrThrow()
-        } handle(_: WaitingDeclaration) {
+        } handle (_: WaitingDeclaration) {
             resume with waitingDeclarations.remove()
         }
         MainDeclWithRef(NodeIdManager.nextId(), block, mainDecl.param, declType, reference)
@@ -302,19 +302,18 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(typeNode: TypeNode): Node {
-        if(!isTypeDeclared(typeNode.typeName)) {
+        if (!isTypeDeclared(typeNode.typeName)) {
             throw Exception("Type is not declared")
         }
         TypeNode(NodeIdManager.nextId(), typeNode.typeParameterName, typeNode.typeName)
     }
 
     public override func visit(primitiveType: PrimitiveType): Node {
-        PrimitiveType(NodeIdManager.nextId(), primitiveType.typeParameterName,
-            primitiveType.typeName)
+        PrimitiveType(NodeIdManager.nextId(), primitiveType.typeParameterName, primitiveType.typeName)
     }
 
     public override func visit(refType: RefType): Node {
-        if(!isTypeDeclared(refType.typeName)) {
+        if (!isTypeDeclared(refType.typeName)) {
             throw Exception("Type is not declared")
         }
         RefType(NodeIdManager.nextId(), refType.typeParameterName, refType.typeName)
@@ -337,24 +336,28 @@ public class AsgMaker <: Visitor<Node> {
 
         let decls: ArrayList<Decl> = ArrayList()
         let bodyDeclarator: Declarator = DeclaratorFactory.bodyAstDeclarator(
-            environments.funcEnvironment, environments.variableEnvironment
+            environments.funcEnvironment,
+            environments.variableEnvironment
         )
         let refDecls = ArrayList<(Decl, ?Reference)>()
-        body.decls.iterator().forEach({ d =>
-            refDecls.add((d, d.traverse(bodyDeclarator)))
+        body.decls.iterator().forEach({
+            d => refDecls.add((d, d.traverse(bodyDeclarator)))
         })
-        
-        refDecls.iterator().forEach({ entry =>
-            let (d, ref) = entry
-            let refBox = Box(ref)
-            try {
-                decls.add((d.traverse(this) as Decl).getOrThrow())
-            } handle(_: ExistingReference) {
-                let ret = refBox.value
-                refBox.value = None
-                resume with ret
+
+        refDecls.iterator().forEach(
+            {
+                entry =>
+                    let (d, ref) = entry
+                    let refBox = Box(ref)
+                    try {
+                        decls.add((d.traverse(this) as Decl).getOrThrow())
+                    } handle (_: ExistingReference) {
+                        let ret = refBox.value
+                        refBox.value = None
+                        resume with ret
+                    }
             }
-        })
+        )
 
         perform BodyEnvironment(environments)
 
@@ -363,55 +366,53 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     public override func visit(classDecl: ClassDecl): Node {
-        if(!isGlobal()) {
+        if (!isGlobal()) {
             throw Exception("Classes can be declared at topLevel only")
         }
 
         let originalEnvironments = environments
         environments = match (classDecl.superTypes.get(0)) {
-            case Some(parentType) => 
-                match (environments.classEnvironment.getLocal(parentType.typeName.value)) {
-                    case Some(_) => 
-                        superTypeEnvironments.get(parentType.typeName.value).
-                        getOrThrow({ => Exception("Detected cycle of inheritance in type declaration")})
-                    case _ => environments
-                }
+            case Some(parentType) => match (environments.classEnvironment.getLocal(parentType.typeName.value)) {
+                case Some(_) => superTypeEnvironments
+                    .get(parentType.typeName.value)
+                    .getOrThrow({=> Exception("Detected cycle of inheritance in type declaration")})
+                case _ => environments
+            }
             case _ => environments
         }
 
-        let classReference: ClassReference = ((perform ExistingReference())
-        .getOrThrow({ => 
-            Exception("Class ${classDecl.identifier.value} should've been declared " +
-                "with the global declarator")
-        }) as ClassReference)
-        .getOrThrow({ => 
-            Exception("Reference given to the class declaration is not ClassReference")
+        let classReference: ClassReference = (( perform ExistingReference()).getOrThrow({
+            => Exception("Class ${classDecl.identifier.value} should've been declared " + "with the global declarator")
+        }) as ClassReference).getOrThrow({
+            => Exception("Reference given to the class declaration is not ClassReference")
         })
 
         classReference.parent = match (classDecl.superTypes.get(0)) {
-            case Some(superType) => 
-                try {
-                    get(superType.typeName.value) as ClassReference
-                } catch(_: Exception) {
-                    None
-                }
+            case Some(superType) => try {
+                get(superType.typeName.value) as ClassReference
+            } catch (_: Exception) {
+                None
+            }
             case _ => None
         }
 
         classReference.parentInterfaces.add(getInterface("Object"))
         let superTypes = ArrayList<TypeNode>()
-        classDecl.superTypes.iterator().enumerate().forEach({ entry => 
-            let (id, superType) = entry
-            let visitedSuperType = (superType.traverse(this) as TypeNode).getOrThrow()
-            superTypes.add(visitedSuperType)
-            if (classReference.parent.isNone() || id > 0) {
-                classReference.parentInterfaces.add(getInterface(superType.typeName.value))
+        classDecl.superTypes.iterator().enumerate().forEach(
+            {
+                entry =>
+                    let (id, superType) = entry
+                    let visitedSuperType = (superType.traverse(this) as TypeNode).getOrThrow()
+                    superTypes.add(visitedSuperType)
+                    if (classReference.parent.isNone() || id > 0) {
+                        classReference.parentInterfaces.add(getInterface(superType.typeName.value))
+                    }
             }
-        })
+        )
 
         let body = try {
             (classDecl.body.traverse(this) as Body).getOrThrow()
-        } handle(bodyEnvironment: BodyEnvironment) {
+        } handle (bodyEnvironment: BodyEnvironment) {
             // Checking that every function from super interfaces are defined in the class body
             inheritanceRules(bodyEnvironment, classDecl)
             superTypeEnvironments.add(classDecl.identifier.value, bodyEnvironment.environments)
@@ -420,53 +421,55 @@ public class AsgMaker <: Visitor<Node> {
 
         environments = originalEnvironments
 
-        ClassDeclWithRef(NodeIdManager.nextId(), classDecl.keyword, classDecl.identifier, body,
-            superTypes, classReference)
+        ClassDeclWithRef(NodeIdManager.nextId(), classDecl.keyword, classDecl.identifier, body, superTypes,
+            classReference)
     }
 
     public override func visit(interfaceDecl: InterfaceDecl) {
-        if(!isGlobal()) {
+        if (!isGlobal()) {
             throw Exception("Interfaces can be declared at topLevel only")
         }
 
-        let interfaceReference: InterfaceReference = ((perform ExistingReference())
-        .getOrThrow({ => 
-            Exception("Interface ${interfaceDecl.identifier.value} should've been declared" +
-                " with the global declarator")
-        }) as InterfaceReference)
-        .getOrThrow({ => 
-            Exception("Reference given to the interface declaration is not InterfaceReference")
-        })
+        let interfaceReference: InterfaceReference = (( perform ExistingReference())
+            .getOrThrow({
+                => Exception(
+                    "Interface ${interfaceDecl.identifier.value} should've been declared" + " with the global declarator")
+            }) as InterfaceReference)
+            .getOrThrow({
+                => Exception("Reference given to the interface declaration is not InterfaceReference")
+            })
 
         interfaceReference.parents.add(getInterface("Any"))
         let superTypes = ArrayList<TypeNode>()
-        interfaceDecl.superTypes.iterator().forEach({ superType => 
-            let visitedSuperType = (superType.traverse(this) as TypeNode).getOrThrow()
-            superTypes.add(visitedSuperType)
+        interfaceDecl.superTypes.iterator().forEach(
+            {
+                superType =>
+                    let visitedSuperType = (superType.traverse(this) as TypeNode).getOrThrow()
+                    superTypes.add(visitedSuperType)
 
-            interfaceReference.parents.add(getInterface(superType.typeName.value))
-        })
+                    interfaceReference.parents.add(getInterface(superType.typeName.value))
+            }
+        )
 
         let body = try {
             (interfaceDecl.body.traverse(this) as Body).getOrThrow()
-        } handle(_: NoBlock) {
+        } handle (_: NoBlock) {
             resume with ()
-        } handle(bodyEnvironment: BodyEnvironment) {
+        } handle (bodyEnvironment: BodyEnvironment) {
             superTypeEnvironments.add(interfaceDecl.identifier.value, bodyEnvironment.environments)
             resume with ()
         }
 
-        InterfaceDeclWithRef(NodeIdManager.nextId(), interfaceDecl.keyword, interfaceDecl.identifier, 
-            body,superTypes, interfaceReference)
+        InterfaceDeclWithRef(NodeIdManager.nextId(), interfaceDecl.keyword, interfaceDecl.identifier, body, superTypes,
+            interfaceReference)
     }
 
     private func beginGlobal(newGlobalType: GlobalType) {
         environments = AsgEnvironments(environments, ScopeType.NIL, newGlobalType)
     }
 
-    private func beginScope(newScopeType: ScopeType){
-        environments = AsgEnvironments(environments, newScopeType, 
-            environments.currentGlobalType)
+    private func beginScope(newScopeType: ScopeType) {
+        environments = AsgEnvironments(environments, newScopeType, environments.currentGlobalType)
     }
 
     private func endGlobal() {
@@ -474,8 +477,9 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     private func endScope() {
-        environments = environments.enclosing.getOrThrow({ => 
-            Exception("Trying to close the global scope")})
+        environments = environments.enclosing.getOrThrow({
+            => Exception("Trying to close the global scope")
+        })
     }
 
     public func declareExactFunc(funcDecl: FuncDecl) {
@@ -506,16 +510,18 @@ public class AsgMaker <: Visitor<Node> {
     private func inheritanceRules(bodyEnvironment: BodyEnvironment, classDecl: ClassDecl) {
         let superTypes = typeDeclaration.getSuperTypes(classDecl)
 
-        superTypes.iterator().forEach({ decl => 
-            if (decl is InterfaceDecl) {
-                let interfaceEnvironment = superTypeEnvironments.get(decl.identifier.value).
-                getOrThrow({ => Exception("Detected cycle of inheritance in type declaration")})
+        superTypes.iterator().forEach({
+            decl => if (decl is InterfaceDecl) {
+                let interfaceEnvironment = superTypeEnvironments
+                    .get(decl.identifier.value)
+                    .getOrThrow({=> Exception("Detected cycle of inheritance in type declaration")})
 
-                interfaceEnvironment.exactFunctions.iterator().forEach({ funcHash => 
-                    if (!bodyEnvironment.environments.checkExactFunc(funcHash)) {
-                        throw Exception("Function corresponding to ${funcHash} from interface" +
-                        " ${decl.identifier.value} is not defined in the sub class" + 
-                        " ${classDecl.identifier.value}")
+                interfaceEnvironment.exactFunctions.iterator().forEach({
+                    funcHash => if (!bodyEnvironment.environments.checkExactFunc(funcHash)) {
+                        throw Exception(
+                            "Function corresponding to ${funcHash} from interface" +
+                                " ${decl.identifier.value} is not defined in the sub class" +
+                                " ${classDecl.identifier.value}")
                     }
                 })
             }
@@ -523,28 +529,33 @@ public class AsgMaker <: Visitor<Node> {
     }
 
     private func declareBuiltinTypes() {
-        BUILTIN_INTERFACES.iterator().forEach({ entry => 
-            let (ref, superInterfaces) = entry
-            
-            superInterfaces.iterator().forEach({ parent => ref.parents.add(getInterface(parent))})
-            environments.interfaceEnvironment.declare(ref.identifier.value, ref)
-        })
+        BUILTIN_INTERFACES.iterator().forEach(
+            {
+                entry =>
+                    let (ref, superInterfaces) = entry
 
-        BUILTIN_CLASSES.iterator().forEach({ entry => 
-            let (ref, superClass, superInterfaces) = entry
-            
-            if (let Some(superClass) <- superClass) {
-                ref.parent = (get(superClass) as ClassReference)
-            } 
-            superInterfaces.iterator().forEach({ 
-                parent => ref.parentInterfaces.add(getInterface(parent))
-            })
-            environments.classEnvironment.declare(ref.identifier.value, ref)
-        })
+                    superInterfaces.iterator().forEach({parent => ref.parents.add(getInterface(parent))})
+                    environments.interfaceEnvironment.declare(ref.identifier.value, ref)
+            }
+        )
+
+        BUILTIN_CLASSES.iterator().forEach(
+            {
+                entry =>
+                    let (ref, superClass, superInterfaces) = entry
+
+                    if (let Some(superClass) <- superClass) {
+                        ref.parent = (get(superClass) as ClassReference)
+                    }
+                    superInterfaces.iterator().forEach({
+                        parent => ref.parentInterfaces.add(getInterface(parent))
+                    })
+                    environments.classEnvironment.declare(ref.identifier.value, ref)
+            }
+        )
     }
 
     private func isGlobal(): Bool {
         environments.isGlobal()
     }
 }
-

@@ -6,14 +6,13 @@ import cjcj.asg.initChecker.*
 import cjcj.visitor.Program
 import cjcj.parser
 import cjcj.scanner.*
-
 import std.env.*
 import std.collection.ArrayList
 
 @Test
 class InitCheckerTests {
     private func scan(test: String): Array<Token> {
-        Scanner(test.toRuneArray()).scanTokens().toArray()  
+        Scanner(test.toRuneArray()).scanTokens().toArray()
     }
 
     private func parse(test: String): ?Program {
@@ -28,7 +27,7 @@ class InitCheckerTests {
         }
         @Fail("Couldn't parse the program")
     }
-    
+
     // private func getAsg(test: String): Program {
     //     let asg = AsgMaker().resolve(getAst(test))
     //     TypeChecker(asg)
@@ -41,7 +40,7 @@ class InitCheckerTests {
         InitChecker(TypeChecker(asg).typeEnvironment).resolve(asg)
     }
 
-    @TestCase 
+    @TestCase
     func variableReference_test() {
         let testWrong: String = """
             main() {
@@ -49,7 +48,7 @@ class InitCheckerTests {
                 let b = a
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             main() {
@@ -59,12 +58,12 @@ class InitCheckerTests {
         """
 
         resolve(testRight)
-       resolve(testRight)
+        resolve(testRight)
     }
 
     @TestCase
     func variableCapturing_test() {
-       var testRight = """
+        var testRight = """
             main() {
                 var a: Int64
                 while (true) {
@@ -108,7 +107,7 @@ class InitCheckerTests {
         @AssertThrows[Exception](resolve(testWrong))
     }
 
-    @TestCase 
+    @TestCase
     func ifelseInitialization_test() {
         let testWrong: String = """
             main() {
@@ -119,7 +118,7 @@ class InitCheckerTests {
                 let b = a
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             main() {
@@ -134,11 +133,10 @@ class InitCheckerTests {
             }
         """
 
-       resolve(testRight)
+        resolve(testRight)
     }
 
-
-    @TestCase 
+    @TestCase
     func ifelseInitializationComplex_test() {
         var testWrong: String = """
             main() {
@@ -153,7 +151,7 @@ class InitCheckerTests {
                 let b = a
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
 
         testWrong = """
             main() {
@@ -169,7 +167,7 @@ class InitCheckerTests {
                 let b = a
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
 
         var testRight: String = """
             main() {
@@ -186,9 +184,8 @@ class InitCheckerTests {
             }
         """
 
-       resolve(testRight)
+        resolve(testRight)
     }
-
 
     @TestCase
     func ifelseInitializationComplex2_test() {
@@ -240,7 +237,7 @@ class InitCheckerTests {
         @AssertThrows[Exception](resolve(testWrong))
     }
 
-    @TestCase 
+    @TestCase
     func blockInitialization_test() {
         var testWrong: String = """
             main() {
@@ -252,7 +249,7 @@ class InitCheckerTests {
                 let b = a
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             main() {
@@ -266,9 +263,9 @@ class InitCheckerTests {
             }
         """
 
-       resolve(testRight)
+        resolve(testRight)
 
-       testWrong = """
+        testWrong = """
             main() {
                 var a: Int64
 
@@ -283,7 +280,7 @@ class InitCheckerTests {
         @AssertThrows[Exception](resolve(testWrong))
     }
 
-    @TestCase 
+    @TestCase
     func declarationInitialization_test() {
         let testRight: String = """
             main() {
@@ -292,12 +289,10 @@ class InitCheckerTests {
             }
         """
 
-       resolve(testRight)
+        resolve(testRight)
     }
 
-
-
-    @TestCase 
+    @TestCase
     func mutation_test() {
         let testWrong: String = """
             main() {
@@ -305,7 +300,7 @@ class InitCheckerTests {
                 a = 2
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             main() {
@@ -314,7 +309,7 @@ class InitCheckerTests {
             }
         """
 
-       resolve(testRight)
+        resolve(testRight)
     }
 
     @TestCase
@@ -327,7 +322,7 @@ class InitCheckerTests {
                 }
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             main() {
@@ -338,9 +333,8 @@ class InitCheckerTests {
             }
         """
 
-       resolve(testRight)
+        resolve(testRight)
     }
-
 
     @TestCase
     func mutationComplex2_test() {
@@ -391,7 +385,7 @@ class InitCheckerTests {
                 }
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             main() {
@@ -402,11 +396,11 @@ class InitCheckerTests {
             }
         """
 
-       resolve(testRight)
+        resolve(testRight)
     }
 
     @TestCase
-    func initializationOfParameters_test(){
+    func initializationOfParameters_test() {
         let testWrong: String = """
             main() {
                 func a(b: String, c: Int64) : Int64 {
@@ -416,7 +410,7 @@ class InitCheckerTests {
                 a("1", 2)
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             main() {
@@ -427,10 +421,8 @@ class InitCheckerTests {
             }
         """
 
-       resolve(testRight)
-
+        resolve(testRight)
     }
-
 
     @TestCase
     func classInit_test() {
@@ -443,7 +435,7 @@ class InitCheckerTests {
             main() {
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             class C{
@@ -456,9 +448,8 @@ class InitCheckerTests {
             }
         """
 
-       resolve(testRight)
+        resolve(testRight)
     }
-
 
     @TestCase
     func classInitMultiVar_test() {
@@ -472,7 +463,7 @@ class InitCheckerTests {
             main() {
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             class C{
@@ -486,10 +477,10 @@ class InitCheckerTests {
             }
         """
 
-       resolve(testRight)
+        resolve(testRight)
     }
 
-    @TestCase 
+    @TestCase
     func classInitMultVarComplex_test() {
         let testWrong: String = """
         class C {
@@ -552,7 +543,7 @@ class InitCheckerTests {
             main() {
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             class C{
@@ -569,9 +560,8 @@ class InitCheckerTests {
             }
         """
 
-       resolve(testRight)
+        resolve(testRight)
     }
-
 
     @TestCase
     func classInitFunctionCallinVarDecl_test() {
@@ -587,9 +577,8 @@ class InitCheckerTests {
             main() {
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
     }
-
 
     @TestCase
     func classInitMutation_test() {
@@ -603,7 +592,7 @@ class InitCheckerTests {
             main() {
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             class C{
@@ -616,9 +605,8 @@ class InitCheckerTests {
             }
         """
 
-       resolve(testRight)
+        resolve(testRight)
     }
-
 
     @TestCase
     func classInitMutationComplex_test() {
@@ -635,7 +623,7 @@ class InitCheckerTests {
             main() {
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             class C{
@@ -651,7 +639,7 @@ class InitCheckerTests {
             }
         """
 
-       resolve(testRight)
+        resolve(testRight)
     }
 
     @TestCase
@@ -671,7 +659,7 @@ class InitCheckerTests {
             main(){
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
 
         let testRight: String = """
             func External(a: CLASS) {
@@ -689,7 +677,7 @@ class InitCheckerTests {
             }
         """
 
-       resolve(testRight)
+        resolve(testRight)
     }
 
     @TestCase
@@ -710,7 +698,7 @@ class InitCheckerTests {
             main(){
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
     }
 
     @TestCase
@@ -734,7 +722,7 @@ class InitCheckerTests {
             main(){
             }
         """
-       resolve(testRight)
+        resolve(testRight)
 
         let testWrong: String = """
             class SCLASS {
@@ -753,7 +741,7 @@ class InitCheckerTests {
             main(){
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
     }
 
     @TestCase
@@ -794,12 +782,11 @@ class InitCheckerTests {
             main(){
             }
         """
-       @AssertThrows[Exception](resolve(testWrong))
+        @AssertThrows[Exception](resolve(testWrong))
     }
 
-    
     @TestCase
-    func globalVarUseBeforeInitialization_test(){
+    func globalVarUseBeforeInitialization_test() {
         let testRight: String = """
             let var1 = CLASS2().F()
             var var2 = 1
@@ -850,7 +837,7 @@ class InitCheckerTests {
     }
 
     @TestCase
-    func instanceMemberAccess_test(){
+    func instanceMemberAccess_test() {
         let testRight: String = """
             class C{
                 var b: Int64 = 1
@@ -890,7 +877,7 @@ class InitCheckerTests {
     }
 
     @TestCase
-    func instanceThisDifferece_test(){
+    func instanceThisDifferece_test() {
         let testRight: String = """
             class C{
                 var b: Int64
@@ -929,7 +916,7 @@ class InitCheckerTests {
             }
         """
         resolve(testRightFunctionCase)
-        
+
         let testWrong: String = """
             class C{
                 var b: Int64
@@ -948,7 +935,7 @@ class InitCheckerTests {
 
         @AssertThrows[Exception](resolve(testWrong))
     }
-    
+
     @TestCase
     func unorderedDeclaration_test() {
         let testWrong: String = """

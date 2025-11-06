@@ -3,11 +3,10 @@ package cjcj.visitor
 import cjcj.prettyPrinter.PrettyPrinter
 import cjcj.scanner.Token
 import cjcj.scanner.TokenKind
-
 import std.collection.ArrayList
 
 public open class Expr <: Node {
-    public init () {
+    public init() {
         super(NodeId())
     }
 
@@ -15,11 +14,11 @@ public open class Expr <: Node {
         super(id)
     }
 
-    public override open func traverse<R>(_: Visitor<R>): R {
+    public open override func traverse<R>(_: Visitor<R>): R {
         throw UnsupportedException("Unimplemented method")
     }
 
-    public override open func prettyPrint(_: PrettyPrinter): Unit { }
+    public open override func prettyPrint(_: PrettyPrinter): Unit {}
 }
 
 public class BinaryExpr <: Expr {
@@ -49,18 +48,30 @@ public class BinaryExpr <: Expr {
     }
 
     public mut prop left: Node {
-        get() { left_ }
-        set(v) { left_ = v }
+        get() {
+            left_
+        }
+        set(v) {
+            left_ = v
+        }
     }
 
     public mut prop oper: Token {
-        get() { oper_ }
-        set(v) { oper_ = v }
+        get() {
+            oper_
+        }
+        set(v) {
+            oper_ = v
+        }
     }
 
     public mut prop right: Node {
-        get() { right_ }
-        set(v) { right_ = v }
+        get() {
+            right_
+        }
+        set(v) {
+            right_ = v
+        }
     }
 }
 
@@ -87,8 +98,12 @@ public class ParenExpr <: Expr {
     }
 
     public mut prop parenthesizedExpr: Expr {
-        get() { parenthesizedExpr_ }
-        set(v) { parenthesizedExpr_ = v }
+        get() {
+            parenthesizedExpr_
+        }
+        set(v) {
+            parenthesizedExpr_ = v
+        }
     }
 }
 
@@ -109,16 +124,19 @@ public class LitConstExpr <: Expr {
     }
 
     public override func prettyPrint(printer: PrettyPrinter) {
-        match(literal.kind) {
-            case TokenKind.STRING_LITERAL =>
-                printer.append("\"" + literal.value + "\"")
+        match (literal.kind) {
+            case TokenKind.STRING_LITERAL => printer.append("\"" + literal.value + "\"")
             case _ => printer.append(literal.value)
         }
     }
 
     public mut prop literal: Token {
-        get() { literal_ }
-        set(v) { literal_ = v }
+        get() {
+            literal_
+        }
+        set(v) {
+            literal_ = v
+        }
     }
 }
 
@@ -146,13 +164,21 @@ public class UnaryExpr <: Expr {
     }
 
     public mut prop oper: Token {
-        get() { oper_ }
-        set(v) { oper_ = v }
+        get() {
+            oper_
+        }
+        set(v) {
+            oper_ = v
+        }
     }
 
     public mut prop right: Expr {
-        get() { right_ }
-        set(v) { right_ = v }
+        get() {
+            right_
+        }
+        set(v) {
+            right_ = v
+        }
     }
 }
 
@@ -181,13 +207,21 @@ public class AssignExpr <: Expr {
     }
 
     public mut prop left: Expr {
-        get() { left_ }
-        set(v) { left_ = v }
+        get() {
+            left_
+        }
+        set(v) {
+            left_ = v
+        }
     }
 
     public mut prop right: Expr {
-        get() { right_ }
-        set(v) { right_ = v }
+        get() {
+            right_
+        }
+        set(v) {
+            right_ = v
+        }
     }
 }
 
@@ -199,13 +233,17 @@ public open class RefExpr <: Expr {
         identifier_ = identifier
     }
 
-    public override open func traverse<R>(v: Visitor<R>): R {
+    public open override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 
     public mut prop identifier: Token {
-        get() { identifier_ }
-        set(v) { identifier_ = v }
+        get() {
+            identifier_
+        }
+        set(v) {
+            identifier_ = v
+        }
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
@@ -235,22 +273,25 @@ public class Block <: Expr {
             printer.indent()
             printer.append("\n")
             nodes[0].prettyPrint(printer)
-            nodes.iterator()
-                .enumerate()
-                .filter({ v => v[0] > 0})
-                .map({ v => v[1] })
-                .forEach({ 
-                n => printer.append("\n")    
-                    n.prettyPrint(printer)     
-                })
+            nodes.iterator().enumerate().filter({v => v[0] > 0}).map({v => v[1]}).forEach(
+                {
+                    n =>
+                        printer.append("\n")
+                        n.prettyPrint(printer)
+                }
+            )
             printer.unindent()
         }
         printer.append("\n}\n")
     }
 
     public mut prop nodes: ArrayList<Node> {
-        get() { nodes_ }
-        set(v) { nodes_ = v }
+        get() {
+            nodes_
+        }
+        set(v) {
+            nodes_ = v
+        }
     }
 }
 
@@ -267,8 +308,7 @@ public class IfExpr <: Expr {
         this(id, condition, ifBlock, Expr())
     }
 
-    public IfExpr(id: NodeId, condition: Expr, ifBlock: Block,
-                    elseBranch: Expr) {
+    public IfExpr(id: NodeId, condition: Expr, ifBlock: Block, elseBranch: Expr) {
         super(id)
         condition_ = condition
         ifBlock_ = ifBlock
@@ -289,18 +329,30 @@ public class IfExpr <: Expr {
     }
 
     public mut prop condition: Expr {
-        get() { condition_ }
-        set(v) { condition_ = v }
+        get() {
+            condition_
+        }
+        set(v) {
+            condition_ = v
+        }
     }
 
     public mut prop ifBlock: Block {
-        get() { ifBlock_ }
-        set(v) { ifBlock_ = v }
+        get() {
+            ifBlock_
+        }
+        set(v) {
+            ifBlock_ = v
+        }
     }
 
     public mut prop elseBranch: Expr {
-        get() { elseBranch_ }
-        set(v) { elseBranch_ = v }
+        get() {
+            elseBranch_
+        }
+        set(v) {
+            elseBranch_ = v
+        }
     }
 }
 
@@ -330,13 +382,21 @@ public class WhileExpr <: Expr {
     }
 
     public mut prop condition: Expr {
-        get() { condition_ }
-        set(v) { condition_ = v }
+        get() {
+            condition_
+        }
+        set(v) {
+            condition_ = v
+        }
     }
 
     public mut prop block: Block {
-        get() { block_ }
-        set(v) { block_ = v }
+        get() {
+            block_
+        }
+        set(v) {
+            block_ = v
+        }
     }
 }
 
@@ -354,35 +414,43 @@ public open class CallExpr <: Expr {
         arguments_ = arguments
     }
 
-    public override open func traverse<R>(v: Visitor<R>): R {
+    public open override func traverse<R>(v: Visitor<R>): R {
         v.visit(this)
     }
 
-    public override open func prettyPrint(printer: PrettyPrinter): Unit {
+    public open override func prettyPrint(printer: PrettyPrinter): Unit {
         callee.prettyPrint(printer)
         printer.append("(")
         if (!arguments.isEmpty()) {
             arguments[0].prettyPrint(printer)
-            arguments.iterator()
-                .enumerate()
-                .filter({ a => a[0] > 0})
-                .map({ a => a[1] })
-                .forEach({ a => printer.append(", "); a.prettyPrint(printer)})
+            arguments.iterator().enumerate().filter({a => a[0] > 0}).map({a => a[1]}).forEach(
+                {
+                    a =>
+                    printer.append(", ");
+                    a.prettyPrint(printer)
+                }
+            )
         }
         printer.append(")")
     }
 
     public prop callee: Node {
-        get() { callee_ }
+        get() {
+            callee_
+        }
     }
     public mut prop arguments: ArrayList<Argument> {
-        get() { arguments_ }
-        set(v) { arguments_ = v }
+        get() {
+            arguments_
+        }
+        set(v) {
+            arguments_ = v
+        }
     }
 }
 
 public class ReturnExpr <: Expr {
-    private var expr_: ?Expr 
+    private var expr_: ?Expr
     private var keyword_: Token
 
     public init() {
@@ -407,13 +475,21 @@ public class ReturnExpr <: Expr {
     }
 
     public mut prop expr: ?Expr {
-        get() { expr_ }
-        set(v) { expr_ = v }
+        get() {
+            expr_
+        }
+        set(v) {
+            expr_ = v
+        }
     }
 
     public mut prop keyword: Token {
-        get() { keyword_ }
-        set(v) { keyword_ = v }
+        get() {
+            keyword_
+        }
+        set(v) {
+            keyword_ = v
+        }
     }
 }
 
@@ -438,8 +514,12 @@ public class JumpExpr <: Expr {
     }
 
     public mut prop keyword: Token {
-        get() { keyword_ }
-        set(v) { keyword_ = v }
+        get() {
+            keyword_
+        }
+        set(v) {
+            keyword_ = v
+        }
     }
 }
 
@@ -467,13 +547,21 @@ public open class MemberAccess <: Expr {
     }
 
     public mut prop baseExpr: Node {
-        get() { baseExpr_ }
-        set(v) { baseExpr_ = v }
+        get() {
+            baseExpr_
+        }
+        set(v) {
+            baseExpr_ = v
+        }
     }
 
     public mut prop field: Token {
-        get() { field_ }
-        set(v) { field_ = v }
+        get() {
+            field_
+        }
+        set(v) {
+            field_ = v
+        }
     }
 }
 
@@ -498,8 +586,12 @@ public class PrimitiveTypeExpr <: Expr {
     }
 
     public mut prop keyword: Token {
-        get() { keyword_ }
-        set(v) { keyword_ = v }
+        get() {
+            keyword_
+        }
+        set(v) {
+            keyword_ = v
+        }
     }
 }
 
@@ -524,7 +616,11 @@ public class ThisSuperExpr <: Expr {
     }
 
     public mut prop keyword: Token {
-        get() { keyword_ }
-        set(v) { keyword_ = v }
+        get() {
+            keyword_
+        }
+        set(v) {
+            keyword_ = v
+        }
     }
 }

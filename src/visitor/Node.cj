@@ -1,7 +1,6 @@
 package cjcj.visitor
 
 import cjcj.prettyPrinter.PrettyPrinter
-
 import std.collection.ArrayList
 import std.deriving.Derive
 
@@ -33,24 +32,28 @@ public abstract class Node <: Hashable & Equatable<Node> {
     public func traverse<R>(v: Visitor<R>): R
 
     /*
-    * Print the node and its children as a piece of Cangjie code.
-    */
+     * Print the node and its children as a piece of Cangjie code.
+     */
     public func prettyPrint(printer: PrettyPrinter): Unit
 
     public mut prop id: NodeId {
-        get() { id_ }
-        set(v) { id_ = v }
+        get() {
+            id_
+        }
+        set(v) {
+            id_ = v
+        }
     }
 
     public func hashCode(): Int64 {
         id.hashCode()
     }
 
-    public override operator func==(other: Node): Bool {
+    public override operator func ==(other: Node): Bool {
         id == other.id
     }
 
-    public override operator func!=(other: Node): Bool {
+    public override operator func !=(other: Node): Bool {
         !(this == other)
     }
 }
@@ -72,8 +75,12 @@ public class Argument <: Node {
     }
 
     public mut prop expr: Node {
-        get() { expr_ }
-        set(v) { expr_ = v }
+        get() {
+            expr_
+        }
+        set(v) {
+            expr_ = v
+        }
     }
 }
 
@@ -90,15 +97,22 @@ public class Program <: Node {
     }
 
     public override func prettyPrint(printer: PrettyPrinter): Unit {
-        decls.iterator().forEach({
-            d => d.prettyPrint(printer)
-            printer.append("\n")
-        })
+        decls.iterator().forEach(
+            {
+                d =>
+                    d.prettyPrint(printer)
+                    printer.append("\n")
+            }
+        )
     }
 
     public mut prop decls: ArrayList<Decl> {
-        get() { decls_ }
-        set(v) { decls_ = v }
+        get() {
+            decls_
+        }
+        set(v) {
+            decls_ = v
+        }
     }
 }
 
@@ -118,10 +132,13 @@ public class Body <: Node {
         printer.append("{")
         printer.indent()
         printer.append("\n")
-        decls.iterator().forEach({
-            d => d.prettyPrint(printer)
-            printer.append("\n")
-        })
+        decls.iterator().forEach(
+            {
+                d =>
+                    d.prettyPrint(printer)
+                    printer.append("\n")
+            }
+        )
         printer.unindent()
         printer.append("\n}")
     }
@@ -131,7 +148,11 @@ public class Body <: Node {
     }
 
     public mut prop decls: ArrayList<Decl> {
-        get() { decls_ }
-        set(v) { decls_ = v }
+        get() {
+            decls_
+        }
+        set(v) {
+            decls_ = v
+        }
     }
 }

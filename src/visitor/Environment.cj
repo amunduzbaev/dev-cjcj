@@ -4,10 +4,10 @@ import std.collection.Map
 import std.collection.HashMap
 
 /*
-* Defines an Environment in which you can associate keys to values. Each environment knows who was
-* before him and is able to provide values' references by going up the cactus.
-* (From every environment there's only one way to the global one)
-*/
+ * Defines an Environment in which you can associate keys to values. Each environment knows who was
+ * before him and is able to provide values' references by going up the cactus.
+ * (From every environment there's only one way to the global one)
+ */
 public class Environment<K, V> where K <: Hashable & Equatable<K> & ToString {
     private var enclosing_: ?Environment<K, V>
     private let elements_: Map<K, V> = HashMap()
@@ -21,8 +21,8 @@ public class Environment<K, V> where K <: Hashable & Equatable<K> & ToString {
     }
 
     /*
-    * Looks for the identifier in this and all parent environments.
-    */
+     * Looks for the identifier in this and all parent environments.
+     */
     public func getGlobal(key: K): ?V {
         if (let Some(local) <- getLocal(key)) {
             return local
@@ -44,15 +44,23 @@ public class Environment<K, V> where K <: Hashable & Equatable<K> & ToString {
     }
 
     public mut prop enclosing: ?Environment<K, V> {
-        get() { enclosing_ }
-        set(v) { enclosing_ = v }
+        get() {
+            enclosing_
+        }
+        set(v) {
+            enclosing_ = v
+        }
     }
 
     public prop isGlobal: Bool {
-        get() { enclosing.isNone() }
+        get() {
+            enclosing.isNone()
+        }
     }
 
     public prop elements: Map<K, V> {
-        get() { elements_ }
+        get() {
+            elements_
+        }
     }
 }

@@ -3,7 +3,6 @@ package cjcj.asg
 import cjcj.scanner.Token
 import cjcj.visitor.*
 import cjcj.scanner.*
-
 import std.collection.HashSet
 import std.collection.ArrayList
 import std.collection.HashMap
@@ -13,12 +12,17 @@ import std.deriving.Derive
 // import cjcj.parser.NodeIdManager
 // import std.ast.Position
 
-public open class AssignExprError <: ASGError { }
-public open class FuncParamError <: ASGError { }
-public open class VarDeclError <: ASGError { }
-public open class ReturnExprError <: ASGError { }
-public open class CallExprError <: ASGError { }
-public open class ASGError <: Exception { }
+public open class AssignExprError <: ASGError {}
+
+public open class FuncParamError <: ASGError {}
+
+public open class VarDeclError <: ASGError {}
+
+public open class ReturnExprError <: ASGError {}
+
+public open class CallExprError <: ASGError {}
+
+public open class ASGError <: Exception {}
 
 @Derive[Equatable]
 public enum DeclType {
@@ -26,11 +30,10 @@ public enum DeclType {
 }
 
 public class NoBlock <: Command<Unit> {
-    NoBlock(public let name: Token) { }
+    NoBlock(public let name: Token) {}
 }
 
-public class ExistingReference <: Command<?Reference> {
-}
+public class ExistingReference <: Command<?Reference> {}
 
 public class WaitingDeclaration <: Command<?VariableReference> {}
 
@@ -50,47 +53,57 @@ class TypeDeclaration<T> <: Visitor<Unit> {
     private var order = ArrayList<Decl>()
 
     /* for a list of declarations, returns the declarations with the following reordering
-    * 1) Variable declarations are in front
-    * 2) The order of type declarations (class/interface) are in topological order in terms of 
-    * inheritance
-    * 3) typeDecls maps the names of types to the declaration node of that type
-    */
-
+     * 1) Variable declarations are in front
+     * 2) The order of type declarations (class/interface) are in topological order in terms of
+     * inheritance
+     * 3) typeDecls maps the names of types to the declaration node of that type
+     */
     public func resolve(decls: ArrayList<(Decl, ?T)>): ArrayList<(Decl, ?T)> {
-        decls.iterator().forEach({d => 
-            if (let Some(ref) <- d[1]) {
-                idMap.add(d[0].id.id, ref)
-            }
+        decls.iterator().forEach(
+            {
+                d =>
+                    if (let Some(ref) <- d[1]) {
+                        idMap.add(d[0].id.id, ref)
+                    }
 
-            try {
+                    try {
+                        d[0].traverse(this)
+                    } handle (declNode: DeclNode) {
+                        if (declNode.declType == DeclType.CLASS || declNode.declType == DeclType.INTERFACE) {
+                            typeDecls.add(declNode.name, d[0])
+                        }
+                    }
+            }
+        )
+
+        decls.iterator().forEach({
+            d => try {
                 d[0].traverse(this)
-            } handle(declNode: DeclNode) {
-                if (declNode.declType == DeclType.CLASS || declNode.declType == DeclType.INTERFACE){
-                    typeDecls.add(declNode.name, d[0])
+            } handle (declNode: DeclNode) {
+                if (declNode.declType == DeclType.VAR) {
+                    resume with () 
                 }
             }
         })
 
-        decls.iterator().forEach({d => 
-            try { 
+        decls.iterator().forEach({
+            d => try {
                 d[0].traverse(this)
-            } handle(declNode: DeclNode) {
-                if (declNode.declType == DeclType.VAR) { resume with () }
+            } handle (declNode: DeclNode) {
+                if (!(declNode.declType == DeclType.VAR)) {
+                    resume with () 
+                }
             }
         })
 
-        decls.iterator().forEach({d => 
-            try { 
-                d[0].traverse(this)
-            } handle(declNode: DeclNode) {
-                if (!(declNode.declType == DeclType.VAR)) { resume with () }
+        order.iterator().fold(
+            ArrayList<(Decl, ?T)>(),
+            {
+                acc, decl =>
+                    acc.add((decl, idMap.get(decl.id.id)))
+                    acc
             }
-        })
-
-        order.iterator().fold(ArrayList<(Decl, ?T)>(), {acc, decl => 
-            acc.add((decl, idMap.get(decl.id.id)))
-            acc
-        })
+        )
     }
 
     public override func visit(varDecl: VarDecl) {
@@ -115,8 +128,8 @@ class TypeDeclaration<T> <: Visitor<Unit> {
         }
         visited.add(classDecl.id.id)
 
-        classDecl.superTypes.iterator().forEach({ superType => 
-            tryVisit(superType.typeName.value)
+        classDecl.superTypes.iterator().forEach({
+            superType => tryVisit(superType.typeName.value)
         })
 
         order.add(classDecl)
@@ -129,8 +142,8 @@ class TypeDeclaration<T> <: Visitor<Unit> {
         }
         visited.add(interfaceDecl.id.id)
 
-        interfaceDecl.superTypes.iterator().forEach({ superType => 
-            tryVisit(superType.typeName.value)
+        interfaceDecl.superTypes.iterator().forEach({
+            superType => tryVisit(superType.typeName.value)
         })
 
         order.add(interfaceDecl)
@@ -138,8 +151,7 @@ class TypeDeclaration<T> <: Visitor<Unit> {
 
     private func tryVisit(name: String) {
         match (typeDecls.get(name)) {
-            case Some(decl) => 
-                decl.traverse(this)
+            case Some(decl) => decl.traverse(this)
             case _ => ()
         }
     }
@@ -150,7 +162,7 @@ class TypeDeclaration<T> <: Visitor<Unit> {
 
         try {
             typeDecl.traverse(this)
-        } handle(_: DeclNode) {
+        } handle (_: DeclNode) {
             resume with ()
         }
 
@@ -159,10 +171,10 @@ class TypeDeclaration<T> <: Visitor<Unit> {
 }
 
 class AsgEnvironments {
-    public let classEnvironment: Environment<String, ClassReference> 
-    public let funcEnvironment: Environment<String, FuncReference> 
-    public let variableEnvironment: Environment<String, VariableReference> 
-    public let interfaceEnvironment: Environment<String, InterfaceReference> 
+    public let classEnvironment: Environment<String, ClassReference>
+    public let funcEnvironment: Environment<String, FuncReference>
+    public let variableEnvironment: Environment<String, VariableReference>
+    public let interfaceEnvironment: Environment<String, InterfaceReference>
     public let exactFunctions = HashSet<String>()
 
     public let currentScopeType: ScopeType
@@ -196,8 +208,7 @@ class AsgEnvironments {
     public func declareVar(identifier: Token, value: VariableReference): Unit {
         let name: String = identifier.value
         if ((variableEnvironment.isGlobal && classEnvironment.getLocal(name).isSome()) ||
-            funcEnvironment.getLocal(name).isSome())
-        {
+            funcEnvironment.getLocal(name).isSome()) {
             throw Exception("Redefinition of declaration ${name}")
         }
         variableEnvironment.declare(identifier.value, value)
@@ -218,8 +229,7 @@ class AsgEnvironments {
     }
 
     public func isTypeDeclared(typeName: Token): Bool {
-        classEnvironment.getGlobal(typeName.value).isSome() || 
-        interfaceEnvironment.getGlobal(typeName.value).isSome()
+        classEnvironment.getGlobal(typeName.value).isSome() || interfaceEnvironment.getGlobal(typeName.value).isSome()
     }
 
     // TODO : figure out what to do with the References of the function.
@@ -252,11 +262,10 @@ class AsgEnvironments {
     }
 
     public func getInterface(key: String): InterfaceReference {
-        interfaceEnvironment.getLocal(key).getOrThrow({ => Exception("Interface ${key} does not exist")})
+        interfaceEnvironment.getLocal(key).getOrThrow({=> Exception("Interface ${key} does not exist")})
     }
 
     public func isGlobal(): Bool {
         funcEnvironment.isGlobal && variableEnvironment.isGlobal
     }
 }
-

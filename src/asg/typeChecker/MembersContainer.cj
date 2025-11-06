@@ -3,7 +3,6 @@ package cjcj.asg.typeChecker
 import cjcj.visitor.*
 import cjcj.scanner.Token
 import cjcj.asg.TypeManager
-
 import stdx.effect.Command
 
 public class CallableFieldBus <: Command<Unit> {
@@ -25,17 +24,27 @@ public class MembersContainer {
     }
 
     public mut prop variableEnvironment: ?Environment<String, VariableReference> {
-        get() { variableEnvironment_ }
-        set(v) { variableEnvironment_ = v }
+        get() {
+            variableEnvironment_
+        }
+        set(v) {
+            variableEnvironment_ = v
+        }
     }
 
     public mut prop typeManager: ?TypeManager {
-        get() { typeManager_ }
-        set(v) { typeManager_ = v }
+        get() {
+            typeManager_
+        }
+        set(v) {
+            typeManager_ = v
+        }
     }
 
     public prop typeReference: Reference {
-        get() { typeReference_ }
+        get() {
+            typeReference_
+        }
     }
 
     public func getMember(field: String): ?(Type, Bool) {
@@ -73,6 +82,8 @@ public class MembersContainer {
     }
 
     public prop superClass: ?MembersContainer {
-        get() { superClass_ }
+        get() {
+            superClass_
+        }
     }
 }

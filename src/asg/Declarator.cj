@@ -3,23 +3,22 @@ package cjcj.asg
 import cjcj.visitor.*
 
 /*
-* Declarator for the AST, allows to handle all declarations by visiting them.
-*/
+ * Declarator for the AST, allows to handle all declarations by visiting them.
+ */
 public open class Declarator <: Visitor<?Reference> {
-
     public Declarator(
-        private let visitVar!: (VarDecl) -> ?Reference = { _ => None },
-        private let visitFunc!: (FuncDecl) -> ?Reference = { _ => None },
-        private let visitClass!: (ClassDecl) -> ?Reference = { _ => None },
-        private let visitMain!: (MainDecl) -> ?Reference = { _ => None },
-        private let visitInterface!: (InterfaceDecl) -> ?Reference = { _ => None }
+        private let visitVar!: (VarDecl) -> ?Reference = {_ => None},
+        private let visitFunc!: (FuncDecl) -> ?Reference = {_ => None},
+        private let visitClass!: (ClassDecl) -> ?Reference = {_ => None},
+        private let visitMain!: (MainDecl) -> ?Reference = {_ => None},
+        private let visitInterface!: (InterfaceDecl) -> ?Reference = {_ => None}
     ) {
     }
 
     public override func visit(funcDecl: FuncDecl): ?Reference {
         visitFunc(funcDecl)
     }
-    
+
     public open override func visit(varDecl: VarDecl): ?Reference {
         visitVar(varDecl)
     }

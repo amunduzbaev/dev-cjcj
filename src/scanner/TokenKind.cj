@@ -1,11 +1,10 @@
 package cjcj.scanner
 
-
 import std.deriving.*
 
-@Derive[ Equatable]
-public enum TokenKind <: ToString{
-        DOT
+@Derive[Equatable]
+public enum TokenKind <: ToString {
+    DOT
     | /*  "."           */
         COMMA
     | /*  ","           */
@@ -174,7 +173,7 @@ public enum TokenKind <: ToString{
         BREAK
     | /*  "break"       */
         MATCH
-    | /*  "match"       */ 
+    | /*  "match"       */
         PROP
     | /*  "prop"        */
         STATIC
@@ -224,23 +223,21 @@ public enum TokenKind <: ToString{
         STRING_LITERAL
     | /*  e.g. ""xx""     */
 
-
-    //     SINGLE_QUOTED_STRING_LITERAL
-    // | /*  e.g. "'xx'"     */
-    //     MULTILINE_STRING
-    // | /*  e.g. """"aaa""""   */
-    //     MULTILINE_RAW_STRING
-    // | /*  e.g. "#"aaa"#"     */
-
+        //     SINGLE_QUOTED_STRING_LITERAL
+        // | /*  e.g. "'xx'"     */
+        //     MULTILINE_STRING
+        // | /*  e.g. """"aaa""""   */
+        //     MULTILINE_RAW_STRING
+        // | /*  e.g. "#"aaa"#"     */
 
         BOOL_LITERAL
     | /*  "true" or "false"  */
         UNIT_LITERAL
-      /*  "()"               */
+    /*  "()"               */
     | ILLEGAL
 
     public func toString(): String {
-        return match(this) {
+        return match (this) {
             case DOT => "."
             case COMMA => ","
             case LPAREN => "("
@@ -325,7 +322,7 @@ public enum TokenKind <: ToString{
             case RETURN => "return"
             case CONTINUE => "continue"
             case BREAK => "break"
-            case MATCH => "match" 
+            case MATCH => "match"
             case PROP => "prop"
             case STATIC => "static"
             case PUBLIC => "public"
@@ -355,13 +352,11 @@ public enum TokenKind <: ToString{
             case ILLEGAL => "illegal"
         }
     }
-
-
 }
 
 public class TokenKindHelper {
     public static let PRIMITIVE_TYPE_TOKEN_KIND: Array<TokenKind> = [
-        INT8, 
+        INT8,
         INT16,
         INT32,
         INT64,
@@ -431,12 +426,7 @@ public class TokenKindHelper {
         INTERNAL
     ]
 
-    
-    
-
-    public static let ASSIGNMENT_OPERATOR: Array<TokenKind> = [
-        TokenKind.ASSIGN
-    ]
+    public static let ASSIGNMENT_OPERATOR: Array<TokenKind> = [TokenKind.ASSIGN]
 
     public static let COMPARISON_OPERATOR: Array<TokenKind> = [
         TokenKind.LT,
@@ -455,9 +445,7 @@ public class TokenKindHelper {
         TokenKind.SUB
     ]
 
-    public static let EXPONENT_OPERATOR: Array<TokenKind> = [
-        TokenKind.EXP
-    ]
+    public static let EXPONENT_OPERATOR: Array<TokenKind> = [TokenKind.EXP]
 
     public static let MULTIPLICATIVE_OPERATOR: Array<TokenKind> = [
         TokenKind.MOD,
@@ -491,13 +479,15 @@ public class TokenKindHelper {
         TokenKind.FLOAT64
     ]
 
-    public static let CHAR_LANG_TYPES: Array<TokenKind> = NUMERIC_TYPES.concat([
-        TokenKind.RUNE,
-        TokenKind.BOOLEAN,
-        TokenKind.NOTHING,
-        TokenKind.UNIT,
-        TokenKind.THISTYPE
-    ])
+    public static let CHAR_LANG_TYPES: Array<TokenKind> = NUMERIC_TYPES.concat(
+        [
+            TokenKind.RUNE,
+            TokenKind.BOOLEAN,
+            TokenKind.NOTHING,
+            TokenKind.UNIT,
+            TokenKind.THISTYPE
+        ]
+    )
 
     public static let LITERAL_CONSTANT: Array<TokenKind> = [
         TokenKind.BOOL_LITERAL,
@@ -518,7 +508,7 @@ public class TokenKindHelper {
         TokenKind.MAIN,
         TokenKind.FUNC,
         TokenKind.LET,
-        TokenKind.VAR, 
+        TokenKind.VAR,
         TokenKind.CLASS,
         TokenKind.INTERFACE
     ]

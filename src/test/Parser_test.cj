@@ -3,14 +3,13 @@ package cjcj.test
 import cjcj.visitor.*
 import cjcj.parser
 import cjcj.scanner.*
-
 import std.env.*
 import std.collection.ArrayList
 
 @Test
 class ParserTests {
     private func scan(test: String): Array<Token> {
-        Scanner(test.toRuneArray()).scanTokens().toArray()  
+        Scanner(test.toRuneArray()).scanTokens().toArray()
     }
 
     private func parse(test: String): ?Program {
@@ -211,9 +210,14 @@ class ParserTests {
 
         let m: MainDecl = getMain(test)
         @Assert(m.block.nodes.iterator().all({ n => n is VarDecl }))
-        let decls: ArrayList<VarDecl> = m.block.nodes.iterator()
-            .map({ n => (n as VarDecl).getOrThrow() })
-            .fold(ArrayList(), { res, decl => res.add(decl); res })
+        let decls: ArrayList<VarDecl> = m.block.nodes.iterator().map({n => (n as VarDecl).getOrThrow()}).fold(
+            ArrayList(),
+            {
+                res, decl =>
+                res.add(decl);
+                res
+            }
+        )
         @Expect(decls[0].initializer.isNone())
         @Expect(decls[1].initializer.isSome())
         @Expect(decls[2].initializer.isNone())
@@ -230,7 +234,6 @@ class ParserTests {
         @Expect(decls[3].keyword.kind == TokenKind.VAR)
     }
 
-
     @TestCase
     func binaryExpr_test() {
         let test: String = """
@@ -245,7 +248,6 @@ class ParserTests {
         let m: MainDecl = getMain(test)
         @Assert(m.block.nodes.iterator().all({ n => n is BinaryExpr }))
     }
-
 
     @TestCase
     func unaryExpr_test() {
@@ -459,7 +461,7 @@ class ParserTests {
         @Assert(parse(test).isSome())
     }
 
-    @TestCase 
+    @TestCase
     func general_test() {
         let test: String = """
             main(args: Bp){
@@ -503,8 +505,7 @@ class ParserTests {
         @Assert(parse(test).isSome())
     }
 
-
-    @TestCase 
+    @TestCase
     func interfaceDeclaration_test() {
         var testRight: String = """
         interface I {
@@ -521,7 +522,7 @@ class ParserTests {
         getMain(testRight)
     }
 
-    @TestCase 
+    @TestCase
     func interfaceDeclarationComplex_test() {
         var testRight: String = """
         let c: Int64 = 1
@@ -546,5 +547,3 @@ class ParserTests {
         getMain(testRight)
     }
 }
-
-

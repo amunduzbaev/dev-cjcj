@@ -6,18 +6,20 @@ import cjcj.scanner.TokenKind
 import cjcj.scanner.TokenKindHelper
 
 public open class FinalError <: Exception {
-    init(message: String){
+    init(message: String) {
         super(message)
     }
-    init() { }
+    init() {}
 }
+
 public open class ConsumeError <: FinalError {
-    init(message: String){
+    init(message: String) {
         super(message)
     }
-    init() { }
+    init() {}
 }
-public open class ParseError <: FinalError { }
+
+public open class ParseError <: FinalError {}
 
 public abstract class NodeIdManager {
     // The ID 0 is a default invalid value.
@@ -40,15 +42,15 @@ class ParserHelper {
     }
 
     /*
-    * Tries to skip the NL token and check if the next token is of the target
-    * kind.
-    * If it is, advance and returns true.
-    * If it's not it goes back to before the NL and returns false.
-    */
+     * Tries to skip the NL token and check if the next token is of the target
+     * kind.
+     * If it is, advance and returns true.
+     * If it's not it goes back to before the NL and returns false.
+     */
     func skipNLCompare(target: Array<TokenKind>): Bool {
         let tmp: Int64 = current_
         skipNL()
-        if (target.iterator().any({ t => matches(t) })) {
+        if (target.iterator().any({t => matches(t)})) {
             return true
         }
         current_ = tmp
@@ -63,7 +65,7 @@ class ParserHelper {
     }
 
     func retreat(): Token {
-        if(current_ > 0) {
+        if (current_ > 0) {
             current_--
         }
         next()
@@ -91,7 +93,7 @@ class ParserHelper {
         if (isAtEnd()) {
             return false
         }
-        kind.iterator().any({ kind => peek().kind == kind })
+        kind.iterator().any({kind => peek().kind == kind})
     }
 
     func previous(): Token {
@@ -109,29 +111,21 @@ class ParserHelper {
     }
 
     /**
-    * When we find an error we don't want to break everything and stop parsing.
-    * So we synchronize, we discard tokens until we find a statement boundary.
-    */
+     * When we find an error we don't want to break everything and stop parsing.
+     * So we synchronize, we discard tokens until we find a statement boundary.
+     */
     func synchronize(): Unit {
         advance()
 
         while (!isAtEnd()) {
             // Finished a statement
-            if (previous().kind == TokenKind.SEMI ||
-                previous().kind == TokenKind.NL
-            ) {
+            if (previous().kind == TokenKind.SEMI || previous().kind == TokenKind.NL) {
                 return
             }
 
-            if (peek().kind == TokenKind.CLASS ||
-                peek().kind == TokenKind.FUNC ||
-                peek().kind == TokenKind.VAR ||
-                peek().kind == TokenKind.IF ||
-                peek().kind == TokenKind.WHILE ||
-                peek().kind == TokenKind.RETURN ||
-                peek().kind == TokenKind.STRUCT ||
-                peek().kind == TokenKind.RPAREN
-            ) {
+            if (peek().kind == TokenKind.CLASS || peek().kind == TokenKind.FUNC || peek().kind == TokenKind.VAR ||
+                peek().kind == TokenKind.IF || peek().kind == TokenKind.WHILE || peek().kind == TokenKind.RETURN ||
+                peek().kind == TokenKind.STRUCT || peek().kind == TokenKind.RPAREN) {
                 return
             }
             advance()
@@ -140,23 +134,25 @@ class ParserHelper {
 
     func synchronizeBlockParenthesis(start: Token, current: Int64): ?FinalError {
         var counter: Int64 = 1
-        if(!check(TokenKind.LCURL) && !check(TokenKind.COMMA)) {
+        if (!check(TokenKind.LCURL) && !check(TokenKind.COMMA)) {
             do {
-                if (peek().kind == TokenKind.LPAREN) { counter++}
-                if (peek().kind == TokenKind.RPAREN) { counter--}
+                if (peek().kind == TokenKind.LPAREN) {
+                    counter++
+                }
+                if (peek().kind == TokenKind.RPAREN) {
+                    counter--
+                }
                 advance()
-                
-            } while (!isAtEnd() && counter > 0 && 
-            !check(TokenKind.LCURL) && !check(TokenKind.COMMA))
+            } while (!isAtEnd() && counter > 0 && !check(TokenKind.LCURL) && !check(TokenKind.COMMA))
         } else {
             reporter.pop()
         }
-        if(isAtEnd()) {
+        if (isAtEnd()) {
             errorFinal(start, "unclosed delimiter: '('", current)
-        } else if (check(TokenKind.LCURL) && counter > 0){
+        } else if (check(TokenKind.LCURL) && counter > 0) {
             error(start, "unclosed delimiter: '('", current)
-        } else if (check(TokenKind.COMMA)){
-            error(tokens[this.current-1], "Malformed parameter", this.current-1)
+        } else if (check(TokenKind.COMMA)) {
+            error(tokens[this.current - 1], "Malformed parameter", this.current - 1)
         } else {
             None
         }
@@ -164,32 +160,39 @@ class ParserHelper {
 
     func synchronizeBlockRightCurl(start: Token, current: Int64): ?FinalError {
         var counter: Int64 = 1
-        if(!check(TokenKind.RCURL)) {
+        if (!check(TokenKind.RCURL)) {
             do {
-                if (peek().kind == TokenKind.LCURL) { counter++}
-                if (peek().kind == TokenKind.RCURL) { counter--}
+                if (peek().kind == TokenKind.LCURL) {
+                    counter++
+                }
+                if (peek().kind == TokenKind.RCURL) {
+                    counter--
+                }
                 advance()
-                
             } while (!isAtEnd() && counter > 0)
         }
-        if(isAtEnd()) {
+        if (isAtEnd()) {
             errorFinal(start, "unclosed delimiter: '{'", current)
-        } else if(counter == 0) {
+        } else if (counter == 0) {
             return None
         } else {
             error(start, "unclosed delimiter: '{'", current)
-        } 
+        }
     }
 
     func synchronizeCallParenthesis(start: Token, current: Int64): Unit {
         var counter: Int64 = 1
         while (!isAtEnd() && counter > 0 && !check(TokenKind.NL)) {
             // Finished a statement
-            if (check(TokenKind.LPAREN)) { counter++}
-            if (check(TokenKind.RPAREN)) { counter--}
+            if (check(TokenKind.LPAREN)) {
+                counter++
+            }
+            if (check(TokenKind.RPAREN)) {
+                counter--
+            }
             advance()
         }
-        if(isAtEnd()) {
+        if (isAtEnd()) {
             throw errorFinal(start, "unclosed delimiter: '\u{001b}[31m('\u{001b}[0m", current)
         } else {
             throw error(start, "unclosed delimiter: '\u{001b}[31m('\u{001b}[0m", current)
@@ -201,13 +204,13 @@ class ParserHelper {
     }
 
     func endStar(): Unit {
-        while(matches(TokenKindHelper.END)) { }
+        while (matches(TokenKindHelper.END)) {}
     }
 
     func endPlus(_: String, _: Token, index: Int64): Unit {
         if (isAtEnd() || matches(TokenKindHelper.END)) {
             endStar()
-        } else if (TokenKindHelper.TOP.iterator().any({tk => check(tk)})){
+        } else if (TokenKindHelper.TOP.iterator().any({tk => check(tk)})) {
             throw error(peek(), "Newline or semi expected before top level declaration", index)
         } else {
             throw error(peek(), "Expected newline, found '${peek().value}'", index)
@@ -238,15 +241,17 @@ class ParserHelper {
     }
 
     func consume(kind: TokenKind, _: String, index: Int64): Token {
-        if (check(kind)) { return advance() }
+        if (check(kind)) {
+            return advance()
+        }
 
         throw consumeError(peek(), index, kind, peek().value)
     }
 
     /*
-    * Tries to evaluate the function that is passed, if it cannot get
-    * a valid result it'll go back to the token point it was before.
-    */
+     * Tries to evaluate the function that is passed, if it cannot get
+     * a valid result it'll go back to the token point it was before.
+     */
     func tryParse<T>(fun: () -> ?T): ?T {
         let tmp: Int64 = current_
         if (let Some(val) <- fun()) {
@@ -257,6 +262,8 @@ class ParserHelper {
     }
 
     public prop current: Int64 {
-        get() { current_ }
+        get() {
+            current_
+        }
     }
 }

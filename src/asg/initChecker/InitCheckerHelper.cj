@@ -10,11 +10,9 @@ import std.deriving.Derive
 import stdx.effect.Command
 
 /* Effects */
-public class ParameterDeclaration <: Command<Option<VariableReference>> {
-}
+public class ParameterDeclaration <: Command<Option<VariableReference>> {}
 
-public class InferBlockType <: Command<ScopeType> {
-}
+public class InferBlockType <: Command<ScopeType> {}
 
 public class IfElseInitialization <: Command<Unit> {
     private let branchInitializations_: InitCheckerEnvironments
@@ -24,7 +22,9 @@ public class IfElseInitialization <: Command<Unit> {
     }
 
     public prop branchInitializations: InitCheckerEnvironments {
-        get() { branchInitializations_ }
+        get() {
+            branchInitializations_
+        }
     }
 }
 
@@ -37,13 +37,12 @@ public class ExactVarReference <: Command<Unit> {
 }
 
 public class MemberVarReference <: Command<Unit> {
-    MemberVarReference(public let varReference: VariableReference, public var locationRef: Token){}
+    MemberVarReference(public let varReference: VariableReference, public var locationRef: Token) {}
 }
 
 public class ExactFuncReference <: Command<Unit> {
     ExactFuncReference(public let funcReference: FuncReference) {}
 }
-
 
 /* Extensions and Utilized Tools */
 
@@ -54,7 +53,7 @@ extend<K, V> Environment<K, V> where K <: Hashable & Equatable<K> & ToString {
 }
 
 func swapToMin<T, K>(a: T, b: T) where T <: Collection<K> {
-    if(a.size > b.size) {
+    if (a.size > b.size) {
         (b, a)
     } else {
         (a, b)
@@ -80,31 +79,38 @@ public class SingularEnvironment<T> {
         enclosing_ = enclosing
     }
 
-    init(storedInfo: T){
+    init(storedInfo: T) {
         current_ = storedInfo
         enclosing_ = None
     }
 
     public prop enclosing: ?SingularEnvironment<T> {
-        get() { enclosing_ }
+        get() {
+            enclosing_
+        }
     }
-    
+
     public prop isGlobal: Bool {
-        get() { enclosing_.isNone() }
+        get() {
+            enclosing_.isNone()
+        }
     }
 
     public mut prop current: T {
-        get() { current_ }
-        set(v) { current_ = v }
+        get() {
+            current_
+        }
+        set(v) {
+            current_ = v
+        }
     }
 }
 
-open public class InitCheckerEnvironments{
+public open class InitCheckerEnvironments {
     protected var declareEnvironment = Environment<VariableReference, Int64>()
     protected var definiteInitializeEnvironment = Environment<VariableReference, Int64>()
     protected var possibleInitializeEnvironment = Environment<VariableReference, Int64>()
-    protected var currentScopeType: SingularEnvironment<ScopeType> = 
-        SingularEnvironment<ScopeType>(ScopeType.NIL)
+    protected var currentScopeType: SingularEnvironment<ScopeType> = SingularEnvironment<ScopeType>(ScopeType.NIL)
     protected var classMembersContainer: Environment<String, MembersContainer>
     protected var enclosing: ?InitCheckerEnvironments
 
@@ -119,31 +125,33 @@ open public class InitCheckerEnvironments{
 
     public init(environments: InitCheckerEnvironments, newScopeType: ScopeType) {
         this(
-            environments.declareEnvironment, 
-            environments.definiteInitializeEnvironment, 
-            environments.possibleInitializeEnvironment, 
-            environments.currentScopeType, newScopeType, 
-            environments.classMembersContainer, 
+            environments.declareEnvironment,
+            environments.definiteInitializeEnvironment,
+            environments.possibleInitializeEnvironment,
+            environments.currentScopeType,
+            newScopeType,
+            environments.classMembersContainer,
             environments
         )
     }
 
     public init(
-        declareEnvironment_: Environment<VariableReference, Int64>, 
+        declareEnvironment_: Environment<VariableReference, Int64>,
         definiteInitializeEnvironment_: Environment<VariableReference, Int64>,
         possibleInitializeEnvironment_: Environment<VariableReference, Int64>,
-        currentScopeType_: SingularEnvironment<ScopeType>, newScopeType: ScopeType,
-        classMembersContainer_: Environment<String, MembersContainer>, 
+        currentScopeType_: SingularEnvironment<ScopeType>,
+        newScopeType: ScopeType,
+        classMembersContainer_: Environment<String, MembersContainer>,
         enclosing_: ?InitCheckerEnvironments
-    ){
-        declareEnvironment = Environment(declareEnvironment_) 
-        definiteInitializeEnvironment = Environment(definiteInitializeEnvironment_) 
+    ) {
+        declareEnvironment = Environment(declareEnvironment_)
+        definiteInitializeEnvironment = Environment(definiteInitializeEnvironment_)
         possibleInitializeEnvironment = Environment(possibleInitializeEnvironment_)
-        currentScopeType = SingularEnvironment<ScopeType>(newScopeType, currentScopeType_) 
+        currentScopeType = SingularEnvironment<ScopeType>(newScopeType, currentScopeType_)
         classMembersContainer = classMembersContainer_
         enclosing = enclosing_
     }
-    
+
     public init(classMembersContainer_: Environment<String, MembersContainer>) {
         classMembersContainer = classMembersContainer_
         enclosing = None
@@ -153,16 +161,19 @@ open public class InitCheckerEnvironments{
         declareEnvironment.declare(reference, 0)
     }
 
-    protected open func canCapture(reference: VariableReference) :Bool { 
+    protected open func isDeclared(reference: VariableReference) {
+        declareEnvironment.getGlobal(reference).isSome()
+    }
+
+    protected open func canCapture(reference: VariableReference): Bool {
         var declEnvironment = declareEnvironment
         var scopeType = currentScopeType
 
         while (!declEnvironment.isGlobal && !scopeType.isGlobal) {
             if (declEnvironment.getLocal(reference).isSome()) {
                 return true;
-            } else if (scopeType.current == ScopeType.FUNCBLOCK || 
-                        (scopeType.current == ScopeType.WHILEBLOCK && 
-                        reference.keyword.kind == TokenKind.LET)) {
+            } else if (scopeType.current == ScopeType.FUNCBLOCK || (scopeType.current == ScopeType.WHILEBLOCK &&
+                reference.keyword.kind == TokenKind.LET)) {
                 return false;
             }
             declEnvironment = declEnvironment.enclosing.getOrThrow()
@@ -176,8 +187,7 @@ open public class InitCheckerEnvironments{
         possibleInitialize(reference)
         if (!isInitialized(reference)) {
             if (!canCapture(reference)) {
-                throw Exception("Cannot capture variable ${reference.identifier.value} before " + 
-                "initialization")
+                throw Exception("Cannot capture variable ${reference.identifier.value} before " + "initialization")
             }
             definiteInitializeEnvironment.declare(reference, 0)
         }
@@ -190,8 +200,7 @@ open public class InitCheckerEnvironments{
     protected open func possibleInitialize(reference: VariableReference) {
         if (!maybeInitialized(reference)) {
             if (!canCapture(reference)) {
-                throw Exception("Cannot capture variable ${reference.identifier.value} before " + 
-                "initialization")
+                throw Exception("Cannot capture variable ${reference.identifier.value} before " + "initialization")
             }
             possibleInitializeEnvironment.declare(reference, 0)
         }
@@ -239,10 +248,8 @@ public class ClassInitCheckerEnvironments <: InitCheckerEnvironments {
         super(environments)
         this.environments = environments
 
-        accessibleMembers = environments.classMembersContainer
-        .getGlobal(classDecl.identifier.value).getOrThrow({ => 
-            Exception("Can not find the class ${classDecl.identifier.value} in class Member" + 
-            " Containers")
+        accessibleMembers = environments.classMembersContainer.getGlobal(classDecl.identifier.value).getOrThrow({
+            => Exception("Can not find the class ${classDecl.identifier.value} in class Member" + " Containers")
         })
     }
 
@@ -251,35 +258,51 @@ public class ClassInitCheckerEnvironments <: InitCheckerEnvironments {
     // Currently I believe that this is not possible, but maybe we can use effect handlers for this
     protected func bodyPreprocess(body: Body) {
         totalMemberVariables = 0
-        decls = HashSet<Reference>(body.decls.iterator().fold(ArrayList<Reference>(), { acc, decl =>
-            if (let Some(varDecl) <- (decl as VarDeclWithRef)) {
-                acc.add(varDecl.ref)
-            } else if (let Some(funcDecl) <- (decl as FuncDeclWithRef)) {
-                acc.add(funcDecl.funcRef)
+        decls = HashSet<Reference>(
+            body.decls.iterator().fold(
+                ArrayList<Reference>(),
+                {
+                    acc, decl =>
+                        if (let Some(varDecl) <- (decl as VarDeclWithRef)) {
+                            acc.add(varDecl.ref)
+                        } else if (let Some(funcDecl) <- (decl as FuncDeclWithRef)) {
+                            acc.add(funcDecl.funcRef)
+                        }
+                        acc
+                }
+            )
+        )
+        let varDecls = body.decls.iterator().filter(
+            {
+                decl =>
+                    if (decl is VarDeclWithRef) {
+                        totalMemberVariables++
+                        return true;
+                    }
+                    false
             }
-            acc
-        }))
-        let varDecls = body.decls.iterator().filter({decl => 
-            if (decl is VarDeclWithRef) {
-                totalMemberVariables++
-                return true;
+        )
+        let initDecls = body.decls.iterator().fold(
+            ArrayList<FuncDeclWithRef>(),
+            {
+                acc, decl =>
+                    if (let Some(funcDecl) <- (decl as FuncDeclWithRef) && funcDecl.keyword.value == "init") {
+                        acc.add(funcDecl)
+                    }
+                    acc
             }
-            false
-        })
-        let initDecls = body.decls.iterator().fold(ArrayList<FuncDeclWithRef>(), {acc, decl => 
-            if(let Some(funcDecl) <- (decl as FuncDeclWithRef) && funcDecl.keyword.value == "init"){
-                acc.add(funcDecl)
-            }
-            acc
-        })
-        let funcDecls = body.decls.iterator().filter({decl => 
-            if(let Some(funcDecl) <- (decl as FuncDeclWithRef) && funcDecl.keyword.value != "init"){
+        )
+        let funcDecls = body.decls.iterator().filter({
+            decl => if (let Some(funcDecl) <- (decl as FuncDeclWithRef) && funcDecl.keyword.value != "init") {
                 true
-            } else { false }
+            } else {
+                false
+            }
         })
 
-        initDecls.iterator().forEach({ initDecl => 
-            unvisitedConstructors.add(initDecl.funcRef, initDecl) })
+        initDecls.iterator().forEach({
+            initDecl => unvisitedConstructors.add(initDecl.funcRef, initDecl)
+        })
 
         (varDecls, initDecls.iterator(), funcDecls)
     }
@@ -288,13 +311,13 @@ public class ClassInitCheckerEnvironments <: InitCheckerEnvironments {
         initializedMemberVariables.current = totalMemberVariables
     }
 
-    protected func tryVisitConstructor(funcReference: Reference): ?FuncDeclWithRef{ 
+    protected func tryVisitConstructor(funcReference: Reference): ?FuncDeclWithRef {
         match (unvisitedConstructors.get(funcReference)) {
-            case Some(constructor) => 
+            case Some(constructor) =>
                 unvisitedConstructors.remove(funcReference)
                 currentPathConstructors.add(funcReference)
                 constructor
-            case _ => 
+            case _ =>
                 if (currentPathConstructors.contains(funcReference)) {
                     throw Exception("Constructor functions can not form a cycle")
                 }
@@ -309,8 +332,9 @@ public class ClassInitCheckerEnvironments <: InitCheckerEnvironments {
 
     protected func endScope(newEnvironments: InitCheckerEnvironments) {
         environments = newEnvironments
-        initializedMemberVariables = initializedMemberVariables.enclosing.getOrThrow({ => 
-            Exception("Trying to close the global scope") })
+        initializedMemberVariables = initializedMemberVariables.enclosing.getOrThrow({
+            => Exception("Trying to close the global scope")
+        })
     }
 
     protected override func initialize(reference: VariableReference) {
@@ -319,8 +343,7 @@ public class ClassInitCheckerEnvironments <: InitCheckerEnvironments {
             if (decls.contains(reference)) {
                 initializedMemberVariables.current++
             } else if (!canCapture(reference)) {
-                throw Exception("Cannot capture variable ${reference.identifier.value} before " + 
-                "initialization")
+                throw Exception("Cannot capture variable ${reference.identifier.value} before " + "initialization")
             }
             environments.definiteInitializeEnvironment.declare(reference, 0)
         }
@@ -328,12 +351,9 @@ public class ClassInitCheckerEnvironments <: InitCheckerEnvironments {
 
     protected override func isInitialized(reference: VariableReference): Bool {
         if (decls.contains(reference)) {
-            allClassMembersInitialized || 
-            environments.definiteInitializeEnvironment.getGlobal(reference).isSome()
-        } else if (
-            let Some(ref) <- accessibleMembers.getVariableMembersReference(reference.identifier.value) &&
-            ref == reference
-        ) {
+            allClassMembersInitialized || environments.definiteInitializeEnvironment.getGlobal(reference).isSome()
+        } else if (let Some(ref) <- accessibleMembers.getVariableMembersReference(reference.identifier.value) && ref ==
+            reference) {
             superIsInitialized
         } else {
             environments.definiteInitializeEnvironment.getGlobal(reference).isSome()
@@ -343,8 +363,7 @@ public class ClassInitCheckerEnvironments <: InitCheckerEnvironments {
     protected override func possibleInitialize(reference: VariableReference) {
         if (!maybeInitialized(reference)) {
             if (!decls.contains(reference) && !canCapture(reference)) {
-                throw Exception("Cannot capture variable ${reference.identifier.value} before " + 
-                "initialization")
+                throw Exception("Cannot capture variable ${reference.identifier.value} before " + "initialization")
             }
 
             environments.possibleInitializeEnvironment.declare(reference, 0)
@@ -352,13 +371,10 @@ public class ClassInitCheckerEnvironments <: InitCheckerEnvironments {
     }
 
     protected override func maybeInitialized(reference: VariableReference): Bool {
-        if(decls.contains(reference)) {
-            allClassMembersInitialized || 
-            environments.possibleInitializeEnvironment.getGlobal(reference).isSome()
-        } else if (
-            let Some(ref) <- accessibleMembers.getVariableMembersReference(reference.identifier.value) && 
-            ref == reference
-        ) {
+        if (decls.contains(reference)) {
+            allClassMembersInitialized || environments.possibleInitializeEnvironment.getGlobal(reference).isSome()
+        } else if (let Some(ref) <- accessibleMembers.getVariableMembersReference(reference.identifier.value) && ref ==
+            reference) {
             superIsInitialized
         } else {
             environments.possibleInitializeEnvironment.getGlobal(reference).isSome()
@@ -366,7 +382,9 @@ public class ClassInitCheckerEnvironments <: InitCheckerEnvironments {
     }
 
     protected prop allClassMembersInitialized: Bool {
-        get() { totalMemberVariables == initializedMemberVariables.current }
+        get() {
+            totalMemberVariables == initializedMemberVariables.current
+        }
     }
 
     protected func isMember(ref: Reference) {

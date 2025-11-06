@@ -4,14 +4,13 @@ import cjcj.asg.AsgMaker
 import cjcj.visitor.*
 import cjcj.parser
 import cjcj.scanner.*
-
 import std.env.*
 import std.collection.ArrayList
 
 @Test
 class AsgMakerTests {
     private func scan(test: String): Array<Token> {
-        Scanner(test.toRuneArray()).scanTokens().toArray()  
+        Scanner(test.toRuneArray()).scanTokens().toArray()
     }
 
     private func parse(test: String): ?Program {
@@ -26,7 +25,7 @@ class AsgMakerTests {
         }
         @Fail("Couldn't parse the program")
     }
-    
+
     private func getAsg(test: String): Program {
         AsgMaker().resolve(getAst(test))
     }
@@ -40,7 +39,6 @@ class AsgMakerTests {
         }
         throw Exception("No main inside program")
     }
-
 
     @TestCase
     func mainDecl_test() {
@@ -233,9 +231,19 @@ class AsgMakerTests {
 
         let m: MainDeclWithRef = getMain(test)
         @Assert(m.block.nodes.iterator().all({ n => n is VarDeclWithRef }))
-        let decls: ArrayList<VarDeclWithRef> = m.block.nodes.iterator()
-            .map({ n => (n as VarDeclWithRef).getOrThrow() })
-            .fold(ArrayList(), { res, decl => res.add(decl); res })
+        let decls: ArrayList<VarDeclWithRef> = m
+            .block
+            .nodes
+            .iterator()
+            .map({n => (n as VarDeclWithRef).getOrThrow()})
+            .fold(
+                ArrayList(),
+                {
+                    res, decl =>
+                    res.add(decl);
+                    res
+                }
+            )
         @Expect(decls[0].initializer.isNone())
         @Expect(decls[1].initializer.isSome())
         @Expect(decls[2].initializer.isNone())
@@ -251,7 +259,6 @@ class AsgMakerTests {
         @Expect(decls[2].keyword.kind == TokenKind.VAR)
         @Expect(decls[3].keyword.kind == TokenKind.VAR)
     }
-
 
     @TestCase
     func binaryExpr_test() {
@@ -420,7 +427,6 @@ class AsgMakerTests {
         @Assert(m.block.nodes.iterator().all({ n => n is ReturnExpr }))
     }
 
-
     @TestCase
     func jumpExpr_test() {
         let test: String = """
@@ -469,7 +475,7 @@ class AsgMakerTests {
         @Assert(m.block.nodes.iterator().all({ n => n is MemberAccess }))
     }
 
-    @TestCase 
+    @TestCase
     func variableReference_test() {
         let testWrong: String = """
             main(){
@@ -488,7 +494,7 @@ class AsgMakerTests {
         getAsg(testRight)
     }
 
-    @TestCase 
+    @TestCase
     func functionReference_test() {
         let testWrong: String = """
             main(){
@@ -505,11 +511,11 @@ class AsgMakerTests {
                 let b = f(1, 2)
             }
         """
-        
+
         getAsg(testRight)
     }
 
-    @TestCase 
+    @TestCase
     func recursiveFunction_test() {
         let testWrong: String = """
             main(){
@@ -533,7 +539,7 @@ class AsgMakerTests {
         getAsg(testRight)
     }
 
-    @TestCase 
+    @TestCase
     func unorderedDeclarations_test() {
         var testRight: String = """
             let a = f()
@@ -574,7 +580,7 @@ class AsgMakerTests {
         getAsg(testRight)
     }
 
-    @TestCase 
+    @TestCase
     func selfInitClass_test() {
         var testRight: String = """
             class D{
@@ -590,7 +596,7 @@ class AsgMakerTests {
         getAsg(testRight)
     }
 
-    @TestCase 
+    @TestCase
     func unorderedClassDeclaration_test() {
         var testRight: String = """
             class B <: A{
@@ -723,7 +729,7 @@ class AsgMakerTests {
         @AssertThrows[Exception](getAsg(testWrong))
     }
 
-    @TestCase 
+    @TestCase
     func interfaceDeclaration_test() {
         var testRight: String = """
         interface I {
@@ -748,7 +754,7 @@ class AsgMakerTests {
         @AssertThrows[Exception](getAsg(testWrong))
     }
 
-    @TestCase 
+    @TestCase
     func interfaceDeclarationComplex_test() {
         var testRight: String = """
         let c: Int64 = 1
@@ -786,7 +792,7 @@ class AsgMakerTests {
         @AssertThrows[Exception](getAsg(testWrong))
     }
 
-    @TestCase 
+    @TestCase
     func interfaceInstance_test() {
         var testWrong: String = """
         interface I {
@@ -1079,7 +1085,6 @@ class AsgMakerTests {
         getAsg(testRight)
     }
 
-
     @TestCase
     func memberShadowing_test() {
         let testFunc: String = """
@@ -1125,4 +1130,3 @@ class AsgMakerTests {
         @AssertThrows[Exception](getAsg(testVar))
     }
 }
-
