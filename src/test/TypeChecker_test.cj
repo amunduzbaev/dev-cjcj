@@ -56,6 +56,7 @@ class TypeCheckTests {
                 c == d 
                 c != d
                 !c 
+                ()
             }
         """
 
@@ -253,7 +254,7 @@ class TypeCheckTests {
             func A(a: Int64, b: Any): Int64 {
                 a
             }
-            main(args: Int64) {
+            main() {
                 let a: Int64 = 1
                 let b: Int64 = 2
                 if (true) {
